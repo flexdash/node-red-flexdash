@@ -1,0 +1,166 @@
+<!-- flexdash config node, will aim to maintain the information for the context of nodes socketIo in and out-->
+<script type="text/javascript">
+  RED.nodes.registerType('flexdash config', {
+    category: 'config',
+
+    defaults: {
+      port:       { value:80, required:true, validate:RED.validators.number()},
+      options:    { value: '' }, // additional custom socket.io options
+      path:       { value: "/io/flexdash/" }, // webserver path for socket.io
+      redServer:  { value: true }, // use Node-RED's express server
+      saveConfig: { value: true }, // save FlexDash config
+      allOrigins: { value: true }, // enable all origins using CORS
+    },
+
+    label() {
+      const port = this.redServer ? "Node-RED port" : `Port ${this.port}`
+      return `${port}, path ${this.path}`
+    },
+
+    oneditprepare() {
+      $("#node-config-input-redServer").on('change', ()=> {
+        if($("#node-config-input-redServer").is(":checked"))
+          $("#port-row").hide()
+        else
+          $("#port-row").show()
+      });
+
+      if (this.redServer)
+        $("#node-config-input-redServer").prop('checked', true)
+      else
+        $("#node-config-input-redServer").prop('checked', false)
+
+      $("#node-config-input-options").typedInput({ type:"json", types:["json"] })
+    },
+
+  })
+</script>
+
+<script type="text/html" data-template-name="flexdash config">
+  <div class="form-row">
+    <input type="checkbox" id="node-config-input-redServer"
+           style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+    <label for="node-config-input-redServer" style="width: auto">
+      Use Node-RED's built-in webserver
+    </label>
+  </div>
+  <div class="form-row hidden" id="port-row">
+    <label for="node-config-input-port"><i class="fa fa-terminal"></i> Port</label>
+    <input type="text" id="node-config-input-port">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-path"><i class="fa fa-paper-plane-o"></i> Path</label>
+    <input type="text" id="node-config-input-path" placeholder="/io/flexdash/">
+  </div>
+  <div class="form-row">
+    <input type="checkbox" id="node-config-input-saveConfig"
+           style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+    <label for="node-config-input-saveConfig" style="width: auto"><i class="fa fa-save"></i>
+      Save FlexDash config</label>
+  </div>
+  <div class="form-row">
+    <input type="checkbox" id="node-config-input-allOrigins"
+           style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+    <label for="node-config-input-allOrigins" style="width: auto"><i class="fa fa-lock"></i>
+      Configure CORS to allow all origins</label>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-options" style="width: auto"><i class="fa fa-file-code-o"></i>
+      Custom socket.io Options:</label><br>
+    <input type="text" id="node-config-input-options" style="width: 100%;">
+  </div>
+</script>
+
+<script type="text/html" data-help-name="flexdash config">
+  <p>The FlexDash configuration node establishes the communication parameters with FlexDash.
+    Under the hood it uses the socket.io library to manage HTTP polling and websocket streaming.
+  </p>
+</script>
+
+<!-- FlexDash-in node -->
+<script type="text/javascript">
+  RED.nodes.registerType('flexdash in', {
+    category: "flexdash",
+    color: "#FDF0C2",
+    defaults: {
+      name:  {value:""},
+      server:{value:"", required:true, type:"flexdash config"},
+    },
+    inputs: 0,
+    outputs: 1,
+    icon: "font-awesome/fa-th",
+
+    label() { return this.name || "flexdash in" },
+  });
+</script>
+
+<script type="text/html" data-template-name="flexdash in">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+    <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-tag"></i> Server</label>
+    <input type="text" id="node-input-server">
+</script>
+
+<script type="text/html" data-help-name="flexdash in">
+   <p>FlexDash input node</p>
+   <p>Implementation of a SocketIO server</p>
+   <p>This node can be used to receive socket events from a web page</p>
+   <br />
+   <p>This node output:</p>
+   <p><code>msg.payload</code> as <i>Object</i> = event data received</p>
+   <p><code>msg.socketIOEvent</code> as <i>String</i> = event type received</p>
+   <p><code>msg.socketIOId</code> as <i>String</i> = socket id that generated the event</p>
+   <p><code>msg.socketIOStaticProperties</code> as <i>Object</i> = User defined properties added to the socket</p>
+   <br />
+   <p>The user can add all the topic/event he want</p>
+   <p>The predefined <code>connect/disconnect</code> etc... events are automatically implemented</p>
+</script>
+
+<!-- FlexDash out node -->
+<script type="text/javascript">
+  RED.nodes.registerType('flexdash out', {
+    category:"flexdash",
+    color:"#FDF0C2",
+    defaults:{
+      name:   {value:""},
+      server: {value:"", required:true, type:"flexdash config"}
+    },
+    inputs: 1,
+    outputs: 0,
+    icon: "font-awesome/fa-th",
+    label() { return this.name || "flexdash out" }		
+  });
+</script>
+
+<script type="text/x-red" data-template-name="flexdash out">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+    <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-tag"></i> Server</label>
+    <input type="text" id="node-input-server">
+  </div>
+</script>
+
+<script type="text/x-red" data-help-name="flexdash out">
+   <p>FlexDash Output node</p>
+   <p>Implementation of a SocketIO server</p>
+   <p>This node can be used to send socket event from a web page</p>
+   <br />
+   <p>This node accepts on input:</p>
+   <p><code>msg.payload</code> as <i>Object</i> = event data to send</p>
+   <p><code>msg.socketIOEvent</code> as <i>String</i> = event type to send</p>
+   <p><code>msg.socketIOId</code> as <i>String</i> = socket id for sending option</p>
+   <p><code>msg.socketIOEmit</code> as <i>String</i> = socket emit type:</p>
+   <p>&nbsp;&nbsp; possibilities are :</p>
+   <p>&nbsp;&nbsp;<code>broadcast.emit</code> as <i>String</i> = send to all sockets except this socket</p>
+   <p>&nbsp;&nbsp;<code>emit</code> as <i>String</i> = send only to this socket</p>
+   <p>&nbsp;&nbsp;<code>room</code> as <i>String</i> = send to everyone in <code>msg.room</code></p>
+   <p>&nbsp;&nbsp; not defined = send to all sockets</p>
+   <p><code>msg.socketIOAddStaticProperties</code> as <i>Object</i> = User defined properties to add to the socket (if already defined they will be overwriten)</p>
+   <br />
+</script>
