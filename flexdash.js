@@ -71,8 +71,12 @@ module.exports = function(RED) {
     RED.nodes.createNode(this, n)
     this.name = n.name
     this.config_node = RED.nodes.getNode(n.server)
+    this.count = 0
 
     this.config_node.io.on("connection", (socket) => {
+      this.count += 1
+      setStatus(this, this.count)
+
       // handle incoming messages
       socket.on('msg', (topic, payload) => {
         const msg = {
@@ -81,6 +85,12 @@ module.exports = function(RED) {
           _flexdash_id: socket.id,
         }
         this.send(msg)
+      })
+      //
+      // handle disconnection
+      socket.on("disconnect", reason => {
+        this.count -= 1
+        setStatus(this, this.count)
       })
     })
   }
@@ -98,6 +108,11 @@ module.exports = function(RED) {
         this.config_node.io.emit("msg", msg.topic, msg.payload)
       }
     })
+  }
+
+  function setStatus(node, count) {
+    if (count <= 0) node.status({fill:'grey', shape:'ring', text:'no connections'})
+    else node.status({fill:'green', shape:'dot', text:`${count} connection${count>1?'s':''}`})
   }
 
   // send the configuration to a client, the server param is the configuration node
