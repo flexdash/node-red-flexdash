@@ -110,7 +110,16 @@ module.exports = function(RED) {
   // the server param is the configuration node
   function saveConfig(server, socket, topic, payload) {
     server.log(`Saving config of ${topic} for ${socket.id}`)
-    //this.context.set("config", server.flexdash_config)
+
+    // insert the payload into the saved config, the topic must be either something
+    // like $config/widgets or like $config/widgets/w00002
+    const t = topic.split('/')
+    if (t.length == 2) {
+      server.flexdash_config[t[1]] = payload
+    } else if (t.length == 3) {
+      if (server.flexdash_config[t[1]] === undefined) server.flexdash_config[t[1]] = {}
+      server.flexdash_config[t[1]][t[2]] = payload
+    }
 
     // propagate config change to any other connected browser
     socket.broadcast.emit("msg", topic, payload)

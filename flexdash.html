@@ -1,4 +1,9 @@
-<!-- flexdash config node, will aim to maintain the information for the context of nodes socketIo in and out-->
+<!-- FlexDash nodes for Node-RED
+     Copyright (c) 2021 by Thorsten von Eicken, see LICENSE
+-->
+
+<!-- FlexDash config node -->
+
 <script type="text/javascript">
   RED.nodes.registerType('flexdash config', {
     category: 'config',
@@ -38,6 +43,9 @@
 
 <script type="text/html" data-template-name="flexdash config">
   <div class="form-row">
+    <i class="fa fa-comment"></i>Using the default configuration is highly recommended.
+  </div>
+  <div class="form-row">
     <input type="checkbox" id="node-config-input-redServer"
            style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
     <label for="node-config-input-redServer" style="width: auto">
@@ -72,12 +80,53 @@
 </script>
 
 <script type="text/html" data-help-name="flexdash config">
-  <p>The FlexDash configuration node establishes the communication parameters with FlexDash.
-    Under the hood it uses the socket.io library to manage HTTP polling and websocket streaming.
-  </p>
+  <p>Configures the FlexDash server</p>
+  <p>The FlexDash server lets <a href="https://github.com/tve/flexdash">FlexDash dashboards</a>
+    connect to Node-RED using the <a href="https://socket.io">socket.io</a> library.
+    Dashboards can receive data to display, send user input to control, and
+    save the dashboard configuration.
+    The connection uses HTTP polling and/or websocket streaming.</p>
+  <h3>Options</h3>
+  <p>The FlexDash server can <code>use Node-RED's built-in webserver</code>,
+    i.e., the same protocol, hostname, and port as the admin UI.
+    Alternatively, the server can be started on a
+    separate <code>port</code>, typically to apply different security parameters to its access.</p>
+  <p>The <code>path</code> specifies the URL path used by dashboards to connect, its value
+    must match the socket.io path specified in FlexDash's server connections.</p>
+  <p>The <code>saveConfig</code> option determines whether the server lets dashboards save
+    their configuration. Uncheck this only if you use dashboards with a different server and
+    connect here only to pull data to display.</p>
+  <p><code>Configuring CORS to allow all origins</code> allows the dashboard to be loaded
+    from other web servers, such as https://tve.github.io/flexdash and then connect here.
+    If CORS is not configured such cross-origin connections are disallowed.</p>
+  <p>The <code>custom socket.io options</code> can be used to specify additional socket.io
+    options per the
+    <a href="https://socket.io/docs/v4/server-initialization/#Options">socket.io docs</a>.
+    For example, more nuanced CORS policies can be implemented. The config node logs the
+    socket.io options used when it initializes, these can be used as a starting point.</p>
+  <h3>Getting started</h3>
+  <p>In general, to launch a dashboard use a URL of the form:
+    <tt>flexdash_location?node_red_location</tt>, where <tt>flexdash_location</tt> is the URL
+    where FlexDash is loaded from and <tt>node_red_location</tt> is the Node-RED FlexDash
+    server connection URL. A typical example is:<br>
+    <a href="https://tve.github.io/flexdash/?http://locahost:1880/io/flexdash">
+    https://tve.github.com/flexdash/?http://locahost:1880/io/flexdash</a>.</p>
+  <p>More information on the FlexDash project can be found
+    <a href="https://github.com/tve/flexdash">on github</a>.</p>
+  <h3>Troubleshooting</h3>
+  <p>To troubleshoot connection issues it can be helpful to use curl.</p>
+  <p>Fetch the socket.io location with a command like
+    <tt>curl http://localhost:1880/io/flexdash?EIO=4&transport=polling</tt>,
+    this should result in a response like
+    <tt>0{"sid":"fx2N_0UNeZQgmZlFAAAC","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":20000}</tt>.</p>
+    <p>To troubleshoot CORS issues, add an option like
+    <tt>-H'Origin: https://tve.github.io/flexdash'</tt> to your curl command and ensure you
+    receive a 200-OK response and a <tt>Access-Control-Allow-Origin</tt> response header
+    (the curl <tt>-v</tt> option prints the headers).</p>
 </script>
 
 <!-- FlexDash-in node -->
+
 <script type="text/javascript">
   RED.nodes.registerType('flexdash in', {
     category: "flexdash",
@@ -105,21 +154,24 @@
 </script>
 
 <script type="text/html" data-help-name="flexdash in">
-   <p>FlexDash input node</p>
-   <p>Implementation of a SocketIO server</p>
-   <p>This node can be used to receive socket events from a web page</p>
-   <br />
-   <p>This node output:</p>
-   <p><code>msg.payload</code> as <i>Object</i> = event data received</p>
-   <p><code>msg.socketIOEvent</code> as <i>String</i> = event type received</p>
-   <p><code>msg.socketIOId</code> as <i>String</i> = socket id that generated the event</p>
-   <p><code>msg.socketIOStaticProperties</code> as <i>Object</i> = User defined properties added to the socket</p>
-   <br />
-   <p>The user can add all the topic/event he want</p>
-   <p>The predefined <code>connect/disconnect</code> etc... events are automatically implemented</p>
+  <p>Receives messages from FlexDash dashboard widgets typically corresponding to user input
+    manipulating buttons, switches, sliders, etc. in the dashboard.</p>
+  <h3>Output</h3>
+    <p>Messages sent by dashboard widgets are output with the topic to which the
+      widget output is bound and the payload emitted by the widget.</p>
+    <dl class="message-properties">
+      <dt>topic <span class="property-type">string</span></dt>
+      <dd>the topic to which the emitting widget output is bound in the dashboard.</dd>
+      <dt>payload <span class="property-type">any</span></dt>
+      <dd>the value emitted by the widget.</dd>
+      <dt>_flexdash_id <span class="property-type">string</span></dt>
+      <dd>the id of the dashboard instance, may be used with a FlexDash Out node
+        to send data only to a specific dashboard instance.
+    </dl>
 </script>
 
 <!-- FlexDash out node -->
+
 <script type="text/javascript">
   RED.nodes.registerType('flexdash out', {
     category:"flexdash",
@@ -147,20 +199,20 @@
 </script>
 
 <script type="text/x-red" data-help-name="flexdash out">
-   <p>FlexDash Output node</p>
-   <p>Implementation of a SocketIO server</p>
-   <p>This node can be used to send socket event from a web page</p>
-   <br />
-   <p>This node accepts on input:</p>
-   <p><code>msg.payload</code> as <i>Object</i> = event data to send</p>
-   <p><code>msg.socketIOEvent</code> as <i>String</i> = event type to send</p>
-   <p><code>msg.socketIOId</code> as <i>String</i> = socket id for sending option</p>
-   <p><code>msg.socketIOEmit</code> as <i>String</i> = socket emit type:</p>
-   <p>&nbsp;&nbsp; possibilities are :</p>
-   <p>&nbsp;&nbsp;<code>broadcast.emit</code> as <i>String</i> = send to all sockets except this socket</p>
-   <p>&nbsp;&nbsp;<code>emit</code> as <i>String</i> = send only to this socket</p>
-   <p>&nbsp;&nbsp;<code>room</code> as <i>String</i> = send to everyone in <code>msg.room</code></p>
-   <p>&nbsp;&nbsp; not defined = send to all sockets</p>
-   <p><code>msg.socketIOAddStaticProperties</code> as <i>Object</i> = User defined properties to add to the socket (if already defined they will be overwriten)</p>
-   <br />
+  <p>Send data to FlexDash dashboard widgets for display.</p>
+  <h3>Input</h3>
+    <p>Messages are forwarded to dashboards for insertion into their topic hierarchy.
+      Inputs of widgets in the dashboard can be bound to these topics, which is how they
+      receive data values to display. The values may have any JSON data type understood by
+      the targeted widget(s).</p>
+    <dl class="message-properties">
+      <dt>topic <span class="property-type">string</span></dt>
+      <dd>the target topic in the dashboard's topic hierarchy.</dd>
+      <dt>payload <span class="property-type">any</span></dt>
+      <dd>the value to send to the dashboard widget(s).</dd>
+      <dt class="optional">_flexdash_id <span class="property-type">string</span></dt>
+      <dd>if omitted the message is broadcast to all dashboard instances, if set to 
+        a value received from a FlexDash In node the message is only sent to that
+        instance.</dd>
+    </dl>
 </script>
