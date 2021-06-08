@@ -13,7 +13,8 @@ module.exports = function(RED) {
     this.saveConfig = !!n.saveConfig
     this.allOrigins = !!n.allOrigins
     this.path = n.path || "/io/flexdash/"
-    this.flexdash_config = {} // FlexDash dashboard configuration
+    this.ctxName = n.ctxName || "default"
+    this.ctxPrefix = n.ctxPrefix || "flexdash_"
 
     if (!this.path.startsWith("/")) this.path = "/" + this.path
     if (!this.path.endsWith("/")) this.path = this.path + "/"
@@ -26,7 +27,9 @@ module.exports = function(RED) {
     }
 
     this.options.path = this.path
-    if (this.allOrigins) this.options.cors = { origin: "*", methods: ["GET", "POST"] }
+    if (this.allOrigins) this.options.cors = {
+      origin: "*", methods: ["GET", "POST"], credentials: true,
+    }
 
     this.log("Socket.io options: " + JSON.stringify(this.options))
     if (this.redServer) {
@@ -49,12 +52,16 @@ module.exports = function(RED) {
       // handle incoming messages only for saving config
       if (this.saveConfig) {
         socket.on("msg", (topic, payload) => {
-          if (typeof topic !== 'string') {
-            this.warn(`Rx message doesn't have string topic: ${JSON.stringify(topic)}`)
-          } else if (topic === "$ctrl" && payload === "start") {
-            sendConfig(this, socket)
-          } else if (topic.startsWith("$config")) {
-            saveConfig(this, socket, topic, payload)
+          try {
+            if (typeof topic !== 'string') {
+              this.warn(`Rx message doesn't have string topic: ${JSON.stringify(topic)}`)
+            } else if (topic === "$ctrl" && payload === "start") {
+              sendConfig(this, socket)
+            } else if (topic.startsWith("$config")) {
+              saveConfig(this, socket, topic, payload)
+            }
+          } catch(err) {
+            this.error(`Error storing FlexDash config in context store '${this.ctxName}': ${err}`)
           }
         })
       }
@@ -86,7 +93,7 @@ module.exports = function(RED) {
         }
         this.send(msg)
       })
-      //
+
       // handle disconnection
       socket.on("disconnect", reason => {
         this.count -= 1
@@ -103,7 +110,7 @@ module.exports = function(RED) {
     this.on("input", (msg) => {
       const fdid = msg._flexdash_id
       if (fdid) {
-        this.config_node.io.sockets.get(fdid).emit("msg", msg.topic, msg.payload)
+        this.config_node.io.in(fdid).emit("msg", msg.topic, msg.payload)
       } else {
         this.config_node.io.emit("msg", msg.topic, msg.payload)
       }
@@ -117,23 +124,43 @@ module.exports = function(RED) {
 
   // send the configuration to a client, the server param is the configuration node
   function sendConfig(server, socket) {
-    server.log(`Sending config to ${socket.id}`)
-    socket.emit("msg", "$config", server.flexdash_config)
+    server.log(`Sending config to ${socket.id} from store ${server.ctxName}`)
+    // enumerate all keys with our prefix
+    const prefix = server.ctxPrefix
+    const keys = server.context().global.keys(server.ctxName).filter(k => k.startsWith(prefix))
+    // fetch and send all those keys with their data
+    if (keys.length == 0) {
+      socket.emit("msg", "$config", {})
+      return
+    }
+    for (let k of keys) {
+      const t = k.substring(prefix.length)
+      socket.emit("msg", "$config/"+t, server.context().global.get(k, server.ctxName))
+    }
   }
 
   // save the configuration change for a client and propagate it to other clients,
   // the server param is the configuration node
   function saveConfig(server, socket, topic, payload) {
-    server.log(`Saving config of ${topic} for ${socket.id}`)
+    server.debug(`Saving config of ${topic} for ${socket.id}`)
+
+    const ctx = server.context().global
+    const prefix = server.ctxPrefix
 
     // insert the payload into the saved config, the topic must be either something
     // like $config/widgets or like $config/widgets/w00002
     const t = topic.split('/')
     if (t.length == 2) {
-      server.flexdash_config[t[1]] = payload
+      ctx.set(prefix + t[1], payload, server.ctxName)
     } else if (t.length == 3) {
-      if (server.flexdash_config[t[1]] === undefined) server.flexdash_config[t[1]] = {}
-      server.flexdash_config[t[1]][t[2]] = payload
+      // sub-key, need to insert (or delete) data
+      let value = ctx.get(prefix + t[1], server.ctxName) || {}
+      if (payload === undefined || payload == null) {
+        delete value[t[2]]
+      } else {
+        value[t[2]] = payload
+      }
+      ctx.set(prefix + t[1], value, server.ctxName)
     }
 
     // propagate config change to any other connected browser
