@@ -1,8 +1,6 @@
-<!-- FlexDash nodes for Node-RED
+<!-- FlexDash config node for Node-RED
      Copyright (c) 2021 by Thorsten von Eicken, see LICENSE
 -->
-
-<!-- FlexDash config node -->
 
 <script type="text/javascript">
   RED.nodes.registerType('flexdash config', {
@@ -106,6 +104,7 @@
     Dashboards can receive data to display, send user input to control, and
     save the dashboard configuration.
     The connection uses HTTP polling and/or websocket streaming.</p>
+
   <h3>Important</h3>
   <p>The <code>context store name</code> selects which context storage to use to save the
     configuration of the dashboard. By default, the settings.js file only configures an
@@ -113,6 +112,7 @@
     Node-RED restarts! Except for experimenting with FlexDash it is thus important to
     add a "localfilesystem" storage option in the settings.js (look for the "contextStorage"
     key). If a store other than default is added its name should be entered here.
+  
   <h3>Advanced Options</h3>
   <p>The <code>context prefix</code> sets a key prefix with which the dashboard config is
     stored in the global context store. A value other than the default is only needed if
@@ -134,6 +134,7 @@
     <a href="https://socket.io/docs/v4/server-initialization/#Options">socket.io docs</a>.
     For example, more nuanced CORS policies can be implemented. The config node logs the
     socket.io options used when it initializes, these can be used as a starting point.</p>
+  
   <h3>Getting started</h3>
   <p>In general, to launch a dashboard use a URL of the form:
     <tt>flexdash_location?node_red_location</tt>, where <tt>flexdash_location</tt> is the URL
@@ -143,6 +144,7 @@
     https://tve.github.com/flexdash/?http://locahost:1880/io/flexdash</a>.</p>
   <p>More information on the FlexDash project can be found
     <a href="https://github.com/tve/flexdash">on github</a>.</p>
+  
   <h3>Troubleshooting</h3>
   <p>To troubleshoot connection issues it can be helpful to use curl.</p>
   <p>Fetch the socket.io location with a command like
@@ -153,96 +155,4 @@
     <tt>-H'Origin: https://tve.github.io/flexdash'</tt> to your curl command and ensure you
     receive a 200-OK response and a <tt>Access-Control-Allow-Origin</tt> response header
     (the curl <tt>-v</tt> option prints the headers).</p>
-</script>
-
-<!-- FlexDash-in node -->
-
-<script type="text/javascript">
-  RED.nodes.registerType('flexdash in', {
-    category: "flexdash",
-    color: "#FDF0C2",
-    defaults: {
-      name:  {value:""},
-      server:{value:"", required:true, type:"flexdash config"},
-    },
-    inputs: 0,
-    outputs: 1,
-    icon: "font-awesome/fa-th",
-
-    label() { return this.name || "flexdash in" },
-  });
-</script>
-
-<script type="text/html" data-template-name="flexdash in">
-  <div class="form-row">
-    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-    <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-    <div class="form-row">
-    <label for="node-input-server"><i class="fa fa-tag"></i> Server</label>
-    <input type="text" id="node-input-server">
-</script>
-
-<script type="text/html" data-help-name="flexdash in">
-  <p>Receives messages from FlexDash dashboard widgets typically corresponding to user input
-    manipulating buttons, switches, sliders, etc. in the dashboard.</p>
-  <h3>Output</h3>
-    <p>Messages sent by dashboard widgets are output with the topic to which the
-      widget output is bound and the payload emitted by the widget.</p>
-    <dl class="message-properties">
-      <dt>topic <span class="property-type">string</span></dt>
-      <dd>the topic to which the emitting widget output is bound in the dashboard.</dd>
-      <dt>payload <span class="property-type">any</span></dt>
-      <dd>the value emitted by the widget.</dd>
-      <dt>_flexdash_id <span class="property-type">string</span></dt>
-      <dd>the id of the dashboard instance, may be used with a FlexDash Out node
-        to send data only to a specific dashboard instance.
-    </dl>
-</script>
-
-<!-- FlexDash out node -->
-
-<script type="text/javascript">
-  RED.nodes.registerType('flexdash out', {
-    category:"flexdash",
-    color:"#FDF0C2",
-    defaults:{
-      name:   {value:""},
-      server: {value:"", required:true, type:"flexdash config"}
-    },
-    inputs: 1,
-    outputs: 0,
-    icon: "font-awesome/fa-th",
-    label() { return this.name || "flexdash out" }		
-  });
-</script>
-
-<script type="text/x-red" data-template-name="flexdash out">
-  <div class="form-row">
-    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-    <input type="text" id="node-input-name" placeholder="Name">
-  </div>
-    <div class="form-row">
-    <label for="node-input-server"><i class="fa fa-tag"></i> Server</label>
-    <input type="text" id="node-input-server">
-  </div>
-</script>
-
-<script type="text/x-red" data-help-name="flexdash out">
-  <p>Send data to FlexDash dashboard widgets for display.</p>
-  <h3>Input</h3>
-    <p>Messages are forwarded to dashboards for insertion into their topic hierarchy.
-      Inputs of widgets in the dashboard can be bound to these topics, which is how they
-      receive data values to display. The values may have any JSON data type understood by
-      the targeted widget(s).</p>
-    <dl class="message-properties">
-      <dt>topic <span class="property-type">string</span></dt>
-      <dd>the target topic in the dashboard's topic hierarchy.</dd>
-      <dt>payload <span class="property-type">any</span></dt>
-      <dd>the value to send to the dashboard widget(s).</dd>
-      <dt class="optional">_flexdash_id <span class="property-type">string</span></dt>
-      <dd>if omitted the message is broadcast to all dashboard instances, if set to 
-        a value received from a FlexDash In node the message is only sent to that
-        instance.</dd>
-    </dl>
 </script>

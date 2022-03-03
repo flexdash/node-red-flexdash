@@ -1,8 +1,9 @@
-// FlexDash nodes for Node-RED
+// FlexDash-config node for Node-RED
 // Copyright (c) 2021 by Thorsten von Eicken, see LICENSE
 
 module.exports = function(RED) {
   const { Server } = require("socket.io")
+  const helpers = require("./fd-helpers.js")(RED)
 
   // configuration node
   function flexdashConfig(n) {
@@ -70,56 +71,12 @@ module.exports = function(RED) {
       socket.on("disconnect", reason => {
         this.log(`Disconnected ${socket.id} due to ${reason}`)
       })
-    })
-  }
 
-  // flexdash-in node, receives messages from dashboards
-  function flexdashIn(n) {
-    RED.nodes.createNode(this, n)
-    this.name = n.name
-    this.config_node = RED.nodes.getNode(n.server)
-    this.count = 0
-
-    this.config_node.io.on("connection", (socket) => {
-      this.count += 1
-      setStatus(this, this.count)
-
-      // handle incoming messages
-      socket.on('msg', (topic, payload) => {
-        const msg = {
-          topic       : topic || "",
-          payload     : payload || null,
-          _flexdash_id: socket.id,
-        }
-        this.send(msg)
-      })
-
-      // handle disconnection
-      socket.on("disconnect", reason => {
-        this.count -= 1
-        setStatus(this, this.count)
-      })
-    })
-  }
-
-  function flexdashOut(n) {
-    RED.nodes.createNode(this, n)
-    this.name = n.name
-    this.config_node = RED.nodes.getNode(n.server)
-
-    this.on("input", (msg) => {
-      const fdid = msg._flexdash_id
-      if (fdid) {
-        this.config_node.io.in(fdid).emit("msg", msg.topic, msg.payload)
-      } else {
-        this.config_node.io.emit("msg", msg.topic, msg.payload)
+      // export helper functions as methods so they can be reached from fd nodes
+      for (let f of ["connectWidget"]) {
+        this[f] = helpers[f].bind(this)
       }
     })
-  }
-
-  function setStatus(node, count) {
-    if (count <= 0) node.status({fill:'grey', shape:'ring', text:'no connections'})
-    else node.status({fill:'green', shape:'dot', text:`${count} connection${count>1?'s':''}`})
   }
 
   // send the configuration to a client, the server param is the configuration node
@@ -168,6 +125,4 @@ module.exports = function(RED) {
   }
 
   RED.nodes.registerType("flexdash config", flexdashConfig)
-  RED.nodes.registerType("flexdash in", flexdashIn)
-  RED.nodes.registerType("flexdash out", flexdashOut)
 }

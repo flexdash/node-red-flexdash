@@ -1,9 +1,9 @@
-node-red-contrib-flexdash
-=========================
+node-red-flexdash
+==================
 
-_NodeRED nodes to interface with [FlexDash](https://github.com/tve/flexdash)_
+_Node-RED nodes to interface with [FlexDash](https://github.com/tve/flexdash)_
 
-FlexDash is a self-contained web dashboard for NodeRED and IoT devices.
+FlexDash is a self-contained web dashboard for Node-RED and IoT devices.
 This package provides [Node-RED](https://nodered.org/) nodes that interface with
 FlexDash making it easy to send data to be displayed in the dashboard, and to
 receive user input messages from the dashboard.
@@ -13,9 +13,9 @@ the socket.io connection should be configured.
 
 ## Installation
 
-To install node-red-contrib-flexdash use:
+To install node-red-flexdash use:
 
-`npm i node-red-contrib-flexdash`
+`npm i @flexdash/node-red-flexdash`
 
 ## Configuration
 
@@ -35,7 +35,7 @@ You can launch FlexDash from https://tve.github.io/flexdash without installing a
 and you can try some simple things out with Node-RED using plain websockets again
 without installing anything: look at the info on the `websock` tab in FlexDash.
 
-For real use the node-red-contrib-flexdash nodes are highly recommended. The way
+For real use the node-red-flexdash nodes are highly recommended. The way
 FlexDash works is as follows:
 - on the Node-RED side you send messages with `topic` and `payload` to a `flexdash-out`
   node, this data is forwarded to FlexDash and entered into its topic tree
@@ -55,4 +55,5 @@ every `flexdash-out` node (unless the node is configured with a topic filter).
 For further information, please see the help text that comes with each FlexDash node.
 
 ## License
+
 MIT

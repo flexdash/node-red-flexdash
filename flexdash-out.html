@@ -1,0 +1,48 @@
+<!-- FlexDash-out node for Node-RED
+     Copyright (c) 2021 by Thorsten von Eicken, see LICENSE
+-->
+
+<script type="text/javascript">
+  RED.nodes.registerType('flexdash out', {
+    category:"flexdash",
+    color:"#FDF0C2",
+    defaults:{
+      name:   {value:""},
+      server: {value:"", required:true, type:"flexdash config"}
+    },
+    inputs: 1,
+    outputs: 0,
+    icon: "font-awesome/fa-th",
+    label() { return this.name || "flexdash out" }		
+  });
+</script>
+
+<script type="text/html" data-template-name="flexdash out">
+  <div class="form-row">
+    <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label for="node-input-server"><i class="fa fa-tag"></i> Server</label>
+    <input type="text" id="node-input-server">
+  </div>
+</script>
+
+<script type="text/html" data-help-name="flexdash out">
+  <p>Send data to FlexDash dashboard widgets for display.</p>
+  <h3>Input</h3>
+    <p>Messages are forwarded to dashboards for insertion into their topic hierarchy.
+      Inputs of widgets in the dashboard can be bound to these topics, which is how they
+      receive data values to display. The values may have any JSON data type understood by
+      the targeted widget(s).</p>
+    <dl class="message-properties">
+      <dt>topic <span class="property-type">string</span></dt>
+      <dd>the target topic in the dashboard's topic hierarchy.</dd>
+      <dt>payload <span class="property-type">any</span></dt>
+      <dd>the value to send to the dashboard widget(s).</dd>
+      <dt class="optional">_flexdash_id <span class="property-type">string</span></dt>
+      <dd>if omitted the message is broadcast to all dashboard instances, if set to 
+        a value received from a FlexDash In node the message is only sent to that
+        instance.</dd>
+    </dl>
+</script>
