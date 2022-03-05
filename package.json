@@ -16,6 +16,9 @@
       "flexdash out": "flexdash-out.js"
     }
   },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
