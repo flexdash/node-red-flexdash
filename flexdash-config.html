@@ -1,5 +1,5 @@
 <!-- FlexDash config node for Node-RED
-     Copyright (c) 2021 by Thorsten von Eicken, see LICENSE
+     Copyright (c) 2021-2022 by Thorsten von Eicken, see LICENSE
 -->
 
 <script type="text/javascript">
@@ -8,13 +8,12 @@
 
     defaults: {
       port:       { value:80, required:true, validate:RED.validators.number()},
-      options:    { value: '' }, // additional custom socket.io options
-      path:       { value: "/io/flexdash/" }, // webserver path for socket.io
+      options:    { value: '{}' }, // additional custom socket.io options
+      path:       { value: "/flexdash" }, // path to load flexdash from
       redServer:  { value: true }, // use Node-RED's express server
       saveConfig: { value: true }, // save FlexDash config
       allOrigins: { value: true }, // enable all origins using CORS
       ctxName:    { value: null }, // context store name to persist dashboard config
-      ctxPrefix:  { value: "flexdash_" }, // prefix for keys in global context store
     },
 
     label() {
@@ -22,18 +21,40 @@
       return `${port}, path ${this.path}`
     },
 
+  
     oneditprepare() {
+      const httpNodeRoot = RED.settings.httpNodeRoot
+      const base = window.location.origin + (httpNodeRoot != '/' ? httpNodeRoot : '')
+
+      function setBrowserPath(p) {
+        let base, loc=window.location
+        if ($("#node-config-input-redServer").is(":checked")) {
+          base = loc.origin + (httpNodeRoot != '/' ? httpNodeRoot : '')
+        } else {
+          const port = $("#node-config-input-port").val()
+          base =  `${loc.protocol}//${loc.hostname}:${port}`
+        }
+        $('#point-to').prop('href', base + p)
+        $('#point-to').html(base + p)
+      }
+
       $("#node-config-input-redServer").on('change', ()=> {
-        if($("#node-config-input-redServer").is(":checked"))
+        if ($("#node-config-input-redServer").is(":checked"))
           $("#port-row").hide()
         else
           $("#port-row").show()
-      });
+        setBrowserPath($('#node-config-input-path').val())
+      })
 
       if (this.redServer)
         $("#node-config-input-redServer").prop('checked', true)
       else
         $("#node-config-input-redServer").prop('checked', false)
+
+      setBrowserPath(this.path)
+      $('#node-config-input-path').on('input', ()=> {
+        setBrowserPath($('#node-config-input-path').val())
+      })
 
       $("#node-config-input-options").typedInput({ type:"json", types:["json"] })
     },
@@ -46,18 +67,12 @@
     <label for="node-config-input-ctxName" style="width:auto">
       <i class="fa fa-database" style="margin-right: 6px;"></i>
       Context store name</label>
-    <input type="text" id="node-config-input-ctxName" placeholder="default">
+    <input type="text" id="node-config-input-ctxName" placeholder="default" style="width: 50%">
   </div>
   <hr />
   <div class="form-row">
     <i class="fa fa-comment" style="margin-right: 6px;"></i>
-      Advanced configuration options
-  </div>
-  <div class="form-row">
-    <label for="node-config-input-ctxPrefix" style="width:auto">
-      <i class="fa fa-file" style="margin-right: 6px;"></i>
-      Context prefix</label>
-    <input type="text" id="node-config-input-ctxPrefix" placeholder="flexdash_">
+      <b>Advanced configuration options.</b> Do not change these without reading the documentation!
   </div>
   <div class="form-row">
     <input type="checkbox" id="node-config-input-redServer"
@@ -74,7 +89,9 @@
     <label for="node-config-input-path">
       <i class="fa fa-paper-plane-o" style="margin-right: 6px;"></i>
       Path</label>
-    <input type="text" id="node-config-input-path" placeholder="/io/flexdash/">
+    <input type="text" id="node-config-input-path" placeholder="/flexdash">
+    <br>
+    <small>Point your browser at: <a id="point-to" href="/">/</a></small>
   </div>
   <div class="form-row">
     <input type="checkbox" id="node-config-input-saveConfig"
@@ -107,44 +124,50 @@
 
   <h3>Important</h3>
   <p>The <code>context store name</code> selects which context storage to use to save the
-    configuration of the dashboard. By default, the settings.js file only configures an
+    configuration of the dashboard. By default, Node-RED's settings.js file only configures an
     in-memory context store, which means that the dashboard config gets lost every time
     Node-RED restarts! Except for experimenting with FlexDash it is thus important to
     add a "localfilesystem" storage option in the settings.js (look for the "contextStorage"
     key). If a store other than default is added its name should be entered here.
   
   <h3>Advanced Options</h3>
-  <p>The <code>context prefix</code> sets a key prefix with which the dashboard config is
-    stored in the global context store. A value other than the default is only needed if
-    multiple different dashboard configs need to be saved.</p>
-  <p>The FlexDash server can <code>use Node-RED's built-in webserver</code>,
+  <p>
+    The FlexDash server can <code>use Node-RED's built-in webserver</code>,
     i.e., the same protocol, hostname, and port as the admin UI.
     Alternatively, the server can be started on a
-    separate <code>port</code>, typically to apply different security parameters to its access.</p>
-  <p>The <code>path</code> specifies the URL path used by dashboards to connect, its value
-    must match the socket.io path specified in FlexDash's server connections.</p>
-  <p>The <code>saveConfig</code> option determines whether the server lets dashboards save
+    separate <code>port</code>, typically to apply different security parameters to its access.
+  </p>
+  <p>
+    The <code>path</code> specifies the URL path relative to Node-RED's <code>httpNodeRoot</code>
+    setting (<code>/</code> by default) where a browser can load the dashboard.
+    <br>
+    In addition, FlexDash will connect to <code>{path}/io</code> using socket.io, this is 
+    only relevant when loading the FlexDash source from elsewhere for development purposes.
+  </p>
+  <p>
+    The <code>saveConfig</code> option determines whether the server lets dashboards save
     their configuration. Uncheck this only if you use dashboards with a different server and
-    connect here only to pull data to display.</p>
-  <p><code>Configuring CORS to allow all origins</code> allows the dashboard to be loaded
+    connect here only to pull data to display.
+  </p>
+  <p>
+    <code>Configuring CORS to allow all origins</code> allows the dashboard to be loaded
     from other web servers, such as https://tve.github.io/flexdash and then connect here.
-    If CORS is not configured such cross-origin connections are disallowed.</p>
-  <p>The <code>custom socket.io options</code> can be used to specify additional socket.io
+    If CORS is not configured such cross-origin connections are disallowed.
+  </p>
+  <p>
+    The <code>custom socket.io options</code> can be used to specify additional socket.io
     options per the
     <a href="https://socket.io/docs/v4/server-initialization/#Options">socket.io docs</a>.
     For example, more nuanced CORS policies can be implemented. The config node logs the
-    socket.io options used when it initializes, these can be used as a starting point.</p>
+    socket.io options used when it initializes, these can be used as a starting point.
+  </p>
   
-  <h3>Getting started</h3>
-  <p>In general, to launch a dashboard use a URL of the form:
-    <tt>flexdash_location?node_red_location</tt>, where <tt>flexdash_location</tt> is the URL
-    where FlexDash is loaded from and <tt>node_red_location</tt> is the Node-RED FlexDash
-    server connection URL. A typical example is:<br>
-    <a href="https://tve.github.io/flexdash/?http://locahost:1880/io/flexdash">
-    https://tve.github.com/flexdash/?http://locahost:1880/io/flexdash</a>.</p>
-  <p>More information on the FlexDash project can be found
-    <a href="https://github.com/tve/flexdash">on github</a>.</p>
+  <p>
+    More information on the FlexDash project can be found
+    <a href="https://github.com/tve/flexdash">on github</a>.
+  </p>
   
+<!--
   <h3>Troubleshooting</h3>
   <p>To troubleshoot connection issues it can be helpful to use curl.</p>
   <p>Fetch the socket.io location with a command like
@@ -155,4 +178,5 @@
     <tt>-H'Origin: https://tve.github.io/flexdash'</tt> to your curl command and ensure you
     receive a 200-OK response and a <tt>Access-Control-Allow-Origin</tt> response header
     (the curl <tt>-v</tt> option prints the headers).</p>
+-->
 </script>
