@@ -7,20 +7,23 @@
     category: 'config',
 
     defaults: {
-      port:       { value:80, required:true, validate:RED.validators.number()},
-      options:    { value: '{}' }, // additional custom socket.io options
+      port:       { value: 80, required: true, validate: RED.validators.number()},
+      ioOpts:     { value: '{}' }, // additional custom socket.io options
       path:       { value: "/flexdash" }, // path to load flexdash from
       redServer:  { value: true }, // use Node-RED's express server
       saveConfig: { value: true }, // save FlexDash config
       allOrigins: { value: true }, // enable all origins using CORS
       ctxName:    { value: null }, // context store name to persist dashboard config
+      devServer:  { value: false }, // enable development server
+      devInstall: { value: false }, // enable installation of development server
     },
 
     label() {
-      const port = this.redServer ? "Node-RED port" : `Port ${this.port}`
-      return `${port}, path ${this.path}`
+      const port = this.redServer ? window.location.port : this.port.toString()
+      let path = this.redServer ? RED.settings.httpNodeRoot + this.path : this.path
+      path = path.replace(/^\/*(.*?)\/*$/, '/$1')
+      return `FlexDash :${port}${path}`
     },
-
   
     oneditprepare() {
       const httpNodeRoot = RED.settings.httpNodeRoot
@@ -34,10 +37,15 @@
           const port = $("#node-config-input-port").val()
           base =  `${loc.protocol}//${loc.hostname}:${port}`
         }
-        $('#point-to').prop('href', base + p)
-        $('#point-to').html(base + p)
+        $('.point-to').prop('href', base + p)
+        $('.point-to').html(base + p)
+        const dev = base+p == "/" ? "/flexdash-src" : base+p+"-src"
+        $('#dev-to').prop('href', dev)
+        $('#dev-to').html(dev)
       }
 
+      // handle 'redServer' checkbox: show/hide port setting
+      $("#node-config-input-redServer").prop('checked', !!this.redServer)
       $("#node-config-input-redServer").on('change', ()=> {
         if ($("#node-config-input-redServer").is(":checked"))
           $("#port-row").hide()
@@ -46,70 +54,152 @@
         setBrowserPath($('#node-config-input-path').val())
       })
 
-      if (this.redServer)
-        $("#node-config-input-redServer").prop('checked', true)
-      else
-        $("#node-config-input-redServer").prop('checked', false)
-
+      // dynamically update the URL based on the browser path
       setBrowserPath(this.path)
       $('#node-config-input-path').on('input', ()=> {
         setBrowserPath($('#node-config-input-path').val())
       })
 
       $("#node-config-input-options").typedInput({ type:"json", types:["json"] })
+
+      // show/hide advanced options
+      let advanced = false
+      $("#adv-click").on('click', ()=> {
+        advanced = !advanced
+        if (advanced) $("#advanced").show(); else $("#advanced").hide()
+        $('#adv-btn').attr('class', advanced ? 'fa fa-caret-down' : 'fa fa-caret-up')
+      })
+
+      // show/hide development options
+      let development = false
+      $("#dev-click").on('click', ()=> {
+        development = !development
+        if (development) $("#development").show(); else $("#development").hide()
+        $('#dev-btn').attr('class', development ? 'fa fa-caret-down' : 'fa fa-caret-up')
+      })
     },
 
   })
 </script>
 
+<style>
+  .fd-indent { margin-left: 22px; display: inline-block;}
+</style>
+
 <script type="text/html" data-template-name="flexdash config">
-  <div class="form-row">
+  <div style="margin-bottom: 12px;">
+    <h2>FlexDash config node</h2>
+    <p>Each FlexDash config node corresponds to a dashboard, i.e. a web page that displays a
+      dashboard with multiple tabs filled with widgets.
+      You can create multiple dashboards (i.e. multiple config nodes) and assign different ports
+      or different paths to each one in the advanced options.</p>
+    <p><b>To access this dashboard</b>, point your browser at <a class="point-to" href="/">/</a></p>
+  </div>
+<div class="form-row">
     <label for="node-config-input-ctxName" style="width:auto">
       <i class="fa fa-database" style="margin-right: 6px;"></i>
       Context store name</label>
     <input type="text" id="node-config-input-ctxName" placeholder="default" style="width: 50%">
-  </div>
-  <hr />
-  <div class="form-row">
-    <i class="fa fa-comment" style="margin-right: 6px;"></i>
-      <b>Advanced configuration options.</b> Do not change these without reading the documentation!
-  </div>
-  <div class="form-row">
-    <input type="checkbox" id="node-config-input-redServer"
-           style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
-    <label for="node-config-input-redServer" style="width: auto">
-      Use Node-RED's built-in webserver
-    </label>
-  </div>
-  <div class="form-row hidden" id="port-row">
-    <label for="node-config-input-port"><i class="fa fa-terminal"></i> Port</label>
-    <input type="text" id="node-config-input-port">
-  </div>
-  <div class="form-row">
-    <label for="node-config-input-path">
-      <i class="fa fa-paper-plane-o" style="margin-right: 6px;"></i>
-      Path</label>
-    <input type="text" id="node-config-input-path" placeholder="/flexdash">
     <br>
-    <small>Point your browser at: <a id="point-to" href="/">/</a></small>
+    <small class="fd-indent">Use a <i>persistent</i> context store so the dashboard's config is saved across Node-RED restarts!</small>
   </div>
-  <div class="form-row">
-    <input type="checkbox" id="node-config-input-saveConfig"
-           style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
-    <label for="node-config-input-saveConfig" style="width: auto"><i class="fa fa-save"></i>
-      Save FlexDash config</label>
+
+  <!-- Advanced options -->
+  <hr />
+  <div class="form-row hidden" style="margin-bottom: 12px; cursor: pointer;" id="adv-click">
+    <i class="fa fa-caret-right" style="cursor: pointer;" id="adv-btn"></i>
+    <b>Advanced configuration options</b>
   </div>
-  <div class="form-row">
-    <input type="checkbox" id="node-config-input-allOrigins"
-           style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
-    <label for="node-config-input-allOrigins" style="width: auto"><i class="fa fa-lock"></i>
-      Configure CORS to allow all origins</label>
+  <div id="advanced" style="display: none;">
+    <div style="margin-bottom: 12px;">
+      <b>These options do not need to be changed for standard use of FlexDash!
+        Please read the documentation in the 'Help' side-bar.</b>
+    </div>
+    <div class="form-row">
+      <input type="checkbox" id="node-config-input-redServer"
+            style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+      <label for="node-config-input-redServer" style="width: auto">
+        Use Node-RED's built-in webserver
+      </label>
+      <br>
+      <small class="fd-indent">Turning this off serves the dashboard on a separate port</small>
+    </div>
+    <div class="form-row hidden" id="port-row">
+      <label for="node-config-input-port"><i class="fa fa-terminal"></i> Port</label>
+      <input type="text" id="node-config-input-port">
+    </div>
+    <div class="form-row">
+      <label for="node-config-input-path" style="width: 200px;">
+        <i class="fa fa-paper-plane-o" style="margin-right: 6px; "></i>
+        Dashboard URL Path</label>
+      <input type="text" id="node-config-input-path" placeholder="/flexdash" style="width:30ex;">
+      <br>
+      <small class="fd-indent">The URL path is relative to the httpNodeRoot setting when using Node-RED's
+        built-in webserver and absolute otherwise. The path should have a leading slash but no
+        trailing slash (except for the "/" case).</small>
+      <br>
+      <small class="fd-indent">Point your browser at: <a class="point-to" href="/">/</a></small>
+    </div>
+    <div class="form-row">
+      <input type="checkbox" id="node-config-input-saveConfig"
+            style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+      <label for="node-config-input-saveConfig" style="width: auto">
+        Serve and save FlexDash config</label><br>
+      <small class="fd-indent">Let Node-RED serve and save the dashboard configuration. Turning this off is useful
+        if you want to serve the dashboard from a different server and only pull data from Node-RED.
+      </small>
+    </div>
+    <div class="form-row">
+      <input type="checkbox" id="node-config-input-allOrigins"
+            style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+      <label for="node-config-input-allOrigins" style="width: auto">
+        Configure CORS to allow all origins</label>
+    </div>
+    <div class="form-row">
+      <label for="node-config-input-ioOpts" style="width: auto">
+        <i class="fa fa-file-code-o" style="margin-right: 6px;"></i>
+        Custom socket.io options:</label><br>
+      <input type="text" id="node-config-input-ioOpts" style="width: 90%;"><br>
+      <small class="fd-indent">JSON options passed to socket.io's <tt>new Server()</tt></small>
+    </div>
   </div>
-  <div class="form-row">
-    <label for="node-config-input-options" style="width: auto">
-      <i class="fa fa-file-code-o" style="margin-right: 6px;"></i>
-      Custom socket.io Options:</label><br>
-    <input type="text" id="node-config-input-options" style="width: 100%;">
+
+  <!-- Development options -->
+  <hr />
+  <div class="form-row hidden" style="margin-bottom: 12px; cursor: pointer;" id="dev-click">
+    <i class="fa fa-caret-right" style="cursor: pointer;" id="dev-btn"></i>
+    <b>Dashboard development</b>
+  </div>
+  <div id="development" style="display: none;">
+    <div style="margin-bottom: 12px;">
+      <b>These options are highly experimental and as likely to corrupt your Node-RED installation
+        as anything else. Use at your own risk!</b>
+      <p>In addition to enabling the development server, you must install the FlexDash source
+        code in <tt>./flexdash-src</tt>. For example, in the Node-RED home directory run
+        <tt>git clone https://github.com/tve/flexdash flexdash-src</tt>.
+      </p>
+    </div>
+    <div class="form-row">
+      <input type="checkbox" id="node-config-input-devServer"
+            style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+      <label for="node-config-input-devServer" style="width: auto">
+        Enable development server</label><br>
+      <small class="fd-indent">Enable serving a development version of FlexDash, which includes
+        hot module reload and debugging information in the browser. This is useful to develop
+        new dashboard widgets.
+      </small>
+      <small class="fd-indent">Point your browser at: <a id="dev-to" href="/dev">-src</a></small>
+      </div>
+    <div class="form-row">
+      <input type="checkbox" id="node-config-input-devInstall"
+            style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
+      <label for="node-config-input-devInstall" style="width: auto">
+        Enable auto-install</label><br>
+      <small class="fd-indent">Enable automatic <tt>npm install</tt> in Node-RED's node_moduloes
+        of modules needed to run the development server (specifically, vite and its dependencies).
+      </small>
+    </div>
+
   </div>
 </script>
 

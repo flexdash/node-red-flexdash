@@ -7,8 +7,7 @@ module.exports = function(RED) {
 
   function findWidgetByNode(fd, node_id) {
     for (const [k, v] of Object.entries(fd.store.config.widgets)) {
-      if (!v) fd.warn(`Null widget ${k}?? ${JSON.stringify(v)}\n${JSON.stringify(fd.store.config.widgets)}`)
-      if (v.nr_node == node_id) return k
+      if (v?.nr_node == node_id) return k
     }
     return null
   }
@@ -24,6 +23,9 @@ module.exports = function(RED) {
       const widget_ix = fd.store.addWidget(grid_id, widget_kind)
       widget_id = fd.store.widgetIDByIX(grid_id, widget_ix)
       fd.store.updateWidget(widget_id, {nr_node: config.id})
+      fd.log(`Created new ${widget_kind} widget ${widget_id} for node ${config.id}`)
+    } else {
+      fd.log(`Connected ${widget_kind} widget ${widget_id} to node ${config.id}`)
     }
     return widget_id
   }
@@ -41,7 +43,7 @@ module.exports = function(RED) {
         node.widget_id = connectWidget(this, config, widget_kind)
         let params = {}
         for (const [k, v] of Object.entries(config)) {
-          if (k === 'fd' || k.startsWith('fd_')) continue
+          if (k === 'fd') continue
           params[k] = v
         }
         this.store.updateWidget(node.widget_id, { static: params, output: `nr/${node.id}` })
@@ -57,17 +59,19 @@ module.exports = function(RED) {
     updateWidget(node, params) {
       try {
         const w = this.store.widgetByID(node.widget_id)
+        //this.log(`Updating ${w.kind}: with ${JSON.stringify(params)}`)
         for (const [k, v] of Object.entries(params)) {
-          if (!(k in w.static)) continue
-          const path = `/node-red/${node.widget_id}/${k}`
+          //if (!(k in w.static)) continue // controversial...
+          const path = `node-red/${node.widget_id}/${k}`
           if (v === null) {
             // remove pointer to dynamic param, remove value
-            this.store.updateWidgetProp(config.fd_widget_id, dynamic, k, null)
-            this.store.insertData(path, undefined)
+            if (w.dynamic[k]) this.store.updateWidgetProp(config.fd_widget_id, dynamic, k, null)
+            this.set(path, undefined)
           } else {
             // set value, set pointer to dynamic param if it's not there
-            this.store.insertData(path, v)
-            if (!(k in w.dynamic)) this.store.updateWidgetProp(node.widget_id, dynamic, k, path)
+            this.log(`${path} <- ${v}`)
+            this.set(path, v)
+            if (!(k in w.dynamic)) this.store.updateWidgetProp(node.widget_id, 'dynamic', k, path)
           }
         }
       } catch (e) {
@@ -78,8 +82,13 @@ module.exports = function(RED) {
     // onInput registers the handler of a node so it gets it's corresponding widget's output
     onInput(node, handler) {
       if (typeof handler !== 'function') throw new Error("onInput handler must be a function")
-      this.input_handlers[node.id] = handler
-    }
+      this.inputHandlers[node.id] = handler
+    },
+
+    set(path, value) {
+      this.store.set(path, value)
+      this.io.emit("set", path, value)
+    },
 
   }
 }
