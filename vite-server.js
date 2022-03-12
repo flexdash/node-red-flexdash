@@ -17,6 +17,14 @@ class ViteServer {
     this.viteServer = null // result of vite.createServer()
   }
 
+  hasSources() {
+    
+  }
+
+
+
+
+
   hasVite() {
     if (this.vite) return true
     try {

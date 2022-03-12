@@ -1,0 +1,124 @@
+<!-- FlexDash Development Server
+     Copyright (c) 2022 by Thorsten von Eicken, see LICENSE -->
+
+<script type="text/javascript">
+  RED.nodes.registerType('flexdash dev server', {
+    // properties of the NR node used by NR itself
+    category: 'flexdash',
+    color: "#FDF0C2",
+    inputs: 1,
+    outputs: 1,
+    icon: "font-awesome/fa-cogs", // icon in flow editor
+    paletteLabel: "FD dev server",
+
+    // node config properties that the user can edit in the flow editor
+    defaults: {
+      fd: { type:"flexdash config", value:"", required:true }, // FlexDash config node
+      sourceDir: { value: './flexdash-src', required: true },
+      enable: { value: false },
+      install: { value: true },
+    },
+
+    // NR node label
+    label() { return `Dev for ${this.fd?.name||"FlexDash"}` },
+    labelStyle() { return this.fd?.name ? "node_label_italic" : "" },
+
+    oneditprepare() {
+      // handle checkboxes
+      for (const bx of ['enable', 'install']) {
+        $("#node-config-input-"+bx).prop('checked', this[bx])
+      }
+    },
+
+    // provide a button to restart the dev server
+    button: {
+      enabled() { return this.enable },
+
+      onclick() {
+        // function to implement the restart button on the node, copied from inject node
+        
+        var label = this._def.label.call(this)
+        $.ajax({
+          url: "fd-dev-server/" + this.id + "/restart",
+          type: "POST",
+          data: JSON.stringify({}),
+          contentType: "application/json; charset=utf-8",
+          success(resp) {
+            RED.notify("FlexDash dev server restarting", { type: "success", id: "fd-restart", timeout: 2000 })
+          },
+          error: function (jqXHR, textStatus, errorThrown) {
+            if (jqXHR.status == 404) {
+              RED.notify("The node has not been deployed", "error");
+            } else if (jqXHR.status == 500) {
+              RED.notify("FlexDash restart failed", "error");
+            } else if (jqXHR.status == 0) {
+              RED.notify("No response from Node-RED back-end", "error");
+            } else {
+              RED.notify("Unexpected error: " + textStatus, "error");
+            }
+          }
+        })
+      },
+    }
+
+  })
+</script>
+
+<style>
+  .red-ui-editor .fd-indent { margin-left: 22px; display: inline-block; }
+  .red-ui.editor .fd-hidden { display: none; }
+  .red-ui-editor input.fd-checkbox { vertical-align: top; margin-right: 1ex; display: inline-block; width: auto; }
+</style>
+
+<script type="text/html" data-template-name="flexdash dev server">
+  <!-- Icons: https://fontawesome.com/v4/icons/ -->
+  <!-- input types: https://www.w3schools.com/tags/att_input_type.asp -->
+  <div class="form-row">
+    <label for="node-input-fd"></i>Dashboard</label>
+    <input type="text" id="node-input-fd">
+  </div>
+  <br>
+  <!--div class="form-row">
+    <label for="node-input-sourceDir" style="width: 18ex;"></i>Source Directory</label>
+    <input type="text" id="node-input-sourceDir" placeholder="flexdash/src">
+    <br>
+    <small class="fd-indent">Dir: <tt id="fd-sourceDir"></tt></small>
+    <small class="fd-indent">Directory where the FlexDash source is installed.
+      Paths starting with <tt>./</tt> are relative to the Node-RED <i>userDir</i>.
+      Paths starting with <tt>~/</tt> are relative to the Node-RED <i>home</i> (installation) directory.
+    </small>
+  </div-->
+  
+  <div class="form-row">
+    <input type="checkbox" id="node-input-enable" class="fd-checkbox">
+    <label for="node-input-enable" style="width: auto;">Enable the dev server</label>
+    <br>
+    <small class="fd-indent hidden" id="fd-dev-url-show"><b>To access the development dashboard</b>
+      point your browser at <a class="fd-dev-url" href="/"></a></p></small>
+  </div>
+
+  <div class="form-row">
+    <input type="checkbox" id="node-input-install" class="fd-checkbox">
+    <label for="node-input-install" style="width: auto;">Install FlexDash sources</label>
+    <br>
+    <small class="fd-indent">The dev server uses the sources in <i>userDir</i><tt>/flexdash-src/</tt>
+      to serve up the dashboard. If this option is enabled and the directory does not exist,
+      the dev server will unpack the sources there. Alternatively, you can download them from
+      <a href="https://github.com/tve/flexdash">https://github.com/tve/flexdash</a> and run
+      <tt>npm install --dev</tt>. Note that installation will download about 250MB of npm modules.
+    </small>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="flexdash dev server">
+  <p>Runs a FlexDash development server.</p>
+  <p>The development server provides a development version of FlexDash to help develop new widgets.
+    This enable hot-module-reload so changing a widget's source is immediately reflected in the
+    live dashboard. It also enables debugging using the Vue Devtools extension in the browser
+    (chrome or firefox).
+    The dev server is based on vite and runs as a subprocess of Node-RED but is proxied through
+    Node-RED's web server.</p>
+  
+  <h3>Installation</h3>
+  <p>Coming soon...</p>
+</script>

@@ -23,9 +23,9 @@ module.exports = function(RED) {
       const widget_ix = fd.store.addWidget(grid_id, widget_kind)
       widget_id = fd.store.widgetIDByIX(grid_id, widget_ix)
       fd.store.updateWidget(widget_id, {nr_node: config.id})
-      fd.log(`Created new ${widget_kind} widget ${widget_id} for node ${config.id}`)
+      fd.log(`Created ${widget_kind} ${widget_id} for ${config.id}`)
     } else {
-      fd.log(`Connected ${widget_kind} widget ${widget_id} to node ${config.id}`)
+      fd.log(`Connected ${widget_kind} ${widget_id} to ${config.id}`)
     }
     return widget_id
   }
@@ -38,8 +38,9 @@ module.exports = function(RED) {
     // TimePlot, TreeView, etc.
     // If initWidget has to create the widget it sets config.fd_widget_id.
     initWidget(node, config, widget_kind) {
-      this.log(`Initializing ${widget_kind} widget for node ${config.id}`)
+      //this.log(`Initializing ${widget_kind} widget for node ${config.id}`)
       try {
+        if (config.title === undefined) config.title = config.name
         node.widget_id = connectWidget(this, config, widget_kind)
         let params = {}
         for (const [k, v] of Object.entries(config)) {
@@ -71,7 +72,7 @@ module.exports = function(RED) {
             // set value, set pointer to dynamic param if it's not there
             this.log(`${path} <- ${v}`)
             this.set(path, v)
-            if (!(k in w.dynamic)) this.store.updateWidgetProp(node.widget_id, 'dynamic', k, path)
+            if (w.dynamic[k] != path) this.store.updateWidgetProp(node.widget_id, 'dynamic', k, path)
           }
         }
       } catch (e) {

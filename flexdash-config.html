@@ -16,13 +16,14 @@
       ctxName:    { value: null }, // context store name to persist dashboard config
       devServer:  { value: false }, // enable development server
       devInstall: { value: false }, // enable installation of development server
+      name:       { value: "FlexDash", required: true }, // dashboard title
     },
 
     label() {
       const port = this.redServer ? window.location.port : this.port.toString()
       let path = this.redServer ? RED.settings.httpNodeRoot + this.path : this.path
       path = path.replace(/^\/*(.*?)\/*$/, '/$1')
-      return `FlexDash :${port}${path}`
+      return `${this.name||"FlexDash"} :${port}${path}`
     },
   
     oneditprepare() {
@@ -83,7 +84,8 @@
 </script>
 
 <style>
-  .fd-indent { margin-left: 22px; display: inline-block;}
+  .red-ui-editor .fd-indent { margin-left: 22px; display: inline-block;}
+  .red-ui-editor .fd-icon { width: 16px; margin-right: 6px; }
 </style>
 
 <script type="text/html" data-template-name="flexdash config">
@@ -93,15 +95,21 @@
       dashboard with multiple tabs filled with widgets.
       You can create multiple dashboards (i.e. multiple config nodes) and assign different ports
       or different paths to each one in the advanced options.</p>
-    <p><b>To access this dashboard</b>, point your browser at <a class="point-to" href="/">/</a></p>
+    <p><b>To access this dashboard</b> point your browser at <a class="point-to" href="/">/</a></p>
   </div>
-<div class="form-row">
+  <div class="form-row">
     <label for="node-config-input-ctxName" style="width:auto">
-      <i class="fa fa-database" style="margin-right: 6px;"></i>
-      Context store name</label>
+      <i class="fa fa-database fd-icon"></i>Context store name</label>
     <input type="text" id="node-config-input-ctxName" placeholder="default" style="width: 50%">
     <br>
     <small class="fd-indent">Use a <i>persistent</i> context store so the dashboard's config is saved across Node-RED restarts!</small>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-name" style="width:auto">
+      <i class="fa fa-database fd-icon"></i>Dashboard name</label>
+    <input type="text" id="node-config-input-name" style="width: 30ex" placeholder="FlexDash">
+    <br>
+    <small class="fd-indent">The name will show in the dashboard's title bar.</small>
   </div>
 
   <!-- Advanced options -->
@@ -125,13 +133,11 @@
       <small class="fd-indent">Turning this off serves the dashboard on a separate port</small>
     </div>
     <div class="form-row hidden" id="port-row">
-      <label for="node-config-input-port"><i class="fa fa-terminal"></i> Port</label>
+      <label for="node-config-input-port">Port</label>
       <input type="text" id="node-config-input-port">
     </div>
     <div class="form-row">
-      <label for="node-config-input-path" style="width: 200px;">
-        <i class="fa fa-paper-plane-o" style="margin-right: 6px; "></i>
-        Dashboard URL Path</label>
+      <label for="node-config-input-path" style="width: 200px;">Dashboard URL Path</label>
       <input type="text" id="node-config-input-path" placeholder="/flexdash" style="width:30ex;">
       <br>
       <small class="fd-indent">The URL path is relative to the httpNodeRoot setting when using Node-RED's
@@ -156,9 +162,7 @@
         Configure CORS to allow all origins</label>
     </div>
     <div class="form-row">
-      <label for="node-config-input-ioOpts" style="width: auto">
-        <i class="fa fa-file-code-o" style="margin-right: 6px;"></i>
-        Custom socket.io options:</label><br>
+      <label for="node-config-input-ioOpts" style="width: auto">Custom socket.io options:</label>
       <input type="text" id="node-config-input-ioOpts" style="width: 90%;"><br>
       <small class="fd-indent">JSON options passed to socket.io's <tt>new Server()</tt></small>
     </div>

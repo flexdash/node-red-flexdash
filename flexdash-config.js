@@ -13,8 +13,6 @@ module.exports = function(RED) {
   const paths = { // paths to access FlexDash UI files
     prodRoot: path.join(__dirname, '/flexdash'), // production bundle
     prodIndexHtml: path.join(__dirname, '/flexdash/index.html'),
-    devRoot: path.join(process.cwd(), '/flexdash-src'), // development sources
-    devIndexHtml: path.join(process.cwd(), '/flexdash-src/index.html'),
   }
 
   // configuration node
@@ -25,20 +23,22 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config)
         //this.log("FlexDash config: " + JSON.stringify(config))
 
+        this.name = config.name || "FlexDash"
         this.ctxName = config.ctxName || "default"
         this.ctxPrefix = "fd-" + config.id.replace(/\./g, "*") + "-"
         this.saveTimer = null
         this.saveKeys = {}
         this.inputHandlers = {} // key: node.id, value: function(payload) 
-
-        this.io = this._startWeb(config)
+        
+        this.app = null // express app
+        this.devPath = null // path to dev server
+        Object.assign(this, this._startWeb(config)) // app, path, io, ioPath, 
 
         // time to instantiate a store, this is where our local version of the config and the state
         // are cached so they can be sent to newly connecting dashboards.
         // The store is initialized with the stored config, if it's empty the store deals with it...
         this.store = new Store(this._loadConfig(), (...args) => this._sendMutation(...args))
         this.StoreError = StoreError // allows other modules to catch StoreErrors
-
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => io.close())
@@ -98,6 +98,7 @@ module.exports = function(RED) {
       // ensure path starts with a slash and doesn't end with one, "root" ends up as "" not "/"...
       let path = config.path.startsWith("/") ? config.path : "/" + config.path
       while (path.endsWith("/")) path = path.slice(0, -1)
+      this.log("path       : " + path)
 
       // concoct the socket.io options
       let options
@@ -134,47 +135,46 @@ module.exports = function(RED) {
         server.listen(config.port)
       }
       options.path = ioPath
+      this.log("flexdash   : " + paths.prodRoot)
+      this.log("socket.io  : " + ioPath)
+      this.log("sio options: " + JSON.stringify(options))
 
       // start/mount servers
       const io = new Server(server, options)
       // handler to serve-up the FlexDash client
       const startPage = FS.readFileSync(paths.prodIndexHtml, 'utf8')
-        .replace('{}', `{sio:window.location.origin+"${ioPath}"}`)
+        .replace('{}', `{sio:window.location.origin+"${ioPath}",title:"${this.name}"}`)
       app.get(path, (req, res) => {
         req.path.endsWith('/') ? res.send(startPage) : res.redirect(path+'/')
       })
       app.use(path||'/', Express.static(paths.prodRoot, { extensions: ['html'] }))
 
-      var bindOn = config.redServer ? "bound to Node-RED port" : "on port " + port
-      this.log("FlexDash started socket.io server " + bindOn +
-          " with options " + JSON.stringify(options))
-
-      // add vite development server, if enabled
-      if (config.devServer) this._startVite(server, app, path, ioPath, config).then(() => {})
+      this.log("port       : " + (config.redServer ? "Node-RED port" : ("on port " + port)))
+      this.log("FlexDash ready!")
       
-      return io
+      return { app, path, io, ioPath }
     }
 
-    async _startVite(server, app, path, ioPath, config) {
-      try {
-        const vs = require('./vite-server')
-        if (!vs.hasVite() && config.devInstall)  await vs.installVite()
+    // async _startVite(server, app, path, ioPath, config) {
+    //   try {
+    //     const vs = require('./vite-server')
+    //     if (!vs.hasVite() && config.devInstall)  await vs.installVite()
 
-        // we need a mount path onto the parent express app, which may itself be httpNodeRoot
-        const devPath = (path||"/flexdash") + "-src/"
-        // splice the socket.io path into index.html
-        const html = await FSP.readFile(paths.devIndexHtml, 'utf8')
-        const devStartPage = html.replace('{}', `{sio:window.location.origin+"${ioPath}"}`)
-        const v = await vs.createServer(paths.devRoot, devStartPage, devPath, server) // v = { app, vite }
+    //     // we need a mount path onto the parent express app, which may itself be httpNodeRoot
+    //     const devPath = (path||"/flexdash") + "-src/"
+    //     // splice the socket.io path into index.html
+    //     const html = await FSP.readFile(paths.devIndexHtml, 'utf8')
+    //     const devStartPage = html.replace('{}', `{sio:window.location.origin+"${ioPath}"}`)
+    //     const v = await vs.createServer(paths.devRoot, devStartPage, devPath, server) // v = { app, vite }
 
-        app.use(devPath, v.app)
-        app.use(devPath.substring(0, -1), (req,res) => res.redirect(devPath))
-        this.log("FlexDash started vite dev server at " + devPath)
-      } catch(err) {
-        this.error("FlexDash failed to start vite dev server:\n" + err.stack)
-      }
-      // TODO: provide feedback to the user in the UI!
-    }
+    //     app.use(devPath, v.app)
+    //     app.use(devPath.substring(0, -1), (req,res) => res.redirect(devPath))
+    //     this.log("FlexDash started vite dev server at " + devPath)
+    //   } catch(err) {
+    //     this.error("FlexDash failed to start vite dev server:\n" + err.stack)
+    //   }
+    //   // TODO: provide feedback to the user in the UI!
+    // }
 
     // send the configuration to a client, the server param is the configuration node
     // internal-only
@@ -212,7 +212,8 @@ module.exports = function(RED) {
     // internal only
     _sendMutation(what, topic, value) {
       this._saveConfigSoon(what)
-      this.io.emit("set", topic, value)
+      // this.io may be null because store gets created before socket.io server...
+      if (this.io) this.io.emit("set", topic, value)
     }
 
     // save the config in a few milliseconds, such that a slew of config changes only result in
