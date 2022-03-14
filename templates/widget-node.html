@@ -1,0 +1,93 @@
+<!-- Node-RED editor code for the FlexDash ##name## widget -->
+
+<script type="module">
+  // fetch the widget info
+  import widgetInfo from './##resources_path##/##base_filename##-info.js'
+
+  // construct defaults for the node, setting all but bool to null so widget defaults happen
+  var widgetDefaults = Object.fromEntries(Object.values(widgetInfo.props).map(p =>
+    [p.name, {value: p.type==='boolean' ? p.default : null}]
+  ))
+  console.log(widgetInfo.name, "widgetDefaults", widgetDefaults)
+  
+  // construct the palette label
+  var paletteLabel = widgetInfo.name_text.toLocaleLowerCase()
+
+  // update the text for the help sidebar
+  var helpHtml = `
+    <h3>${widgetInfo.help_title}</h3>
+    <p>The ${paletteLabel} node displays a ${widgetInfo.name_text} widget in the FlexDash dashboard.</p>
+    ${widgetInfo.help_body}
+  `.trim()
+  $(`script[data-help-name="${widgetInfo.name_kebab}"]`).html(helpHtml) // hidden help text
+  $(`#${widgetInfo.name_kebab}-help-text`).replaceWith(helpHtml) // shown help text
+
+  var allTypes = ['bool','str','num','json']
+
+  RED.nodes.registerType(widgetInfo.name_kebab, {
+    // properties of the NR node used by NR itself
+    category: 'flexdash',
+    color: "#FDF0C2",
+    inputs: 1,
+    outputs: widgetInfo.output ? 1 : 0,
+    icon: "font-awesome/fa-rocket", // icon in flow editor
+    paletteLabel: paletteLabel,
+
+    // node config properties that the user can edit in the flow editor
+    defaults: {
+      // required fields for FlexDash Widget nodes
+      fd: { type:"flexdash config", value:"", required:true }, // FlexDash config node
+      name: { value: '' }, // name field of NR node (standard)
+  
+      // widget fields, i.e. values being transmitted to the FlexDash Widget
+      ...widgetDefaults,
+    },
+
+    // NR node label
+    label() { return this.name || paletteLabel },
+    labelStyle() { return this.name ? "node_label_italic" : "" },
+
+    oneditprepare() {
+      // fetch the html for the widget props tab and insert into DOM
+      // first we need to put toegther the URL, which comes out to something like
+      // resources/@flexdash/node-red-fd-testnodes/testgauge-props.html
+      // (see "Editor resources" in Node-RED's "Creating nodes" guide)
+      let url = `${widgetInfo.resources_path}/${widgetInfo.base_filename}-props.html`
+      $('#fd-prop-rows').load(url, () => {
+        // after inserting into DOM, initialize the typed input fields
+        $('.fd-typed-input').each((ix, el) => {
+          const prop = (el.id || "").replace("node-input-", "") // name of corresponding prop
+          if (prop in widgetInfo.props) {
+            const it = widgetInfo.props[prop].input_type // str, num, bool, etc.
+            const conf = it && it !== 'any' // construct config passed into typedInput()
+              ? { type:it, types:[it], typeField: el.id + '-type' }
+              : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
+            //console.log("typedInput", prop, conf, this)
+            $(el).typedInput(conf) // init the typedInput field
+          }
+        })
+      })
+    },
+
+  })
+</script>
+
+<script type="text/html" data-template-name="##name_kebab##">
+    <!-- node properties -->
+    <div class="form-row">
+      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+      <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+      <label for="node-input-fd"><i class="fa fa-th"></i> Dashboard</label>
+      <input type="text" id="node-input-fd">
+    </div>
+
+    <!-- widget params -->
+    <div id="fd-prop-rows" style="display:contents"></div>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="##name_kebab##">
+  <p id="##name_kebab##-help-text"><i>Ooops, this should have filled-in dynamically...</i></p>
+</script>

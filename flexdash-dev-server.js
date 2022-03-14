@@ -17,7 +17,7 @@ const JS = JSON.stringify
 // active. Also the websock proxy is effectively mounted at the root and so multiple ones are
 // difficult to multiplex.
 class ViteDevServer {
-
+  // to be refactored from the stuff below...
 }
 
 module.exports = function (RED) {
@@ -149,8 +149,8 @@ module.exports = function (RED) {
           const l = data.toString().replace(/[^\n]*\n/gs, "FD dev ERR: $&").trimEnd()
           console.log(l)
         })
-      } catch(e) {
-        this.warn(`*** FlexDash Dev server did not start: ${e.stack}`)
+      } catch (e) {
+        this.warn(`*** FlexDash Dev server did not start: ${e.stack || e}`)
         this.status({fill:"red",shape:"dot",text:"see node-RED log"})
       }
     }
@@ -159,8 +159,6 @@ module.exports = function (RED) {
       if (this.vite) {
         this.log("Stopping vite")
         this.vite.kill()
-        console.log(Object.keys(this.viteProxy))
-        if (this.viteProxy?.proxy) { console.log("*** CLOSING"); this.viteProxy.proxy.close() }
         this.vite = this.vitePort = this.viteReady = this.viteProxy = null
         this.showStatus("OK")
         if (this.viteProxy) this.stopProxying()
@@ -240,40 +238,6 @@ module.exports = function (RED) {
 
     // ===== directories and files
 
-    // create a temporary directory to run vite and symlink to everything we need, the reason is that
-    // we can't necessarily write to the flexdash source dir (e.g., got clone as some user, and node-red
-    // running as another)
-    // Note: will throw on error
-    // async genTempDir() {
-    //   const tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'node-red-vite-'))
-    //   // symlink to everything in flexdash source dir except vite config and index.html
-    //   const files = await fs.promises.readdir(this.sourceDir, { withFileTypes: true });
-    //   for (const file of files) {
-    //     if (file.name === 'vite.config.js' || file.name === 'index.html') continue
-    //     await fs.promises.symlink(
-    //       path.join(this.sourceDir, file.name),
-    //       path.join(tempDir, file.name),
-    //       file.isDirectory() ? 'dir' : 'file'
-    //     )
-    //   }
-    //   //this.log("Symlinked " + files.map(f=>f.name).join(", "))
-    //   return tempDir
-    // }
-
-    // async remTempDir() {
-    //   const tempDir = this.tempDir
-    //   try {
-    //     this.tempDir = null
-    //     const files = await fs.promises.readdir(tempDir, { withFileTypes: true });
-    //     for (const file of files) {
-    //       await fs.promises.rm(path.join(tempDir, file.name))
-    //     }
-    //     await fs.promises.rmdir(tempDir)
-    //   } catch(e) {
-    //     this.warn(`Error removing vite temp dir ${tempDir}: ${e}`)
-    //   }
-    // }
-    
     // generate vite config, we need to tweak paths and make sure it uses the correct port
     async genViteConfig(infile, outfile, path, sourceDir) {
       let config = await fs.promises.readFile(infile, "utf8")
@@ -281,7 +245,7 @@ module.exports = function (RED) {
       const opts = {
         //root: tempDir,
         base: path + '/', // URL path to get to dev dashboard...
-        LogLevel: 'info',
+        logLevel: 'info',
         server: {
           hmr: { clientPort: 1880 }, // causes browser to be told to open ws to NR port
           fs: { allow: [ sourceDir, process.cwd(), RED.settings.userDir ] },
@@ -293,56 +257,54 @@ module.exports = function (RED) {
       await fs.promises.writeFile(outfile, config)
     }
 
-    // async genIndexHtml(infile, outfile) {
-    //   let html = await fs.promises.readFile(infile, "utf8")
-    //   html = html.replace('{}', `{sio:window.location.origin+"${this.fd.ioPath}",title:"${this.fd.name}"}`)
-    //   await fs.promises.writeFile(outfile, html)
-    // }
-
     async symlinkXtra(xtraDir, dirs) {
-      // ensure the xtra dir exists
-      try { await fs.promises.access(xtraDir, fs.constants.F_OK) }
-      catch (e) { await fs.promises.mkdir(xtraDir) }
       // remove existing symlinks
-      for (const f of await fs.promises.readdir(xtraDir)) {
-        const link = path.join(xtraDir, f)
-        this.log("Removing existing symlink " + link)
-        await fs.promises.unlink(link)
-      }
+      try { await fs.promises.rm(xtraDir, {recursive: true}) } catch(e) { }
+      // create xtraDir
+      await fs.promises.mkdir(xtraDir)
       // symlink to dirs that may have widgets
       const prom = new Promise((resolve, reject) => {
         let cnt = 0 // count of oustanding callbacks from glob
-        let errs = []
-
+        
         // given an array of paths, create a symlink to each one in the xtraDir
         const linkWidgetDir = (err, paths) => {
-          //console.log(`LWD: ${err} ${paths}`)
-          if (err) {
-            errs.append(err)
-          } else {
-            for (const p of paths||[]) {
-              // p is of the form /<dir1>/.../<dirN>/widgets, we want to link to dirN and use that as name
-              const tgt = path.dirname(p)
-              const name = path.basename(tgt)
-              fs.symlink(tgt, path.join(xtraDir, name), 'dir', err => {
-                if (err) errs.append(err)
-                else this.log(`xtra: ${p}`)
-              })
+          (async (err, paths) => {
+            let errs = []
+            //console.log(`LWD: ${err} ${paths}`)
+            if (err) {
+              errs.push(err)
+            } else {
+              for (const p of paths||[]) {
+                // p is of the form /<dir1>/.../<dirN>/widgets, need to create our own <dirN> and then
+                // add a symlink ./<dirN>/widgets -> p
+                const name = path.basename(path.dirname(p))
+                // create dir, then create symlink in it
+                try { await fs.promises.mkdir(path.join(xtraDir, name)) } catch(e) { }
+                try {
+                  await fs.promises.symlink(p, path.join(xtraDir, name, 'widgets'), 'dir')
+                  this.log(`widgets: found ${p}`)
+                } catch (e) {
+                  console.log(e)
+                  errs.push(e)
+                }
+              }
             }
-          }
-          // if we're done with all outstanding callbacks then resolve/reject the promise
-          cnt--
-          if (cnt == 0) {
-            if (errs.length > 0) reject(errs)
-            else resolve()
-          }
+            // if we're done with all outstanding callbacks then resolve/reject the promise
+            cnt--
+            if (cnt == 0) {
+              if (errs.length > 0) reject(new Error(errs.join(', ')))
+              else resolve()
+            }
+          })(err, paths).then(() => {}).catch(e => {
+            console.log("Error in linkWidgetDir: " + e.stack)
+          })
         }
 
         // iterate through all dirs, find widget dirs, and symlink them
         for (let dir of dirs) {
           dir = this.resolvePath(dir)
-          this.log("xtra: searching in " + dir)
-          cnt += 2 // launching two globs
+          this.log("widgets: searching in " + dir)
+          cnt += 3 // launching two globs
           glob(`${dir}/widgets`, linkWidgetDir)
           glob(`${dir}/node-red-fd-*/widgets`, linkWidgetDir)
           glob(`${dir}/node_modules/node-red-fd-*/widgets`, linkWidgetDir)
@@ -358,13 +320,6 @@ module.exports = function (RED) {
     }
 
     async installSrc() {
-      // // locate source tgz
-      // const files = await fs.promises.readdir(__dirname)
-      // files.sort()
-      // files.reverse()
-      // this.log(`files: ${files.join(' ')}`)
-      // const tgz = files.find(f => f.match(/flexdash-([0-9.]+)-src.tgz/))
-      // if (!tgz) throw new Error(`Could not find source tgz in ${__dirname}`)
       // extract to sourceDir
       this.log("Extracting and installing flexdash sources to " + this.sourceDir)
       if (!fs.existsSync(this.sourceDir)) await fs.promises.mkdir(this.sourceDir)

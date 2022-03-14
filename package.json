@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
@@ -22,6 +22,9 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "bin": {
+    "gen-widgets": "./gen-code.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
