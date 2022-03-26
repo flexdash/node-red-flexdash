@@ -10,6 +10,7 @@ const tar = require('tar')
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
+const execFile = util.promisify(require('child_process').execFile)
 const JS = JSON.stringify
 
 // ViteDevServer is a singleton class that manages an Vite development server process. The reason to
@@ -64,6 +65,7 @@ module.exports = function (RED) {
           case "stop": this.stopVite(); break
           case "restart": this.restart(); break
           case "start": this.startVite().then(()=>{}); break
+          case "bundle": this.genBundle().then(()=>{}); break
           default: this.warn(`unknown command: ${msg.payload}, expected "start", "stop" or "restart"`)
         }
       })
@@ -134,7 +136,7 @@ module.exports = function (RED) {
           data = data.toString()
           console.log(data.replace(/[^\n]*\n/gs, "FD dev: $&").trimEnd())
           let m
-          if (m = data.match(/^\s+> Local: http:\/\/localhost:(\d+)\//m)) {
+          if (m = data.match(/^\s+> Local: *http:\/\/localhost:(\d+)\//m)) {
             this.vitePort = parseInt(m[1], 10)
             this.log(`vite started on port ${this.vitePort}`)
           }
@@ -167,6 +169,40 @@ module.exports = function (RED) {
     }
 
     restart() { this.stopVite(); this.startVite() }
+
+    // ===== run vite to bundle flexdash
+
+    async genBundle() {
+      try {
+        // prerequisites
+        if (this.install && !fs.existsSync(this.sourceDir)) {
+          await this.installSrc()
+        }
+        const err = this.checkSetup()
+        if (err != "OK") throw new Error(err)
+
+        // gen vite config
+        const viteConfigIn = path.join(this.sourceDir, "vite.config.js")
+        const viteConfig = path.join(this.sourceDir, `.vite.config-${this.name}.js`)
+        await this.genViteConfig(viteConfigIn, viteConfig, this.path, this.sourceDir)
+        // symlink xtra directory to external widgets
+        await this.symlinkXtra(path.join(this.sourceDir, "xtra"),
+          [ process.cwd(), RED.settings.userDir ])
+
+        // exec process and capture stdout/stderr
+        const env = { HOME: process.env.HOME, PATH: process.env.PATH, SHELL: process.env.SHELL}
+        const { stdout, stderr } = await execFile(
+          this.viteBin, ["build", "-c", viteConfig, "--no-clearScreen"],
+          { cwd: this.sourceDir, env, windowsHide: true }
+        )
+
+        // show stdout/stderr
+        console.log(stdout.replace(/[^\n]*\n/gs, "FD bundle: $&").trimEnd())
+        console.log(stderr.replace(/[^\n]*\n/gs, "FD bundle ERR: $&").trimEnd())
+      } catch (e) {
+        this.warn(`*** FlexDash bundling failed: ${e.stack || e}`)
+      }
+    }
 
     // ===== proxy to vite
 

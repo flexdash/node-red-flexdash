@@ -80,6 +80,22 @@ module.exports = function(RED) {
       }
     },
 
+    setWidgetParam(node, param, value) {
+      try {
+        const w = this.store.widgetByID(node.widget_id)
+        const p = param.split('/')[0]
+        //if (!(p in w.static)) continue // controversial...
+        const path = `node-red/${node.widget_id}/${param}`
+        // set value, set pointer to dynamic param if it's not there
+        this.log(`${path} <- ${value}`)
+        this.set(path, value)
+        const p2 = `node-red/${node.widget_id}/${p}`
+        if (w.dynamic[p] != p2) this.store.updateWidgetProp(node.widget_id, 'dynamic', p, p2)
+      } catch (e) {
+        this.warn("Failed to update widget: " + e.stack)
+      }
+    },
+
     // onInput registers the handler of a node so it gets it's corresponding widget's output
     onInput(node, handler) {
       if (typeof handler !== 'function') throw new Error("onInput handler must be a function")

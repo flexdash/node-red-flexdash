@@ -86,7 +86,7 @@ module.exports = function(RED) {
 
       // ===== public helper methods on the config object
       // export helper functions as methods so they can be reached from fd nodes
-      for (let f of ["set", "onInput", "initWidget", "updateWidget"]) {
+      for (let f of ["set", "onInput", "initWidget", "updateWidget", "setWidgetParam"]) {
         this[f] = helpers[f]
       }
     }
