@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
