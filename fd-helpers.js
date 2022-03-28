@@ -66,7 +66,7 @@ module.exports = function(RED) {
           const path = `node-red/${node.widget_id}/${k}`
           if (v === null) {
             // remove pointer to dynamic param, remove value
-            if (w.dynamic[k]) this.store.updateWidgetProp(config.fd_widget_id, dynamic, k, null)
+            if (w.dynamic[k]) this.store.updateWidgetProp(config.fd_widget_id, 'dynamic', k, null)
             this.set(path, undefined)
           } else {
             // set value, set pointer to dynamic param if it's not there
@@ -87,10 +87,26 @@ module.exports = function(RED) {
         //if (!(p in w.static)) continue // controversial...
         const path = `node-red/${node.widget_id}/${param}`
         // set value, set pointer to dynamic param if it's not there
-        this.log(`${path} <- ${value}`)
         this.set(path, value)
         const p2 = `node-red/${node.widget_id}/${p}`
         if (w.dynamic[p] != p2) this.store.updateWidgetProp(node.widget_id, 'dynamic', p, p2)
+      } catch (e) {
+        this.warn("Failed to update widget: " + e.stack)
+      }
+    },
+
+    deleteWidgetParam(node, param) {
+      try {
+        const w = this.store.widgetByID(node.widget_id)
+        const p = param.split('/')[0]
+        //if (!(p in w.static)) continue // controversial...
+        const path = `node-red/${node.widget_id}/${param}`
+        // remove pointer to dynamic param, remove value
+        this.unset(path)
+        const p2 = `node-red/${node.widget_id}/${p}`
+        if (path == p2 && w.dynamic[p] == p2) {
+          this.store.updateWidgetProp(node.widget_id, 'dynamic', p, null)
+        }
       } catch (e) {
         this.warn("Failed to update widget: " + e.stack)
       }
@@ -105,6 +121,11 @@ module.exports = function(RED) {
     set(path, value) {
       this.store.set(path, value)
       this.io.emit("set", path, value)
+    },
+
+    unset(path) {
+      this.store.set(path, undefined)
+      this.io.emit("unset", path)
     },
 
   }
