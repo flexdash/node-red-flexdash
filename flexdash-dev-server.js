@@ -317,6 +317,7 @@ module.exports = function (RED) {
                 // create dir, then create symlink in it
                 try { await fs.promises.mkdir(path.join(xtraDir, name)) } catch(e) { }
                 try {
+                  this.log(`about to symlink ${path.join(xtraDir, name, 'widgets')} -> ${p}`)
                   await fs.promises.symlink(p, path.join(xtraDir, name, 'widgets'), 'dir')
                   this.log(`widgets: found ${p}`)
                 } catch (e) {
@@ -342,8 +343,9 @@ module.exports = function (RED) {
           this.log("widgets: searching in " + dir)
           cnt += 3 // launching two globs
           glob(`${dir}/widgets`, linkWidgetDir)
-          glob(`${dir}/node-red-fd-*/widgets`, linkWidgetDir)
+          //glob(`${dir}/node-red-fd-*/widgets`, linkWidgetDir)
           glob(`${dir}/node_modules/node-red-fd-*/widgets`, linkWidgetDir)
+          glob(`${dir}/node_modules/@*/node-red-fd-*/widgets`, linkWidgetDir)
         }
       })
       await prom
