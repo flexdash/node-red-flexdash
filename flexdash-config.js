@@ -1,5 +1,5 @@
 // FlexDash-config node for Node-RED
-// Copyright (c) 2021-2022 by Thorsten von Eicken, see LICENSE
+// Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
 module.exports = function(RED) {
   const { createServer } = require('http')
@@ -48,6 +48,10 @@ module.exports = function(RED) {
         const hs = socket.handshake
         this.log(`FlexDash connection ${socket.id} url=${hs.url} x-domain:${hs.xdomain}`)
 
+        // send initial state
+        if (config.saveConfig) this._sendConfig(socket)
+        this._sendData(socket)
+
         socket.on("msg", (topic, payload) => {
           if (typeof topic !== 'string') {
             this.warn(`Rx message doesn't have string topic: ${JSON.stringify(topic)}`)
@@ -57,13 +61,9 @@ module.exports = function(RED) {
           this.log(`FlexDash recv: ${socket.id} ${topic} ${JSON.stringify(payload).substring(0,20)}`)
 
           // handle incoming messages for saving config
-          if (config.saveConfig) {
+          if (config.saveConfig && topic.startsWith("$config")) {
             try {
-              if (topic === "$ctrl" && payload === "start") {
-                this._sendConfig(socket)
-              } else if (topic.startsWith("$config")) {
-                this._recvConfig(socket, topic, payload)
-              }
+              this._recvConfig(socket, topic, payload)
             } catch (err) {
               this.error(`Error storing FlexDash config in context store '${this.ctxName}': ${err.stack}`)
             }
@@ -185,6 +185,15 @@ module.exports = function(RED) {
       }
     }
 
+    // send the data state to a client
+    // internal-only
+    _sendData(socket) {
+      // enumerate all keys with our prefix
+      const keys = Object.keys(this.store.sd)
+      this.log(`Sending initial data to ${socket.id} from store ${this.ctxName} with ${keys.length} keys`)
+      socket.emit("set", "sd", this.store.sd)
+    }
+
     // receive a configuration change for a client, save it, and propagate it to other clients
     // internal-only
     _recvConfig(socket, topic, payload) {
@@ -266,7 +275,6 @@ module.exports = function(RED) {
             if (err) {
               errs.push(err)
             } else {
-              console.log("LWD: " + paths)
               for (let p of paths||[]) {
                 p = this._normalize_xtra("./xtra/" + p)
                 if (p) response.push(p)
@@ -283,8 +291,9 @@ module.exports = function(RED) {
           })
         }
 
+        this.log("Looking for extra widgets in " + dirs.join(', '))
         for (const dir of dirs) {
-          cnt += dirs.length
+          cnt += 2
           glob(`${dir}/node_modules/node-red-fd-*/widgets/dist/fd-widgets.es.js`, linkWidgetDir)
           glob(`${dir}/node_modules/@*/node-red-fd-*/widgets/dist/fd-widgets.es.js`, linkWidgetDir)
         }
