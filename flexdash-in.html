@@ -5,7 +5,7 @@
 <script type="text/javascript">
   RED.nodes.registerType('flexdash in', {
     category: "flexdash",
-    color: "#FDF0C2",
+    color: "#F0E4B8",
     defaults: {
       name:  {value:""},
       server:{value:"", required:true, type:"flexdash config"},
@@ -13,8 +13,9 @@
     inputs: 0,
     outputs: 1,
     icon: "font-awesome/fa-th",
+    paletteLabel: "raw flexdash in",
 
-    label() { return this.name || "flexdash in" },
+    label() { return this.name || "raw flexdash in" },
   });
 </script>
 
@@ -33,6 +34,14 @@
   <p>Receives raw messages from FlexDash dashboard widgets for advanced usage.
     Input messages typically come from user input
     manipulating buttons, switches, sliders, etc. in the dashboard.</p>
+  <h3>Warning</h3>
+  <p>This node is for advanced use of the FlexDash topic tree. Instead of using raw in and
+    raw out nodes use nodes from the
+    <a href="https://flows.nodered.org/node/@flexdash/node-red-fd-corewidgets">
+      @flexdash/node-red-fd-corewidgets</a> module or from other contributed
+    modules. These have a 1-1 correspondence between nodes in the Node-Red flow and widgets
+    in FlexDash and are therefore easier and more reliable to use.
+  </p>
   <h3>Output</h3>
     <p>Messages sent by dashboard widgets are output with the topic to which the
       widget output is bound and the payload emitted by the widget.</p>

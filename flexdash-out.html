@@ -5,7 +5,7 @@
 <script type="text/javascript">
   RED.nodes.registerType('flexdash out', {
     category:"flexdash",
-    color:"#FDF0C2",
+    color:"#F0E4B8",
     defaults:{
       name:   {value:""},
       server: {value:"", required:true, type:"flexdash config"}
@@ -13,7 +13,8 @@
     inputs: 1,
     outputs: 0,
     icon: "font-awesome/fa-th",
-    label() { return this.name || "flexdash out" }		
+    paletteLabel: "raw flexdash out",
+    label() { return this.name || "raw flexdash out" }		
   });
 </script>
 
@@ -30,6 +31,14 @@
 
 <script type="text/html" data-help-name="flexdash out">
   <p>Send raw data to FlexDash dashboard widgets for display. For advanced usage.</p>
+  <h3>Warning</h3>
+    <p>This node is for advanced use of the FlexDash topic tree. Instead of using raw in and
+      raw out nodes use nodes from the
+      <a href="https://flows.nodered.org/node/@flexdash/node-red-fd-corewidgets">
+        @flexdash/node-red-fd-corewidgets</a> module or from other contributed
+      modules. These have a 1-1 correspondence between nodes in the Node-Red flow and widgets
+      in FlexDash and are therefore easier and more reliable to use.
+    </p>
   <h3>Input</h3>
     <p>Messages are forwarded to dashboards for insertion into their topic hierarchy.
       Inputs of widgets in the dashboard can be bound to these topics, which is how they
