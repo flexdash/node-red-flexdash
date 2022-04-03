@@ -1,5 +1,5 @@
 // Hacky little parser for Vue SFC files
-// Copyright (c) 2022 by Thorsten von Eicken, see LICENSE
+// Copyright ©2022 by Thorsten von Eicken, see LICENSE
 
 module.exports = function (source) {
 

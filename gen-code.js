@@ -1,5 +1,5 @@
 // Generate Node-RED node code for a widget
-// Copyright (c) 2022 by Thorsten von Eicken, see LICENSE
+// Copyright ©2022 by Thorsten von Eicken, see LICENSE
 
 const fs = require('fs')
 const path = require('path')

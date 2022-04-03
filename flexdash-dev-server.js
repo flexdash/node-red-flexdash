@@ -1,5 +1,5 @@
 // FlexDash Development Server
-// Copyright (c) 2022 by Thorsten von Eicken, see LICENSE
+// Copyright ©2022 by Thorsten von Eicken, see LICENSE
 
 const fs = require('fs')
 const http = require('http')
@@ -126,6 +126,11 @@ class ViteDevServer {
     this.vite.stderr.on('data', data => {
       const l = data.toString().replace(/[^\n]*\n/gs, "FD dev ERR: $&").trimEnd()
       console.log(l)
+    })
+
+    this.vite.on('close', code => {
+      this.log("Vite exited with code " + code)
+      this.stopVite()
     })
   }
 
@@ -294,7 +299,7 @@ class ViteDevServer {
       for (let dir of dirs) {
         dir = this.resolvePath(dir)
         this.log("widgets: searching in " + dir)
-        cnt += 3 // launching two globs
+        cnt += 2 // launching two globs
         //glob(`${dir}/widgets`, linkWidgetDir)
         //glob(`${dir}/node-red-fd-*/widgets`, linkWidgetDir)
         glob(`${dir}/node_modules/node-red-fd-*/widgets`, linkWidgetDir)

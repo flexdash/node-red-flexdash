@@ -1,5 +1,5 @@
 // FlexDash-out node for Node-RED
-// Copyright (c) 2021 by Thorsten von Eicken, see LICENSE
+// Copyright ©2021 by Thorsten von Eicken, see LICENSE
 
 module.exports = function(RED) {
 
