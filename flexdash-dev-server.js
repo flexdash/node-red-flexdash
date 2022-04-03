@@ -101,7 +101,7 @@ class ViteDevServer {
       this.showStatus("OK")
     } catch (e) {
       this.warn(`*** FlexDash Dev server did not start: ${e.stack || e}`)
-      this.status({fill:"red",shape:"dot",text:"see node-RED log"})
+      this.dev_node.status({fill:"red",shape:"dot",text:"see node-RED log"})
       this.dev_node = this.fd = this.vite = null
       return
     }
@@ -321,7 +321,7 @@ class ViteDevServer {
     if (!fs.existsSync(this.sourceDir)) await fs.promises.mkdir(this.sourceDir)
     const tgz = path.join(__dirname, 'flexdash-src.tgz')
     await tar.x({file:tgz, cwd:this.sourceDir})
-    this.status({fill:"yellow", shape:"dot", text:"running npm install"})
+    this.dev_node.status({fill:"yellow", shape:"dot", text:"running npm install"})
     let { stdout, stderr } = await exec("npm install --no-audit --no-fund", { cwd: this.sourceDir })
     if (stderr) {
       stderr = stderr.replace(/npm WARN [^\n]*\n/gs, '')
