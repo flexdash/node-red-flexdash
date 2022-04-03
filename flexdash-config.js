@@ -8,7 +8,7 @@ module.exports = function(RED) {
   const { Store, StoreError } = require("./store.js")
   const Express = require('express')
   const FS = require('fs')
-  const FSP = require('fs/promises')
+  const glob = require('glob')
   const path = require('path')
   const paths = { // paths to access FlexDash UI files
     prodRoot: path.join(__dirname, '/flexdash'), // production bundle
@@ -143,40 +143,31 @@ module.exports = function(RED) {
 
       // start/mount servers
       const io = new Server(server, options)
-      // handler to serve-up the FlexDash client
-      const startPage = FS.readFileSync(paths.prodIndexHtml, 'utf8')
-        .replace('{}', `{sio:window.location.origin+"${ioPath}",title:"${this.name}"}`)
+      // handler to serve-up the FlexDash client index.html
       app.get(path, (req, res) => {
-        req.path.endsWith('/') ? res.send(startPage) : res.redirect(path+'/')
+        if (!req.path.endsWith('/')) return res.redirect(path+'/')
+        FS.readFile(paths.prodIndexHtml, 'utf8', (err, data) => {
+          if (err) {
+            this.warn(`Cannot read ${paths.prodIndexHtml}: ${err}`)
+            return res.status(500).send(`Cannot read index.html`)
+          }
+          res.send(data.toString().replace(
+            '{}', `{sio:window.location.origin+"${ioPath}",title:"${this.name}"}`
+          ))
+        })
       })
       app.use(path||'/', Express.static(paths.prodRoot, { extensions: ['html'] }))
+      // handler to serve up list of extra widgets, as well as extra widgets themselves
+      app.get(path+'/xtra.json', async (req, res) => this._xtra(req, res))
+      app.get(path+'/xtra/*', (req, res) => {
+        this._xtra_lib(req.path.substring(path.length+6), req, res)
+      })
 
       this.log("port       : " + (config.redServer ? "Node-RED port" : ("on port " + port)))
       this.log("FlexDash ready!")
       
       return { app, path, io, ioPath }
     }
-
-    // async _startVite(server, app, path, ioPath, config) {
-    //   try {
-    //     const vs = require('./vite-server')
-    //     if (!vs.hasVite() && config.devInstall)  await vs.installVite()
-
-    //     // we need a mount path onto the parent express app, which may itself be httpNodeRoot
-    //     const devPath = (path||"/flexdash") + "-src/"
-    //     // splice the socket.io path into index.html
-    //     const html = await FSP.readFile(paths.devIndexHtml, 'utf8')
-    //     const devStartPage = html.replace('{}', `{sio:window.location.origin+"${ioPath}"}`)
-    //     const v = await vs.createServer(paths.devRoot, devStartPage, devPath, server) // v = { app, vite }
-
-    //     app.use(devPath, v.app)
-    //     app.use(devPath.substring(0, -1), (req,res) => res.redirect(devPath))
-    //     this.log("FlexDash started vite dev server at " + devPath)
-    //   } catch(err) {
-    //     this.error("FlexDash failed to start vite dev server:\n" + err.stack)
-    //   }
-    //   // TODO: provide feedback to the user in the UI!
-    // }
 
     // send the configuration to a client, the server param is the configuration node
     // internal-only
@@ -253,6 +244,71 @@ module.exports = function(RED) {
       return config
     }
 
+    // ===== support dynamic loading of external modules
+    
+    _normalize_xtra(p) {
+      const _xtra_re = /\/node_modules\/(([^/]+\/){1,2}widgets\/dist\/[^/]+\.js)$/
+      const m = path.normalize(p).match(_xtra_re)
+      return m && m[1] ? m[1] : null
+    }
+
+    async _xtra(req, res) {
+      const dirs = [ process.cwd(), RED.settings.userDir ]
+      const response = []
+      const prom = new Promise((resolve, reject) => {
+        let cnt = 0 // count of oustanding callbacks from glob
+
+        // given an array of paths, create a symlink to each one in the xtraDir
+        const linkWidgetDir = (err, paths) => {
+          (async (err, paths) => {
+            let errs = []
+            //console.log(`LWD: ${err} ${paths}`)
+            if (err) {
+              errs.push(err)
+            } else {
+              console.log("LWD: " + paths)
+              for (let p of paths||[]) {
+                p = this._normalize_xtra("./xtra/" + p)
+                if (p) response.push(p)
+              }
+            }
+            cnt--
+            // if we're done with all outstanding callbacks then resolve/reject the promise
+            if (cnt == 0) {
+              if (errs.length > 0) reject(new Error(errs.join(', ')))
+              else resolve()
+            }
+          })(err, paths).then(() => {}).catch(e => {
+            console.log("Error in linkWidgetDir: " + e.stack)
+          })
+        }
+
+        for (const dir of dirs) {
+          cnt += dirs.length
+          glob(`${dir}/node_modules/node-red-fd-*/widgets/dist/fd-widgets.es.js`, linkWidgetDir)
+          glob(`${dir}/node_modules/@*/node-red-fd-*/widgets/dist/fd-widgets.es.js`, linkWidgetDir)
+        }
+      })
+      await prom
+      res.send(JSON.stringify(response))
+    }
+
+    _xtra_lib(url_path, req, res) {
+      const file_path = this._normalize_xtra("x/node_modules/" + url_path)
+      if (!file_path) {
+        this.log("Rejected xtra request for " + url_path)
+        return res.status(404).send()
+      }
+      
+      const dirs = [ process.cwd(), RED.settings.userDir ]
+      for (const dir of dirs) {
+        const p = path.join(dir, "node_modules", file_path)
+        if (FS.existsSync(p)) {
+          return res.sendFile(p)
+        }
+      }
+      res.status(404).send()
+    }
   }
 
   RED.nodes.registerType("flexdash config", flexdashConfig)
