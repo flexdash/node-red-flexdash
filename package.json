@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.3.10",
+  "version": "0.4.0",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
@@ -28,7 +28,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dopublish": "./bundle.sh 0.3.15 && npm publish --access public"
+    "dopublish": "./bundle.sh 0.4.0 && npm publish --access public"
   },
   "repository": {
     "type": "git",
