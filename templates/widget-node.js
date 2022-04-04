@@ -9,20 +9,27 @@ module.exports = function (RED) {
     RED.nodes.createNode(this, config)
     if (!fd) return // not much we can do, will have to wait for a FD node to be selected
     
-    // propagate this node's config to the FD widget
+    // Initialize the widget by pushing the config to its props and get a handle
+    // onto the FlexDash widget API.
     // The third arg is the kind of widget to create, if it doesn't exist
-    fd.initWidget(this, config, '##name##')
+    const widget = fd.initWidget(this, config, '##name##')
 
     // handle flow input messages, basically massage them a bit and update the FD widget
     this.on("input", msg => {
-      // prepare update of widget params
-      const params = typeof msg.params === 'object' ? Object.assign({}, msg.params) : {}
-      // msg.payload is interpreted as setting the ##payload_param##
-      //if ('payload' in msg) params.payload_param = msg.payload
-      // send the params to the widget
-      fd.updateWidget(this, params)
+      // prepare update of widget props (Node-RED params --> widget props)
+      const props = typeof msg.params === 'object' ? Object.assign({}, msg.params) : {}
+      // msg.payload is interpreted as setting the ##payload_prop## prop
+      if ('payload' in msg) props.##payload_prop## = msg.payload
+      widget.setProps(props)
     })
 
+    // handle widget input messages, we receive the payload sent by the widget
+    if (##output##) {
+      widget.onInput(payload => {
+        // propagate the payload into the flow and attach the node's ID
+        this.send({payload, _flexdash_node: this.id})
+      })
+    }
   }
 
   RED.nodes.registerType("##name_kebab##", ##name##)

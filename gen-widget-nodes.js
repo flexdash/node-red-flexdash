@@ -88,7 +88,7 @@ class FDWidgetCodeGen {
     this.info.output = !!this.widget.output // boolean whether there's an output or not
 
     // parse node-red info
-    this.info.payload_param = 'value'
+    this.info.payload_prop = 'value'
 
     // parse props
     this.info.props = {}

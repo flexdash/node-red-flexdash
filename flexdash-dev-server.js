@@ -270,7 +270,7 @@ class ViteDevServer {
               // add a symlink ./<dirN>/widgets -> p
               const name = path.basename(path.dirname(p))
               // create dir, then create symlink in it
-              this.log(`widgets: found ${p}`)
+              this.log(`widgets: found ${name}`)
               try {
                 await fs.promises.mkdir(path.join(xtraDir, name))
                 await fs.promises.symlink(p, path.join(xtraDir, name, 'widgets'), 'dir')

@@ -137,10 +137,11 @@ class Store {
 
   // qMutation in the central function through which all mutations to the config must be
   // funneled. It applies the mutation locally and sends it to all the dashboards.
-  // The tagline is a string that is unused (used with undo on the dashboard side).
+  // The tagline is a string that is unused (it is used with undo on the dashboard side).
   // Msgs is an array of [path, value] tuples with the leading "$config/" omitted from the path.
   qMutation(tagline, msgs) {
     //console.log("queueing mutation", tagline) //, JSON.stringify(msgs))
+    // update our copy of the store
     for (const m of msgs) {
       this.set("$config/" + m[0], m[1])
     }
@@ -155,14 +156,14 @@ class Store {
   // Always send a top-level config topic or a complete object one level
   // down (e.g. a complete tab, grid, widget).
   sendMutation(topic) {
-    const tt = topic.split('/')
+    const tt = topic.split('/') // tt = top-level config topic
     let t = '$config/' + tt[0]
     let d = this.config[tt[0]]
     if (tt.length > 1) {
       t += '/' + tt[1]
       d = d[tt[1]]
     }
-    this.emit(tt[0], t, d)
+    this.emit("set", t, d)
   }
 
   // generate an id for a new item in a collection
@@ -235,16 +236,6 @@ class Store {
       ["tabs", { t00001: { id: 't00001', icon: "view-dashboard", grids: ["g00001"] } }],
       ["dash", { title: "FlexDash", tabs: ['t00001'] }],
     ])
-
-    // add a markdown widget with some info
-    const ix = this.addWidget('g00001', 'Markdown')
-    const widget = this.widgetIDByIX('g00001', ix)
-    this.updateWidget(widget, { cols: 3, rows: 3 })
-    this.updateWidgetProp(widget, 'static', 'title', '')
-    this.updateWidgetProp(widget, 'static', 'text', `# Welcome to FlexDash
-This is an empty dashboard. You can add some demo/informational tabs by opening the
-connections panel using the network icon in the upper right and using the
-inject buttons in the demo section.`)
   }
 
   // updateDash given props to update (an object that gets merged into existing props)
@@ -351,9 +342,9 @@ inject buttons in the demo section.`)
 
   // addWidget adds a new widget of the specified kind to a grid
   // returns the index of the new widget in the grid
-  addWidget(grid_id, kind) {
+  addWidget(grid_id, kind, widget_id=null) {
     const grid = this.gridByID(grid_id)
-    const widget_id = this.genId(this.config.widgets, "w")
+    widget_id = widget_id || this.genId(this.config.widgets, "w")
     const widget_ix = grid.widgets.length
     this.qMutation("add a widget", [ // FIXME: add tab name when implemented
       [`widgets/${widget_id}`,

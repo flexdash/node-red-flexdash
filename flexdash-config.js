@@ -4,7 +4,7 @@
 module.exports = function(RED) {
   const { createServer } = require('http')
   const { Server } = require("socket.io")
-  const helpers = require("./fd-helpers.js")(RED)
+  const NRFD_API = require("./nrfd-api.js")
   const { Store, StoreError } = require("./store.js")
   const Express = require('express')
   const FS = require('fs')
@@ -83,17 +83,53 @@ module.exports = function(RED) {
           this.log(`FlexDash disconnect ${socket.id} due to ${reason}`)
         })
       })
-
-      // ===== public helper methods on the config object
-      // export helper functions as methods so they can be reached from fd nodes
-      for (let f of ["set", "unset", "onInput", "initWidget", "updateWidget",
-          "setWidgetParam", "deleteWidgetParam"
-      ]) {
-        this[f] = helpers[f]
-      }
     }
 
+    // ===== public methods
+
+    // initWidget ensures that a widget for this node exists, creating it if it doesn't, and 
+    // then initializing it's static params with the NR node's config
+    // which is almost a clone of the config into the widget's "static" field
+    // The widget_kind refers to the Vue widget component name in FlexDash, e.g., PushButton,
+    // TimePlot, TreeView, etc.
+    // If initWidget has to create the widget it sets config.fd_widget_id.
+    // initWidget returns a handle onto the Node-RED-FlexDash API functions to manipulate
+    // the widget, e.g. by setting its props.
+    initWidget(node, config, widget_kind) {
+      //this.log(`Initializing ${widget_kind} widget for node ${config.id}`)
+      try {
+        if (!('title' in config)) config.title = config.name
+        node.widget_id = this._connectWidget(config.id, widget_kind)
+        let props = {}
+        for (const [k, v] of Object.entries(config)) {
+          if (k === 'fd') continue
+          props[k] = v
+        }
+        this.store.updateWidget(node.widget_id, { static: props, output: `nr/${node.id}` })
+        return new NRFD_API(this, node)
+      } catch (e) {
+        this.warn(`Failed to initialize widget for node '${node.id}': ${e.stack}`)
+      }
+    }
+      
     // ===== internal private methods
+  
+    // connectWidget ensures that the NR node has a corresponding widget in FlexDash and creates
+    // one of the requested kind if it doesn't.
+    _connectWidget(node_id, widget_kind) {
+      const widget_id = "w" + node_id
+      if (!(widget_id in this.store.config.widgets)) {
+        // we need to create a widget
+        const tab_id = this.store.tabIDByIX(0) // TODO: allow user to select tab
+        const grid_id = this.store.gridIDByIX(tab_id, 0) // TODO: allow user to select grid
+        this.store.addWidget(grid_id, widget_kind, widget_id)
+        this.store.updateWidget(widget_id, { dyn_root: "node-red/" + widget_id })
+        this.log(`Created ${widget_kind} ${widget_id}`)
+      } else {
+        this.log(`Initialized ${widget_kind} ${widget_id}`)
+      }
+      return widget_id
+    }
 
     // start all the web services: express and socket.io, returns the socket.io server 'io'
     _startWeb(config) {
@@ -299,9 +335,11 @@ module.exports = function(RED) {
         }
       })
       await prom
+      this.log("Extra widget modules: " + response.join(', '))
       res.send(JSON.stringify(response))
     }
 
+    // handle HTTP request to fetch an extra-widgets library file
     _xtra_lib(url_path, req, res) {
       const file_path = this._normalize_xtra("x/node_modules/" + url_path)
       if (!file_path) {
