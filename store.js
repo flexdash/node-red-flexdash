@@ -22,6 +22,7 @@ class StoreError extends Error {
 
 // walkTree takes the root of an object hierarchy and an array of path components, then walks
 // down the tree along the path and returns the final node in the tree.
+// It can create new subtrees as it goes along, but it cannot create new arrays.
 function walkTree(root, path) {
   let node = root
   for (const d of path) {
@@ -65,14 +66,9 @@ function walkTree(root, path) {
 // called from Node-RED nodes that represent/implement widgets, they are not called in 
 // response to incoming messages from dashboards, e.g. when the user edits a dashboard live.
 
-// empty objects for addTab, addGrid, etc. The ID is missing and must be added!
-const empty_tab = { icon: 'rocket-launch', title: "" }
-const empty_grid = { kind: 'FixedGrid', title: "", widgets: [] }
-const empty_widget = { kind: 'Stat', rows:1, cols:1, static:{title:"Stat"}, dynamic:{} }
-
 class Store {
   constructor (config, emit) {
-    this.emit = emit // socket.io emit function
+    this.emit = emit // socket.io emit function, i.e. broadcast to connected dashboards
     this.config = config // the dashboard's initial configuration
     this.sd = {} // server data, i.e. the data being visualized by the dashboard
     if (!this.config.dash?.title) this.initDash()
@@ -87,6 +83,7 @@ class Store {
   // If the type of the second to last path element (i.e. the last "directory" element) is
   // an array then a value can be appended by writing to one past the last index.
   set(path, value) {
+    const log = false
     let pp = path.split("/") // split levels of hierarchy
     pp = pp.filter(p => p.length > 0) // remove empty components, e.g. leading slash
     if (pp.length == 0) throw new StoreError("Cannot replace entire hierarchy")
@@ -109,12 +106,12 @@ class Store {
         if (ix >= 0 && ix < dir.length) {
           if (value === undefined)
             throw new StoreError(`Cannot delete array element '${ix}' in '${path}'`)
-          //console.log(`Updated array elt ${path} with`, value)
+          if (log) console.log(`Updated array elt ${path} with`, value)
           dir[ix] = value
         } else if (ix == dir.length) {
           if (value === undefined)
             throw new StoreError(`Array index '${ix}' in '${path}' >= ${dir.length}`)
-          //console.log(`Appended array elt ${path} with`, value)
+            if (log) console.log(`Appended array elt ${path} with`, value)
           dir.push(value)
         } else {
           throw new StoreError(`Array index '${ix}' in '${path}' > ${dir.length}`)
@@ -124,10 +121,10 @@ class Store {
       }
     } else if (typeof(dir) === 'object') {
       if (value !== undefined) {
-        //console.log(`Updated ${path} with:`, value)
+        if (log) console.log(`Updated ${path} with:`, value)
         dir[p] = value
       } else {
-        //console.log(`Deleted ${path}`)
+        if (log) console.log(`Deleted ${path}`)
         delete dir[p]
       }
     } else {
@@ -135,7 +132,7 @@ class Store {
     }
   }
 
-  // qMutation in the central function through which all mutations to the config must be
+  // qMutation in the central function through which all local mutations to the config must be
   // funneled. It applies the mutation locally and sends it to all the dashboards.
   // The tagline is a string that is unused (it is used with undo on the dashboard side).
   // Msgs is an array of [path, value] tuples with the leading "$config/" omitted from the path.
@@ -163,7 +160,7 @@ class Store {
       t += '/' + tt[1]
       d = d[tt[1]]
     }
-    this.emit("set", t, d)
+    this.emit(t, d)
   }
 
   // generate an id for a new item in a collection
@@ -175,6 +172,18 @@ class Store {
       id = prefix + id.substring(id.length-5)
     }
     return id
+  }
+
+  // sort items in an array according to their pos field and return new array
+  sortItems(array) {
+    const items = { 't': this.config.tabs, 'g': this.config.grids, 'w': this.config.widgets }
+    return array.concat().sort((a, b) => {
+      const ia = items[a.at[0]][a]
+      const ib = items[b.at[0]][b]
+      if (ia.pos < ib.pos) return -1
+      if (ia.pos > ib.pos) return 1
+      return 0
+    })
   }
 
   // ===== Getters with error checks
@@ -228,14 +237,7 @@ class Store {
 
   // initDash initializes an empty dash with a tab and a grid, all empty...
   initDash() {
-    this.config = { dash: {}, tabs: {}, grids: {}, widgets: {} }
-
-    this.qMutation("initDash", [
-      ["widgets", {}],
-      ["grids", { g00001: { id: 'g00001', kind: 'FixedGrid', widgets: [] } }],
-      ["tabs", { t00001: { id: 't00001', icon: "view-dashboard", grids: ["g00001"] } }],
-      ["dash", { title: "FlexDash", tabs: ['t00001'] }],
-    ])
+    this.config = { dash: { title: "FlexDash" }, tabs: {}, grids: {}, widgets: {} }
   }
 
   // updateDash given props to update (an object that gets merged into existing props)
@@ -250,40 +252,30 @@ class Store {
 
   // addTab adds a new tab and initializes it either with an empty grid or empty URL
   // returns the index of the new tab
-  addTab(kind) {
-      const tab_id = this.genId(this.config.tabs, "t")
-      const tab_ix = this.config.dash.tabs.length
-      if (kind === 'grid') {
-        const grid_id = this.genId(this.config.grids, "g")
-        this.qMutation("add a grid tab", [
-          [`grids/${grid_id}`, {  ...cloneDeep(empty_grid), id: grid_id }],
-          [`tabs/${tab_id}`, { ...cloneDeep(empty_tab), id: tab_id, grids: [grid_id] }],
-          [`dash/tabs/${tab_ix}`, tab_id ],
-        ])
-      } else if (kind === 'iframe') {
-        this.qMutation("add an iframe tab", [
-          [`tabs/${tab_id}`, { ...cloneDeep(empty_tab), id: tab_id, slot: 'a', url: "" }],
-          [`dash/tabs/${tab_ix}`, tab_id ],
-        ])
-      } else {
-        throw new StoreError(`unknown tab type ${kind}`)
-      }
-    return tab_ix
+  addTab(kind, config) {
+    const tab_id = config.id
+    if (tab_id in this.config.tabs) throw new StoreError(`tab ${tab_id} already exists`)
+    const ix = this.config.dash.tabs.length
+    if (kind === 'grid') {
+      this.qMutation("add a grid tab", [
+        [`tabs/${tab_id}`, { ...config, grids: [] }],
+        [`dash/tabs/${ix}`, tab_id ],
+      ])
+    } else if (kind === 'iframe') {
+      this.qMutation("add an iframe tab", [
+        [`tabs/${tab_id}`, { ...config }],
+        [`dash/tabs/${ix}`, tab_id ],
+      ])
+    } else {
+      throw new StoreError(`unknown tab type ${kind}`)
+    }
   }
 
-  // deleteTab with index ix
-  deleteTab(ix) {
-    const tab_id = this.tabIDByIX(ix)
-    // collect the IDs of the grids and widgets we need to delete
-    const grids = this.tabByID(tab_id).grids
-    const widgets = grids.map(g => this.config.grids[g].widgets).flat()
-
-    // construct mutation to delete the whole shebang
-    this.qMutation("delete a tab", [ // FIXME: add tab title to the message once implemented
-        [ `dash/tabs`, this.config.dash.tabs.filter((t,i) => i != ix) ],
+  // deleteTab given ID, doesn't touch all the stuff that is/was in the tab
+  deleteTab(tab_id) {
+    this.qMutation("delete a tab", [
+        [ `dash/tabs`, this.config.dash.tabs.filter(t => t != tab_id) ],
         [ `tabs/${tab_id}`, undefined ],
-        ...grids.map(g => [ `grids/${g}`, undefined ]),
-        ...widgets.map(w => [ `widgets/${w}`, undefined ]),
     ])
   }
 
@@ -295,39 +287,29 @@ class Store {
     )
   }
 
-  // updateDash props (an object that gets merged into existing props)
-  updateDash(props) {
-    this.qMutation(`update dash ${Object.keys(props).join(",")}`,
-      Object.entries(props).map(([k,v]) => [`dash/${k}`, v])
-    )
-  }
-
   // ===== Operations on grids
 
   // addGrid adds a new grid to a tab and initializes it with an empty set of widgets
   // returns the index of the new grid in tab.grids
-  addGrid(tab_id) {
+  addGrid(tab_id, config) {
+    if (config.id in this.config.grids) throw new StoreError(`grid ${config.id} already exists`)
     const tab = this.tabByID(tab_id)
-    const grid_id = this.genId(this.config.grids, "g")
     const grid_ix = tab.grids.length
-    this.qMutation("add a grid", [ // FIXME: add tab name when implemented
-      [`grids/${grid_id}`, { ...cloneDeep(empty_grid), id: grid_id } ],
-      [`tabs/${tab_id}/grids/${grid_ix}`, grid_id ],
+    this.qMutation("add a grid", [
+      [`grids/${config.id}`, { ...config, widgets: [] }],
+      [`tabs/${tab_id}/grids/${grid_ix}`, config.id ],
     ])
     return grid_ix
   }
 
-  // deleteGrid with index ix from tab tab_id
-  deleteGrid(tab_id, ix) {
-    const tab = this.tabByID(tab_id)
-    const grid_id = this.gridIDByIX(tab, ix)
-    const grid = this.gridByID(grid_id)
-    // construct mutation to delete the grid and its widgets
-    this.qMutation("delete a grid", [ // FIXME: add tab title to the message once implemented
-      [ `tabs/${tab_id}/grids`, tab.grids.filter((g,i) => i != ix) ],
+  // deleteGrid given ID, doesn't touch all the stuff that is/was in the grid
+  deleteGrid(grid_id, tab_id) {
+    const mutation = [
       [ `grids/${grid_id}`, undefined ],
-      ...grid.widgets.map(w => [ `widgets/${w}`, undefined ]),
-    ])
+    ]
+    const tab = this.tabByID(tab_id)
+    if (tab) mutation.unshift([ `tabs/${tab_id}/grids`, tab.grids.filter(g => g != grid_id) ])
+    this.qMutation("delete a grid", mutation)
   }
 
   // updateGrid given ID and props to update (an object that gets merged into existing props)
@@ -342,52 +324,49 @@ class Store {
 
   // addWidget adds a new widget of the specified kind to a grid
   // returns the index of the new widget in the grid
-  addWidget(grid_id, kind, widget_id=null) {
+  addWidget(grid_id, config) {
+    if (config.id in this.config.widgets) throw new StoreError(`widget ${config.id} already exists`)
     const grid = this.gridByID(grid_id)
-    widget_id = widget_id || this.genId(this.config.widgets, "w")
     const widget_ix = grid.widgets.length
-    this.qMutation("add a widget", [ // FIXME: add tab name when implemented
-      [`widgets/${widget_id}`,
-        { ...cloneDeep(empty_widget), id: widget_id, kind, static:{title:kind}, dynamic:{} } ],
-      [`grids/${grid_id}/widgets/${widget_ix}`, widget_id ],
+    this.qMutation("add a widget", [
+      [`widgets/${config.id}`, config ],
+      [`grids/${grid_id}/widgets/${widget_ix}`, config.id ],
     ])
     return widget_ix
   }
 
   // addPanelWidget adds a new widget of the specified kind to a panel (which is a widget)
   // returns the index of the new widget in the panel
-  addPanelWidget(panel_id, kind) {
+  addPanelWidget(panel_id, config) {
+    if (config.id in this.config.widgets) throw new StoreError(`widget ${config.id} already exists`)
     const panel = this.widgetByID(panel_id)
-    const widget_id = this.genId(this.config.widgets, "w")
     const widget_ix = panel.static.widgets.length
-    this.qMutation("add a widget", [ // FIXME: add tab name when implemented
-      [`widgets/${widget_id}`,
-        { ...cloneDeep(empty_widget), id: widget_id, kind, static:{title:kind}, dynamic:{} } ],
-      [`widgets/${panel_id}/static/widgets/${widget_ix}`, widget_id ],
+    this.qMutation("add a widget", [
+      [`widgets/${config.id}`, config ],
+      [`widgets/${panel_id}/static/widgets/${widget_ix}`, config.id ],
     ])
     return widget_ix
   }
 
-  // deleteWidget with index ix from grid grid_id
-  deleteWidget(grid_id, ix) {
-    const grid = this.gridByID(grid_id)
-    const widget_id = this.widgetIDByIX(grid, ix)
-    // construct mutation to delete the widget
-    this.qMutation("delete a widget", [ // add tab title to the message once implemented
-      [ `grids/${grid_id}/widgets`, grid.widgets.filter((w,i) => i != ix) ],
+  // deleteWidget given ID
+  deleteWidget(widget_id, grid_id) {
+    const mutation = [
       [ `widgets/${widget_id}`, undefined ],
-    ])
+    ]
+    const grid = this.gridByID(grid_id)
+    if (grid) mutation.unshift([ `grids/${grid_id}/widgets`, grid.widgets.filter(w => w != widget_id) ])
+    this.qMutation("delete a widget", mutation)
   }
 
-  // deletePanelWidget with index ix from panel panel_id
-  deletePanelWidget(panel_id, ix) {
-    const panel = this.widgetByID(panel_id)
-    const widget_id = this.widgetIDByPanelIX(panel, ix)
-    // construct mutation to delete the widget
-    this.qMutation("delete a widget", [ // add tab title to the message once implemented
-      [ `widgets/${panel_id}/static/widgets`, panel.static.widgets.filter((w,i) => i != ix) ],
+  // deletePanelWidget given ID
+  deletePanelWidget(widget_id, panel_id) {
+    const mutation = [
       [ `widgets/${widget_id}`, undefined ],
-    ])
+    ]
+    const panel = this.widgetByID(panel_id)
+    if (panel) mutation.unshift(
+      [ `widgets/${panel_id}/static/widgets`, panel.static.widgets.filter(w => w != widget_id) ])
+    this.qMutation("delete a widget", mutation)
   }
 
   // updateWidget given ID and props to update (an object that gets merged into existing props)

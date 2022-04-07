@@ -1,0 +1,268 @@
+<!-- FlexDash container node for Node-RED
+     Copyright ©2022 by Thorsten von Eicken, see LICENSE
+-->
+
+// function refresh...
+// RED.nodes.eachConfig(function(node) {
+//   switch (node.type) {
+// RED.nodes.eachNode(function(node) {
+//   if (/^ui_/.test(node.type)) {
+//       if (groups.hasOwnProperty(node.group)) {
+//  RED.events.on("editor:save",editSaveEventHandler);
+
+
+// nodesAddEventHandler = function(node) {
+//       if (/^ui_/.test(node.type) && !listElements[node.id]) {
+//           pendingAdd.push(node);
+//           clearTimeout(pendingAddTimer);
+//           pendingAddTimer = setTimeout(handlePendingAdds,100);
+//       }
+//   };
+//   RED.events.on("nodes:add", nodesAddEventHandler);
+
+// to locate and present a drop-down of config nodes, see updateConfigNodeSelect() in editor.js
+
+
+<script type="text/javascript">
+  console.log("Loading fd-container")
+
+  fd_registry = (function(){
+    class FDRegistry {
+      constructor() {
+        this.dashboards = {}
+        this.containers = {}
+        this.widgets = {}
+        RED.events.on("nodes:add", (node) => this.add_node(node))
+        RED.events.on("nodes:remove", (node) => this.remove_node(node))
+        RED.comms.subscribe('flexdash', (...args) => this.handle_msg(...args))
+      }
+
+      add_node(node) {
+        if (node.type == "flexdash dashboard") {
+          this.dashboards[node.id] = node
+          if (!flexdash_id) flexdash_id = node.id // HACK
+          console.log("Added flexdash dashboard:", node.id, "type", node.type)
+        } else if (node.type == "flexdash container") {
+          this.containers[node.id] = node
+          console.log("Added flexdash container:", node.id, "type", node.type)
+        } else if (node._def?.flexdash) {
+          this.widgets[node.id] = node
+          console.log("Added flexdash widget:", node.id, "type", node.type, node)
+        }
+      }
+
+      remove_node(node) {
+        if (node.type == "flexdash dashboard") {
+          delete this.dashboards[node.id]
+          console.log("Removed flexdash dashboard:", node.id, "type", node.type)
+        } else if (node.type == "flexdash container") {
+          delete this.containers[node.id]
+          console.log("Removed flexdash container:", node.id, "type", node.type)
+        } else if (node._def?.flexdash) {
+          delete this.widgets[node.id]
+          console.log("Removed flexdash widget:", node.id, "type", node.type)
+        }
+      }
+
+      handle_msg(t, o) {
+        console.log("flexdash message: t=", t, "o=", o)
+      }
+    }
+
+    return new FDRegistry()
+  })()
+
+  fd_last_container = null
+
+  RED.nodes.registerType('flexdash container', {
+    category: 'config',
+
+    defaults: {
+      name: { value: "" },
+      kind: { value: "grid" },
+      fd_pos: { value: 999, validate: function(v) { return v>=0 } },
+      fd_id: { value: "" },
+      // params for grids
+      tab: { value: "" },
+      weak_tab: { type:"flexdash tab", value:"", required:false, validate:(v) => {
+          if (this.kind != 'grid') return true
+          const configNode = RED.nodes.node(v)
+          return configNode && (configNode.valid == null || configNode.valid)
+        }},
+      min_cols: { value: 1, validate: function(v) { return (v>0 && v<=20) } },
+      max_cols: { value: 20, validate: function(v) { return (v>0 && v<=20) } },
+
+      // params for panels
+      parent: { type:"flexdash container", value:"", required:false, validate: (v) => {
+          if (this.kind != 'panel') return true
+          const configNode = RED.nodes.node(v)
+          return configNode && (configNode.valid == null || configNode.valid) && configNode.kind != 'panel'
+        }},
+      solid: { value: false },
+      cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
+      rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
+    },
+
+    label() { 
+      const name = this.name || `#${this.fd_pos}`
+      const is_grid = this.kind === "grid"
+      const parent = RED.nodes.node(is_grid ? this.tab : this.parent)
+      const parent_name = parent ? `, ${parent.label()}` : ""
+      return `${is_grid ? 'Grid' : 'Panel'} ${name}${parent_name}`
+    },
+    //labelStyle() { return this.name ? "node_label_italic" : "" },
+
+    oneditprepare() {
+      try {
+        // console.log("container oneditprepare entered")
+        // toggle UI between two alternatives
+        function show_if(cond, sel_true, sel_false) {
+          if (cond) { $(sel_true).show(); $(sel_false).hide() }
+          else { $(sel_true).hide(); $(sel_false).show() }
+        }
+
+        // set weak_tab to value of tab, see oneditsave for explanation
+        if (this.tab) $(`#node-config-input-weak_tab [value=${this.tab}]`).attr('selected',"")
+
+        // handle grid/tab toggle buttons
+        function select_grid_tab(which) {
+          // handle button state
+          $(".kind-button-group").removeClass("selected")
+          $(`.sel-${which}`).addClass("selected")
+          // toggle the panel and set the value in the param to be saved
+          const is_grid = which == 'grid'
+          show_if(is_grid, "#grid-only", "#panel-only")
+          $('#node-config-input-kind').val(is_grid ? "grid" : "panel")
+          // select the most recent container if we're switching to panel
+          if (!is_grid && fd_last_container) {
+            const sel_add = $('#node-config-input-parent [selected]').val() == "_ADD_"
+            if (sel_add) {
+              $('#node-config-input-parent option').removeAttr("selected")
+              $(`#node-config-input-parent [value=${fd_last_container}]`).attr('selected',"")
+            }
+          }
+        }
+        select_grid_tab(this.kind)
+        $(".kind-button-group").on("click", function() {
+          select_grid_tab($(this).hasClass("sel-grid") ? "grid" : "panel")
+        })
+
+        const label = this.label || this._def.label // !@#$%^&* on create...
+        $('#node-config-title').text(label.bind(this)())
+
+        // console.log("FlexDash container prepare", this)
+      } catch(e) { console.log("FlexDash container prepare error", e); throw e }
+    },
+
+    // oneditsave needs to tweak the HTML inputs to modify stuff, setting values in this is pointless
+    oneditsave() {
+      try {
+        // console.log(`container oneditsave entered, this.weak_tab=${this.weak_tab}, $(weak_tab)=${$('#node-config-input-weak_tab').val()}`)
+        // fix-up fields that depend on the kind
+        const is_grid = $('#node-config-input-kind').val() == "grid"
+        if (is_grid) {
+          // clear the parent field so we don't depend on some random config node
+          $('#node-config-input-parent [selected]').val("")
+          $('#node-config-input-parent').removeClass("input-error")
+        } else {
+          const p = $('#node-config-input-parent [selected]').val()
+          if (p == this.id) {
+            // avoid circular references
+            $('#node-config-input-parent [selected]').val("")
+          } else if (p != "_ADD_") {
+            // remember the last container
+            fd_last_container = p
+          }
+        }
+
+        // switch the flexdash tab ID to a different field so we don't depend on it on export
+        // this is hideous hack... createExportableNodeSet exports config nodes referenced in 
+        // params that have a type field. So we move the weak_tab ID to tab and voila, no dependency!
+        const weak_tab = $('#node-config-input-weak_tab')
+        $('#node-config-input-tab').val(is_grid ? weak_tab.val() : "")
+        weak_tab.val("")
+
+        // generate a flexdash ID if we don't have one
+        const fd_id = $('#node-config-input-fd_id')
+        if (!fd_id.val()) fd_id.val((is_grid ? "g" : "w") + this.id)
+
+        // console.log("FlexDash container save:", Object.assign({}, this))
+      } catch(e) { console.log("FlexDash container save error", e); throw e }
+    },
+  })
+</script>
+
+<script type="text/html" data-template-name="flexdash container">
+  <h3 id="node-config-title"></h3>
+  <div class="form-row">
+    <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-config-input-name" placeholder="Name">
+    <small class="fd-indent">Name shown above panel or grid in dashboard. Hidden if left empty.
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="kind-span">Container type</label>
+    <span class="button-group" id=""kind-span>
+      <button type="button" class="red-ui-button toggle kind-button-group sel-grid"
+        >grid</button
+      ><button type="button" class="red-ui-button toggle kind-button-group sel-panel"
+        >panel</button>
+    </span>
+    <small class="fd-indent">A grid is the primary container for widgets and panels. It reflows
+      its content based on the width of the browser window.
+      A panel can be used within a grid to create a sub-grid in which widgets can be arranged
+      at fixed positions without being impacted by the window width.
+    </small>
+  </div>
+  
+  <!-- Fields specific to grids -->
+  <div id="grid-only" style="display: none">
+    <div class="form-row">
+      <label for="node-config-input-weak_tab">Tab</label>
+      <input type="text" id="node-config-input-weak_tab">
+      <small class="fd-indent">Tab in which the grid is shown.</small>
+    </div>
+    <div class="form-row">
+      <label for="node-config-input-min_cols">Min columns</label>
+      <input type="number" id="node-config-input-min_cols" style="width: 6em"><br>
+      <label for="node-config-input-max_cols">Max columns</label>
+      <input type="number" id="node-config-input-max_cols" style="width: 6em"><br>
+      <small class="fd-indent">Minimum and maximum number of grid columns shown in the grid.
+        This can be used to constrain the reflow based on window width.</small>
+    </div>  
+  </div>
+  
+  <!-- Fields specific to panels -->
+  <div id="panel-only" style="display: none">
+    <div class="form-row">
+      <label for="node-config-input-parent">Containing grid</label>
+      <input type="text" id="node-config-input-parent">
+      <small class="fd-indent">Grid in which the panel is shown.</small>
+    </div>  
+    <div class="form-row">
+      <label for="node-config-input-solid">Solid</span></label>
+      <input type="checkbox" id="node-config-input-solid" />
+      <small class="fd-indent">A solid panel looks like a single widget and the widgets
+        within it are rendered without borders. A non-solid panel looks like a sub-grid and
+        the widgets it contains are rendered with their usual borders.</small>
+    </div>
+    <div class="form-row">
+      <label for="node-input-rows">Rows</label>
+      <input type="number" id="node-input-rows" style="width: 6em"><br>
+      <label for="node-input-cols">Cols</label>
+      <input type="number" id="node-input-cols" style="width: 6em"><br>
+      <small class="fd-indent">Number of grid rows and columns occupied by the panel.</small>
+    </div>
+  </div>
+
+  <!-- hidden fields -->
+  <input type="hidden" id="node-config-input-kind">
+  <input type="hidden" id="node-config-input-fd_id">
+  <input type="hidden" id="node-config-input-fd_pos">
+  <input type="hidden" id="node-config-input-tab">
+
+</script>
+
+<script type="text/html" data-help-name="flexdash container">
+  <p>Represents a tab, grid, or panel in FlexDash</p>
+</script>

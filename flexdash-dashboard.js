@@ -1,10 +1,9 @@
 // FlexDash-config node for Node-RED
 // Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
-module.exports = function(RED) {
+module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
   const { createServer } = require('http')
   const { Server } = require("socket.io")
-  const NRFD_API = require("./nrfd-api.js")
   const { Store, StoreError } = require("./store.js")
   const Express = require('express')
   const FS = require('fs')
@@ -14,30 +13,61 @@ module.exports = function(RED) {
     prodRoot: path.join(__dirname, '/flexdash'), // production bundle
     prodIndexHtml: path.join(__dirname, '/flexdash/index.html'),
   }
+  const flowPersistence = RED.plugins.get('flexdash')._flowPersistence
 
-  // configuration node
-  class flexdashConfig {
+  RED.events.on("flows:stopping", info => {
+    RED.log.info("flows:stopping", info.type, "diff:", JSON.stringify(info.diff))
+  })
+
+  RED.events.on("flows:started", info => {
+    RED.log.info("flows:started", info.type, "diff:", JSON.stringify(info.diff))
+  })
+
+  // Flow of configuration change messages and calls
+  //
+  // There are three sources of config changes: the NR flow editor, a FD dashboard, and NR messages.
+  //
+  // NR flow editor changes occur in the form of a deployment of a flow, which causes nodes to be
+  // recreated, which causes calls to "initWidget", etc., which turn into "addWidget" operations
+  // on the store, that create "mutations" that are applied to the store and passed to the Store's
+  // emit callback. That lands in _sendMutation in FlexDashDashboard, which uses socket.io to
+  // broadcast to all connected dashboards.
+  //
+  // FD dashboard changes occur in the form of set $config/xxx messages coming in, which are
+  // applied to the store and queued for flow editors by _recvConfig in FlexDashDashboard.
+  // Flow editors then ajax query the set of queued changes and apply them to the affected nodes,
+  // which can then be "deploy"-ed. When a node is re-created by such a deploy the changes that
+  // were queued for it are deleted.
+  //
+  // Some NR messages may also cause alterations to the config. It is generally a good idea to
+  // design things so that doesn't happen. How these effects flow is unclear at this point...
+
+
+  // ===== FlexDash Dashboard configuration node
+  class FlexDashDashboard {
     constructor(config) {
       try { // use try-catch to get stack backtrace of any error
-
         RED.nodes.createNode(this, config)
         //this.log("FlexDash config: " + JSON.stringify(config))
 
         this.name = config.name || "FlexDash"
-        this.ctxName = config.ctxName || "default"
-        this.ctxPrefix = "fd-" + config.id.replace(/\./g, "*") + "-"
-        this.saveTimer = null
-        this.saveKeys = {}
-        this.inputHandlers = {} // key: node.id, value: function(payload) 
-        
+        this.inputHandlers = {} // input from widgets; key: node.id, value: function(payload)
+
+        // start the web servers!
         this.app = null // express app
-        this.devPath = null // path to dev server
+        this.devPath = null // path to dev server (generated here)
         Object.assign(this, this._startWeb(config)) // app, path, io, ioPath, 
 
         // time to instantiate a store, this is where our local version of the config and the state
         // are cached so they can be sent to newly connecting dashboards.
-        // The store is initialized with the stored config, if it's empty the store deals with it...
-        this.store = new Store(this._loadConfig(), (...args) => this._sendMutation(...args))
+        // The store is initialized with the our config
+        const tabs = JSON.parse(config.tabs)
+        const store_config = {
+          dash: { title: this.name, tabs: Object.keys(tabs) },
+          tabs, grids: {}, widgets: {},
+        }
+        this.store = new Store(store_config,
+            (...args) => this._sendMutation(...args)) // send to connected dashboards
         this.StoreError = StoreError // allows other modules to catch StoreErrors
       } catch (e) { console.error(e.stack); throw e }
 
@@ -85,52 +115,59 @@ module.exports = function(RED) {
       })
     }
 
-    // ===== public methods
+    // ===== public methods called by other internal nodes, such as flexdash container and tab
 
-    // initWidget ensures that a widget for this node exists, creating it if it doesn't, and 
-    // then initializing it's static params with the NR node's config
-    // which is almost a clone of the config into the widget's "static" field
-    // The widget_kind refers to the Vue widget component name in FlexDash, e.g., PushButton,
-    // TimePlot, TreeView, etc.
-    // If initWidget has to create the widget it sets config.fd_widget_id.
-    // initWidget returns a handle onto the Node-RED-FlexDash API functions to manipulate
-    // the widget, e.g. by setting its props.
-    initWidget(node, config, widget_kind) {
-      //this.log(`Initializing ${widget_kind} widget for node ${config.id}`)
-      try {
-        if (!('title' in config)) config.title = config.name
-        node.widget_id = this._connectWidget(config.id, widget_kind)
-        let props = {}
-        for (const [k, v] of Object.entries(config)) {
-          if (k === 'fd') continue
-          props[k] = v
-        }
-        this.store.updateWidget(node.widget_id, { static: props, output: `nr/${node.id}` })
-        return new NRFD_API(this, node)
-      } catch (e) {
-        this.warn(`Failed to initialize widget for node '${node.id}': ${e.stack}`)
-      }
+    initTab(tab) {
+      flowPersistence.register(this.id, tab.config.fd_id, tab.id)
+      const c = tab.config
+      if (!c.fd_id || !c.fd_id.startsWith('t')) throw new Error(`bad tab ID: ${c.fd_id}`)
+      const fd_config = { id: c.fd_id, title: c.name, icon: c.icon, pos: c.fd_pos }
+      this.store.addTab('grid', fd_config)
     }
-      
+
+    destroyTab(tab) {
+      flowPersistence.unregister(this.id, tab.config.fd_id)
+      this.store.deleteTab(tab.config.fd_id)
+    }
+
+    initGrid(grid) {
+      flowPersistence.register(this.id, grid.config.fd_id, grid.id)
+      const c = grid.config
+      if (!c.fd_id || !c.fd_id.startsWith('g')) throw new Error(`bad grid ID: ${c.fd_id}`)
+      const tab = RED.nodes.getNode(c.tab)
+      const fd_config = {
+        id: c.fd_id, kind: 'FixedGrid', title: c.name,
+        pos: c.fd_pos, min_cols: c.min_cols, max_cols: c.max_cols,
+      }
+      this.store.addGrid(tab.config.fd_id, fd_config)
+    }
+
+    destroyGrid(grid) {
+      flowPersistence.unregister(this.id, grid.config.fd_id)
+      this.store.deleteGrid(grid.config.fd_id)
+    }
+
+    initPanel(panel) {
+      flowPersistence.register(this.id, panel.config.fd_id, panel.id)
+      const c = panel.config
+      if (!c.fd_id || !c.fd_id.startsWith('w')) throw new Error(`bad panel ID: ${c.fd_id}`)
+      const grid = RED.nodes.getNode(c.parent)
+      const fd_config = {
+        id: c.fd_id, kind: 'Panel', title: c.name,
+        pos: c.fd_pos, rows: c.rows, cols: c.cols,
+        dyn_root: "node-red/" + c.id,
+        static: { solid: c.solid, widgets: [] },
+      }
+      this.store.addWidget(grid.config.fd_id, fd_config)
+    }
+
+    destroyPanel(panel) {
+      flowPersistence.unregister(this.id, panel.config.fd_id)
+      this.store.deleteWidget(panel.config.fd_id)
+    }
+
     // ===== internal private methods
   
-    // connectWidget ensures that the NR node has a corresponding widget in FlexDash and creates
-    // one of the requested kind if it doesn't.
-    _connectWidget(node_id, widget_kind) {
-      const widget_id = "w" + node_id
-      if (!(widget_id in this.store.config.widgets)) {
-        // we need to create a widget
-        const tab_id = this.store.tabIDByIX(0) // TODO: allow user to select tab
-        const grid_id = this.store.gridIDByIX(tab_id, 0) // TODO: allow user to select grid
-        this.store.addWidget(grid_id, widget_kind, widget_id)
-        this.store.updateWidget(widget_id, { dyn_root: "node-red/" + widget_id })
-        this.log(`Created ${widget_kind} ${widget_id}`)
-      } else {
-        this.log(`Initialized ${widget_kind} ${widget_id}`)
-      }
-      return widget_id
-    }
-
     // start all the web services: express and socket.io, returns the socket.io server 'io'
     _startWeb(config) {
       // ensure path starts with a slash and doesn't end with one, "root" ends up as "" not "/"...
@@ -230,65 +267,32 @@ module.exports = function(RED) {
       socket.emit("set", "sd", this.store.sd)
     }
 
-    // receive a configuration change for a client, save it, and propagate it to other clients
+    // receive a configuration change from a client (dashboard), apply it to the store, propagate
+    // it to other clients, and finally queue it for the flow editor to persist
     // internal-only
-    _recvConfig(socket, topic, payload) {
+    _recvConfig(socket, topic, payload) { // topic has leading $config
       this.debug(`Saving config of ${topic} for ${socket.id}`)
       // insert the payload into the store's config portion
       this.store.set(topic, payload)
       // propagate config change to any other connected browser
       socket.broadcast.emit("set", topic, payload)
-      // persist the config change
-      const t = topic.split('/')
-      if (t.length > 1) {
-        this._saveConfigSoon(t[1])
-      } else {
-        this.warn("Cannot persist entire config") // the dashboard should never attempt that
-      }
+      // persist the config change: grab the data for that from the store: we send full
+      // objects (e,.g. a grid, a widget) as opposed to just some fields
+      let tt = topic.split('/')
+      if (tt.length < 2 || tt[0] != '$config') throw new Error("invalid topic: " + topic)
+      tt.shift() // remove leading $config
+      let kind = tt[0] // 'dash', 'tabs', 'grids', or 'widgets'
+      const config = kind == 'dash' ? this.store.config.dash : this.store.config[kind][tt[1]]
+      flowPersistence.saveMutation(this.id, kind, tt[1], config)
     }
 
+    // send an internally generated mutation to all connected dashboards
     // internal only
-    _sendMutation(what, topic, value) {
-      this._saveConfigSoon(what)
+    _sendMutation(topic, value) { // topic has leading $config/
       // this.io may be null because store gets created before socket.io server...
       if (this.io) this.io.emit("set", topic, value)
     }
-
-    // save the config in a few milliseconds, such that a slew of config changes only result in
-    // one save
-    // internal-only
-    _saveConfigSoon(what) {
-      this.saveKeys[what] = true
-      if (!this.saveTimer) {
-        this.saveTimer = setTimeout(() => {
-          this.saveTimer = null
-          this._saveConfigNow()
-        }, 500)
-      }
-    }
-
-    // save the config to a context store
-    // internal-only
-    _saveConfigNow() {
-      const ctx = this.context().global
-      for (const k in this.saveKeys) {
-        ctx.set(this.ctxPrefix + k, this.store.config[k], this.ctxName)
-        delete this.saveKeys[k]
-      }
-    }
-
-    // load the dashboard configuration from the global context store and return it
-    // internal-only
-    _loadConfig() {
-      const ctx = this.context().global
-      // enumerate all keys with our prefix
-      const keys = ctx.keys(this.ctxName).filter(k => k.startsWith(this.ctxPrefix))
-      const config = Object.fromEntries(keys.map(k =>
-        [k.substring(this.ctxPrefix.length), ctx.get(k, this.ctxName)]
-      ))
-      return config
-    }
-
+   
     // ===== support dynamic loading of external modules
     
     _normalize_xtra(p) {
@@ -358,5 +362,6 @@ module.exports = function(RED) {
     }
   }
 
-  RED.nodes.registerType("flexdash config", flexdashConfig)
+  RED.nodes.registerType("flexdash dashboard", FlexDashDashboard)
+} catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
 }

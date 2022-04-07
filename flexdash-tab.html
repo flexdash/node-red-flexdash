@@ -1,0 +1,70 @@
+<!-- FlexDash tab node for Node-RED
+     Copyright ©2022 by Thorsten von Eicken, see LICENSE
+-->
+
+<script type="text/javascript">
+
+  RED.nodes.registerType('flexdash tab', {
+    category: 'config',
+    hasUsers: false, // prevent unused config node warning
+
+    defaults: {
+      name: { value: "" },
+      icon: { value: "mdi-view-dashboard" },
+      fd_pos: { value: 999, validate: function(v) { return v>=0 } },
+      fd_id: { value: "" }, // flexdash ID of this tab
+      fd: { type:"flexdash dashboard", value:"", required:true }, // node id of dashboard
+    },
+
+    label() {
+      const i = this.icon && this.icon.replace(/^mdi-/, '')
+      const name = this.name || i || `#${this.fd_pos}`
+      const dash = "FlexDash" // FIXME! need to dig up name of dashboard
+      return `Tab ${name}, Dash ${dash}`
+    },
+
+    oneditprepare() {
+      const label = this.label || this._def.label // !@#$%^&* on create...
+      $('#node-config-title').text(label.bind(this)())
+    },
+
+    // oneditsave needs to tweak the HTML inputs to modify stuff, setting values in 'this' is useless
+    oneditsave() {
+      // generate a flexdash ID if we don't have one
+      const fd_id = $('#node-config-input-fd_id')
+      if (!fd_id.val()) fd_id.val("t"+this.id)
+      console.log("FlexDash tab save:", this)
+    },
+  })
+</script>
+
+<script type="text/html" data-template-name="flexdash tab">
+  <h3 id="node-config-title"></h3>
+  <div class="form-row">
+    <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-config-input-name" placeholder="Name">
+    <small class="fd-indent">Name shown in tab bar in dashboard. Leave Empty to only show icon.
+  </div>
+  </small>
+  <div class="form-row">
+    <label for="node-config-input-icon">Icon (material design icons)</span></label>
+    <input type="text" id="node-config-input-icon" placeholder="mdi-airplane-takeoff" />
+    <small class="fd-indent">Material design icon name to show in tab bar. Include the 'mdi-' prefix.
+      See <a href="https://materialdesignicons.com">https://materialdesignicons.com</a>
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-fd">Dashboard</label>
+    <input type="text" id="node-config-input-fd">
+    <small class="fd-indent">Dashboard to which this tab belongs.</small>
+  </div>
+  
+  <!-- hidden fields -->
+  <input type="hidden" id="node-config-input-fd_id">
+  <input type="hidden" id="node-config-input-fd_pos">
+
+</script>
+
+<script type="text/html" data-help-name="flexdash tab">
+  <p>Represents a tab in FlexDash</p>
+</script>

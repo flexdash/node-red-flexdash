@@ -8,7 +8,7 @@
   var widgetDefaults = Object.fromEntries(Object.values(widgetInfo.props).map(p =>
     [p.name, {value: p.type==='boolean' ? p.default : null}]
   ))
-  console.log(widgetInfo.name, "widgetDefaults", widgetDefaults)
+  //console.log(widgetInfo.name, "widgetDefaults", widgetDefaults)
   
   // construct the palette label
   var paletteLabel = widgetInfo.name_text.toLocaleLowerCase()

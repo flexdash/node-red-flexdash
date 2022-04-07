@@ -1,9 +1,10 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
+    "glob": "^7.2.0",
     "http-proxy-middleware": "^2.0.3",
     "socket.io": ">=4.1.0",
     "tar": "^6.0.0"
@@ -13,10 +14,13 @@
   },
   "node-red": {
     "version": "^2.0.6",
+    "plugins": {
+      "flexdash": "flexdash-plugin.js"
+    },
     "nodes": {
-      "flexdash config": "flexdash-config.js",
-      "flexdash in": "flexdash-in.js",
-      "flexdash out": "flexdash-out.js",
+      "flexdash dashboard": "flexdash-dashboard.js",
+      "flexdash container": "flexdash-container.js",
+      "flexdash tab": "flexdash-tab.js",
       "flexdash dev server": "flexdash-dev-server.js"
     }
   },

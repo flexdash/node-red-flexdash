@@ -1,0 +1,95 @@
+<script type="text/javascript">
+  // ===== handle mutations coming in from the FlexDash side of things
+
+  RED.plugins.registerPlugin("my-test-editor-only-plugin", {
+    type: "flexdash",
+    onadd: function() {
+      var mutation_seq = 0
+    
+      RED.comms.subscribe('flexdash-mutation', (topic, object) => {
+        const { seq } = object
+        console.log("FlexDash-mutation seq=", seq)
+        if (seq > mutation_seq) {
+          mutation_seq = seq
+          fetch('_flexdash/mutations')
+            .then(res => {
+              if (res.status == 404) {
+                RED.notify("FlexDash has not been deployed yet", { type: "error" })
+                // RED.notify(
+                //   node._("common.notification.error",
+                //     { message: node._("common.notification.errors.not-deployed") }),
+                //   "error")
+                return null
+              } else if (!res.ok) {
+                console.log("Ooops, failed to fetch mutations:", res.statusText)
+                RED.notify(
+                  `Unexpected error from FlexDash plugin: ${res.statusMessage}`,
+                  { type: "error" }
+                )
+                // RED.notify(
+                //   node._("common.notification.error",
+                //     {
+                //       message: node._("common.notification.errors.unexpected",
+                //         { status: res.status, message: res.statusMessage })
+                //     }),
+                //   "error")
+                return null
+              } else { // success
+                return res.json()
+              }
+            }).then(m => {
+              if (m) processMutations(m)
+            }).catch(err => {
+              console.log("Failed to fetch mutations:", err)
+              RED.notify(`No response from Node-RED: ${err.message}`, { type: "error" })
+              // RED.notify(node._("common.notification.error", {
+              //   message: node._("common.notification.errors.no-response")
+              // }), "error")
+            })
+        }
+      })
+
+      //const skip = {id:1, type:1, x:1, y:1, z:1, wires:1}
+    
+      function processMutations(m) {
+        console.log("FlexDash mutations:", m)
+        for (const nrid in m) {
+          const node = RED.nodes.node(nrid)
+          if (!node) { console.log("Failed to find node", nrid); continue }
+          //console.log(`Node for ${nrid} has: ${Object.keys(node).join(' ')}`)
+          // prep history event and perform changes
+          const undo = {}
+          const historyEvent = { t: 'edit', node: node, changes: { },
+            dirty: node.dirty, changed: node.changed, // undo stuff?
+            callback: ev => Object.merge(node, undo), // undo function?
+          }
+          //console.log("Mutation", JSON.stringify(m[nrid]))
+          for (const k in node._def.defaults) {
+            if (k in m[nrid]) {
+              undo[k] = node[k]
+              node[k] = m[nrid][k]
+              historyEvent.changes[k] = m[nrid][k]
+            } else if (['fd_cols', 'fd_rows'].includes(k) && k.substring(3) in m[nrid]) {
+              const k3 = k.substring(3)
+              undo[k] = node[k]
+              node[k] = m[nrid][k3]
+              historyEvent.changes[k] = m[nrid][k3]
+            }
+          }
+          console.log("Changes:", JSON.stringify(historyEvent.changes))
+          if (Object.keys(undo).length > 0) {
+            node.changed = true
+            node.dirty = true
+            RED.nodes.dirty(true)
+            RED.history.push(historyEvent)
+          }
+        }
+        RED.view.redraw()
+        // RED.notify(...
+      }
+
+    }
+  })
+
+  console.log("Loaded flexdash-plugin")
+</script>

@@ -1,5 +1,5 @@
-// Node-RED FlexDash API - a set of methods that can be called from nodes to interact with
-// FlexDash and the widget associated with the node.
+// Widget API - a set of methods that can be called from nodes to interact with FlexDash and
+// the widget associated with the node.
 // Copyright ©2021 by Thorsten von Eicken, see LICENSE
 
 function checkProp(node, widget, prop) {
@@ -9,8 +9,8 @@ function checkProp(node, widget, prop) {
 }
 
 
-// Node-RED FlexDash API
-module.exports = class NRFD_API {
+// FlexDash widget API
+module.exports = class WidgetAPI {
   // Each NRFDAPI object provides the API calls to one Node-RED node
   constructor(fd, node) {
     this.fd = fd

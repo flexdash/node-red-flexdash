@@ -3,7 +3,11 @@
 -->
 
 <script type="text/javascript">
-  RED.nodes.registerType('flexdash config', {
+  flexdash_id = null // hack
+
+  // ===== FlexDash dashboard config node
+
+  RED.nodes.registerType('flexdash dashboard', {
     category: 'config',
 
     defaults: {
@@ -17,6 +21,7 @@
       devServer:  { value: false }, // enable development server
       devInstall: { value: false }, // enable installation of development server
       name:       { value: "FlexDash", required: true }, // dashboard title
+      tabs:       { value: JSON.stringify({ t00001: { id:'t00001', icon:'mdi-rocket', grids:[] }})},
     },
 
     label() {
@@ -90,29 +95,22 @@
   .red-ui-editor .fd-tabs-content .red-ui-typedInput-container { width: 70%; }
 </style>
 
-<script type="text/html" data-template-name="flexdash config">
+<script type="text/html" data-template-name="flexdash dashboard">
   <div style="margin-bottom: 12px;">
-    <h2>FlexDash config node</h2>
-    <p>Each FlexDash config node corresponds to a dashboard, i.e. a web page that displays a
+    <h2>FlexDash dashboard node</h2>
+    <p>Each FlexDash dashboard node corresponds to a web page that displays a
       dashboard with multiple tabs filled with widgets.
       You can create multiple dashboards (i.e. multiple config nodes) and assign different ports
       or different paths to each one in the advanced options.</p>
     <p><b>To access this dashboard</b> point your browser at <a class="point-to" href="/">/</a></p>
   </div>
   <div class="form-row">
-    <label for="node-config-input-ctxName" style="width:auto">
-      <i class="fa fa-database fd-icon"></i>Context store name</label>
-    <input type="text" id="node-config-input-ctxName" placeholder="default" style="width: 50%">
-    <br>
-    <small class="fd-indent">Use a <i>persistent</i> context store so the dashboard's config is saved across Node-RED restarts!</small>
-  </div>
-  <div class="form-row">
-    <label for="node-config-input-name" style="width:auto">
-      <i class="fa fa-database fd-icon"></i>Dashboard name</label>
+    <label for="node-config-input-name" style="width:auto">Dashboard name</label>
     <input type="text" id="node-config-input-name" style="width: 30ex" placeholder="FlexDash">
     <br>
     <small class="fd-indent">The name will show in the dashboard's title bar.</small>
   </div>
+  <input type="hidden" id="node-config-input-tabs">
 
   <!-- Advanced options -->
   <hr />
@@ -144,7 +142,9 @@
       <br>
       <small class="fd-indent">The URL path is relative to the httpNodeRoot setting when using Node-RED's
         built-in webserver and absolute otherwise. The path should have a leading slash but no
-        trailing slash (except for the "/" case).</small>
+        trailing slash (except for the "/" case). If you serve multiple dashboards from the
+        Node-RED built-in webserver they all must have distinct paths.
+      </small>
       <br>
       <small class="fd-indent">Point your browser at: <a class="point-to" href="/">/</a></small>
     </div>
@@ -209,9 +209,9 @@
   </div>
 </script>
 
-<script type="text/html" data-help-name="flexdash config">
+<script type="text/html" data-help-name="flexdash dashboard">
   <p>Configures the FlexDash server</p>
-  <p>The FlexDash config node creates a server that lets
+  <p>The FlexDash dashboard node creates a server that lets
     <a href="https://github.com/tve/flexdash">FlexDash dashboards</a>
     connect to Node-RED using the <a href="https://socket.io">socket.io</a> library.
     Dashboards can receive data to display, send user input to control, and

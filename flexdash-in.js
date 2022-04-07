@@ -14,6 +14,7 @@ module.exports = function(RED) {
     this.name = n.name
     this.config_node = RED.nodes.getNode(n.server)
     this.count = 0
+    if (!this.config_node) return
     
 
     this.config_node.io.on("connection", (socket) => {
