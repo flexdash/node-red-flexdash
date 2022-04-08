@@ -8,8 +8,11 @@ This package provides [Node-RED](https://nodered.org/) nodes that interface with
 FlexDash making it easy to send data to be displayed in the dashboard, and to
 receive user input messages from the dashboard.
 
-Under the hood the nodes here use [Socket.IO](http://socket.io/) and in FlexDash
-the socket.io connection should be configured.
+Under the hood the nodes here use [Socket.IO](http://socket.io/) and the dashboard(s) can use Node-RED's web server (i.e. the same port) or a different port.
+
+Please refer to the
+[FlexDash Documentation](https://flexdash.github.io) for a quick-start guide, tutorials,
+and more...
 
 ## Installation
 
@@ -17,42 +20,52 @@ To install node-red-flexdash use:
 
 `npm i @flexdash/node-red-flexdash`
 
-## Configuration
+On its own node-red-flexdash doesn't provide any widgets to fill a dashboard with,
+it is thus recommended to install the
+[core widgets](https://github/com/flexdash/node-red-fd-corewidgets):
 
-The flexdash nodes are similar to most networking nodes in Node-RED: there is a
-`flexdash-out` node to send data to FlexDash and a `flexdash-in` node to receive
-user input messages. Instatiating either one creates a configuration node that
-captures the socket.io options and creates a network listener in the background.
+`npm -i @flexdash/node-red-fd-corewidgets`
 
-The simplest set-up consists of just a `flexdash-out` node to send some data to
-the dashboard.
+Quick-start (more in detail in the
+[FlexDash Documentation](https://flexdash.github.io/quick-start), see below):
+- import one of the simple examples from the node-red-corewidgets module
+- edit one of the FlexDash nodes that show up, edit its grid configuration node, add a
+  tab configuration node (default config OK) and add a dashboard configuration node (again,
+  deafults are OK)
+- deploy
+- point your browser at http://localhost:1880/flexdash
+  (same hostname/port you use for the Node-RED editor)
 
-## Usage
 
-The best way to learn how to use FlexDash with Node-RED is to launch FlexDash
-and to follow the simple tutorials that are a part of the FlexDash demo configuration.
-You can launch FlexDash from https://tve.github.io/flexdash without installing anything
-and you can try some simple things out with Node-RED using plain websockets again
-without installing anything: look at the info on the `websock` tab in FlexDash.
+## Internals
 
-For real use the node-red-flexdash nodes are highly recommended. The way
-FlexDash works is as follows:
-- on the Node-RED side you send messages with `topic` and `payload` to a `flexdash-out`
-  node, this data is forwarded to FlexDash and entered into its topic tree
-- on the FlexDash size, you instantiate a widget, say a gauge, you configure it
-  in FlexDash (title, color, min, max, etc) and you bind an input (typ. value)
-  to a topic.
-- when a message is sent with the chosen topic to flexdash the widget updates
-  automatically.
-- note that any of the widget inputs can be bound to dynamic values, for example,
-  the color could be set via messages from Node-RED as well.
+The main interface with FlexDash is `flexdash-dashboard.*`, which handles serving up
+FlexDash and handling messages to/from the dashboard. It also exposes a config node to
+represent the dashboard connection. There can be multiple dashboard as long as they use
+different paths or ports.
 
-For user input, the output of a widget can be assigned a topic, when the user
-interacts with the widget to produce output (e.g. pressing a button or toggling
-a switch) the widget sends an output value to the topic, which "comes out" of
-every `flexdash-out` node (unless the node is configured with a topic filter).
+The Node-RED plugin in `flexdash-plugin.*` is a relatively simple piece that is a plugin only
+so node-red widget nodes can call "into FlexDash" without having to figure out how to get
+a handle onto the appropriate flexdash-dashboard config node first.
 
-For further information, please see the help text that comes with each FlexDash node.
+The config nodes in `flexdash-tab.*` and `flexdash-container.*` represent containers for
+widgets in the dashboard. `lfexdash-container` can represent a grid or a panel. A Widget
+either belongs to a grid or to a panel which itself belongs to a grid. A grid belongs to
+a tab and there can be multiple tabs per dashboard.
+
+The development server in `flexdash-dev-server.*` is a node that can be placed anywhere to
+launch a development server for FlexDash widgets. It runs [Vite](https://vitejs.dev), which
+is a web server that automatically pushes source code to the web browser as soon as you save
+a file (hot module reload). To access the dev server, once launched, point your browser
+at the dashboard URL plus a `-src` suffix, e.g. `/flexdash-src` instead of `/flexdash` for
+the default set-up.
+(Note: the dev server feature should be moved into a side-bar eventually.)
+
+The `flexdash-in.*` and `flexdash-out.*` nodes are not currently supported.
+They send/receive raw messages to/from FlexDash which supports advanced usage.
+However, the current saving of dashboard configuration changes does not really support
+such advanced usage, so these nodes are not currently exported.
+
 
 ## License
 
