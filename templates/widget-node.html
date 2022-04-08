@@ -1,7 +1,7 @@
 <!-- Node-RED editor code for the FlexDash ##name## widget -->
 
 <script type="module">
-  // fetch the widget info
+  // fetch the widget info: a bunch of JSON produced by gen-widget-node.js
   import widgetInfo from './##resources_path##/##base_filename##-info.js'
 
   // construct defaults for the node, setting all but bool to null so widget defaults happen
@@ -22,7 +22,8 @@
   $(`script[data-help-name="${widgetInfo.name_kebab}"]`).html(helpHtml) // hidden help text
   $(`#${widgetInfo.name_kebab}-help-text`).replaceWith(helpHtml) // shown help text
 
-  var allTypes = ['bool','str','num','json']
+  var allTypes = ['str','num','bool','json']
+
 
   RED.nodes.registerType(widgetInfo.name_kebab, {
     // properties of the NR node used by NR itself
@@ -31,15 +32,19 @@
     inputs: 1,
     outputs: widgetInfo.output ? 1 : 0,
     icon: "font-awesome/fa-rocket", // icon in flow editor
-    paletteLabel: paletteLabel,
+    paletteLabel,
 
     // node config properties that the user can edit in the flow editor
     defaults: {
       // required fields for FlexDash Widget nodes
-      fd: { type:"flexdash config", value:"", required:true }, // FlexDash config node
-      name: { value: '' }, // name field of NR node (standard)
+      fd_container: { type:"flexdash container", value:"", required:true },
+      fd_cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
+      fd_rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
+      fd_pos: { value: 999, validate: function(v) { return v>=0 } },
+      // name field of NR node (standard)
+      name: { value: '' },
   
-      // widget fields, i.e. values being transmitted to the FlexDash Widget
+      // widget fields, i.e. values being transmitted to the FlexDash Widget as props
       ...widgetDefaults,
     },
 
@@ -64,11 +69,24 @@
               : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
             //console.log("typedInput", prop, conf, this)
             $(el).typedInput(conf) // init the typedInput field
+            $(el).typedInput("value", this[prop]) // necessary due to dynamic loading...
           }
         })
       })
+
+      // pre-fill fd_container field with most recently used
+      const sel_add = $('#node-input-fd_container [selected]').val() == "_ADD_"
+      if (sel_add && fd_last_container) { // fd_last_container is a global...
+        $('#node-input-fd_container option').removeClass("selected")
+        $(`#node-input-fd_container [value=${fd_last_container}]`).addClass('selected')
+      }
     },
 
+    oneditsave() {
+      // update the most recently used fd_container value
+      const p = $('#node-input-fd_container [selected]').val()
+      if (p != "_ADD_") fd_last_container = p
+    },
   })
 </script>
 
@@ -79,11 +97,18 @@
       <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-      <label for="node-input-fd"><i class="fa fa-th"></i> Dashboard</label>
-      <input type="text" id="node-input-fd">
+      <label for="node-input-fd_container">Container</label>
+      <input type="text" id="node-input-fd_container">
     </div>
-
-    <!-- widget params -->
+    <div class="form-row">
+      <label for="node-input-rows">Rows</label>
+      <input type="number" id="node-input-fd_rows" style="width: 6em">
+      <label for="node-input-cols">Cols</label>
+      <input type="number" id="node-input-fd_cols" style="width: 6em">
+    </div>
+    <input type="hidden" id="node-input-fd_pos">
+  
+    <!-- widget props -->
     <div id="fd-prop-rows" style="display:contents"></div>
   </div>
 </script>

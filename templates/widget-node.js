@@ -5,19 +5,17 @@ module.exports = function (RED) {
   // Instantiate the Node-RED node, 'this' is the node being constructed
   // and config contains the values set by the user in the flow editor.
   function ##name##(config) {
-    const fd = RED.nodes.getNode(config.fd) // get a handle onto FlexDash
     RED.nodes.createNode(this, config)
-    if (!fd) return // not much we can do, will have to wait for a FD node to be selected
-    
     // Initialize the widget by pushing the config to its props and get a handle
     // onto the FlexDash widget API.
     // The third arg is the kind of widget to create, if it doesn't exist
-    const widget = fd.initWidget(this, config, '##name##')
-
+    const widget = RED.plugins.get('flexdash').initWidget(this, config, '##name##')
+    if (!widget) return // missing config node, thus no FlexDash to hook up to, nothing to do here
+    
     // handle flow input messages, basically massage them a bit and update the FD widget
     this.on("input", msg => {
-      // prepare update of widget props (Node-RED params --> widget props)
-      const props = typeof msg.params === 'object' ? Object.assign({}, msg.params) : {}
+      // prepare update of widget props
+      const props = typeof msg.props === 'object' ? Object.assign({}, msg.props) : {}
       // msg.payload is interpreted as setting the ##payload_prop## prop
       if ('payload' in msg) props.##payload_prop## = msg.payload
       widget.setProps(props)
@@ -30,7 +28,10 @@ module.exports = function (RED) {
         this.send({payload, _flexdash_node: this.id})
       })
     }
-  }
+
+    // handle destruction of node: need to destroy widget too!
+    this.on("close", () => { RED.plugins.get('flexdash').destroyWidget(this) })
+}
 
   RED.nodes.registerType("##name_kebab##", ##name##)
 }
