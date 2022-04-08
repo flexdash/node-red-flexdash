@@ -22,7 +22,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // initWidget returns a handle onto the Widget API functions to manipulate
     // the widget, e.g. by setting its props.
     initWidget(node, config, widget_kind) {
-      //this.log(`Initializing ${widget_kind} widget for node ${config.id}`)
+      RED.log.info(`Initializing ${widget_kind} widget for node ${node.id}`)
       try { // ensure we can produce a stack backtrace
         const widget_id = "w" + node.id
         config.fd_rows = parseInt(config.fd_rows, 10)
@@ -60,7 +60,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         }
         // register with flow persistence...
         flow_persistence.register(fd.id, widget_id, node.id)
-        return new WidgetAPI(fd, node)
+        return new WidgetAPI(fd, widget_id, node)
       } catch (e) {
         console.warn(`FlexDashGlobal initWidget: failed to initialize widget for node '${node.id}': ${e.stack}`)
         return null
@@ -126,11 +126,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // register an element (tab, grid, widget) mapping: flexdash-dashboard node-red ID, element
     // flexdash ID get mapped to element node-red ID
     register(fd_nrid, el_fdid, el_nrid) {
+      RED.log.info(`FD register ${el_fdid}`)
       this.id_map[`${fd_nrid}/${el_fdid}`] = el_nrid
     }
 
     // unregister an element
     unregister(fd_nrid, el_fdid) {
+      RED.log.info(`FD unregister ${el_fdid}`)
       const nrid = this.id_map[`${fd_nrid}/${el_fdid}`]
       if (nrid) delete this.mutations[nrid]
       delete this.id_map[`${fd_nrid}/${el_fdid}`]

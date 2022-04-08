@@ -2,21 +2,24 @@
 // the widget associated with the node.
 // Copyright ©2021 by Thorsten von Eicken, see LICENSE
 
-function checkProp(node, widget, prop) {
-  if (!(prop in widget.static)) {
-    node.warn(`Widget of node ${node.id} has no prop '${prop}'`)
-  }
-}
 
 
 // FlexDash widget API
 module.exports = class WidgetAPI {
   // Each NRFDAPI object provides the API calls to one Node-RED node
-  constructor(fd, node) {
+  constructor(fd, widget_id, node) {
+    console.log(`WidgetAPI ${fd} ${widget_id} ${Object.keys(node)}`)
     this.fd = fd
+    this.widget_id = widget_id
     this.node = node
   }
   
+  _checkProp(widget, prop) {
+    if (!(prop in widget.static)) {
+      this.node.warn(`Widget of node ${this.node.id} has no prop '${prop}'`)
+    }
+  }
+
   // setProps updates the widget's dynamic props with the passed values (typ. msg.props)
   // For each dynamic prop we need to store the value in /node-red/<widget_id>/<param> and
   // ensure that the widget's dynamic/<param> field points there. Unless a param's value is
@@ -30,26 +33,27 @@ module.exports = class WidgetAPI {
   // set update a widget prop given a path (prop/any/path/below/it)
   set(path, value=undefined) {
     try {
-      const widget_id = this.node.widget_id
-      const w = this.fd.store.widgetByID(widget_id)
+      const w = this.fd.store.widgetByID(this.widget_id)
       const prop = path.split('/')[0]
-      const fdpath = `node-red/${widget_id}/${path}`
-      const fdprop = `node-red/${widget_id}/${prop}`
-      checkProp(w, prop)
+      const fdpath = `node-red/${this.widget_id}/${path}`
+      const fdprop = `node-red/${this.widget_id}/${prop}`
+      this._checkProp(w, prop)
 
       if (value !== undefined) {
         this.setAbsPath(fdpath, value)
         // ensure that the widget's dynamic/<prop> field points there
-        if (w.dynamic[prop] != fdprop) this.fd.store.updateWidgetProp(widget_id, 'dynamic', prop, fdprop)
+        if (w.dynamic[prop] != fdprop) {
+          this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', prop, fdprop)
+        }
       } else {
         this.deleteAbsPath(path)
         if (path == prop && prop in w.dynamic) {
-          this.fd.store.updateWidgetProp(node.widget_id, 'dynamic', p, null)
+          this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', p, null)
         }
       }
 
     } catch (e) {
-      this.warn("Failed to update widget prop path '${path}': " + e.stack)
+      this.node.warn(`Failed to update widget prop path '${path}':\n${e.stack}`)
     }
   }
 
