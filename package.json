@@ -32,7 +32,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dopublish": "./bundle.sh 0.4.2 && npm publish --access public"
+    "dopublish": "./bundle.sh 0.4.3 && npm publish --access public"
   },
   "repository": {
     "type": "git",
