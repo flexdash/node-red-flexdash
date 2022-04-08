@@ -16,11 +16,11 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   const flowPersistence = RED.plugins.get('flexdash')._flowPersistence
 
   RED.events.on("flows:stopping", info => {
-    RED.log.info("flows:stopping", info.type, "diff:", JSON.stringify(info.diff))
+    RED.log.info(`flows:stopping ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
   })
 
   RED.events.on("flows:started", info => {
-    RED.log.info("flows:started", info.type, "diff:", JSON.stringify(info.diff))
+    RED.log.info(`flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
   })
 
   // Flow of configuration change messages and calls
@@ -61,7 +61,9 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         // time to instantiate a store, this is where our local version of the config and the state
         // are cached so they can be sent to newly connecting dashboards.
         // The store is initialized with the our config
-        const tabs = JSON.parse(config.tabs)
+        let tabs
+        try { tabs = JSON.parse(config.tabs) }
+        catch (e) { tabs = {} }
         const store_config = {
           dash: { title: this.name, tabs: Object.keys(tabs) },
           tabs, grids: {}, widgets: {},
