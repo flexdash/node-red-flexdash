@@ -1,11 +1,13 @@
 <script type="text/javascript">
   // ===== handle mutations coming in from the FlexDash side of things
 
+  console.log("Loading FlexDash plugin.html")
+
   RED.plugins.registerPlugin("my-test-editor-only-plugin", {
     type: "flexdash",
     onadd: function() {
       var mutation_seq = 0
-    
+
       RED.comms.subscribe('flexdash-mutation', (topic, object) => {
         const { seq } = object
         console.log("FlexDash-mutation seq=", seq)

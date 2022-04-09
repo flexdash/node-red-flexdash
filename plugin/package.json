@@ -1,0 +1,32 @@
+{
+  "name": "@flexdash/node-red-flexdash-plugin",
+  "version": "0.4.7",
+  "description": "Node-RED plugin for the FlexDash dashboard",
+  "publishConfig": {
+    "access": "public"
+  },
+  "node-red": {
+    "version": "^2.0.6",
+    "plugins": {
+      "flexdash": "flexdash-plugin.js"
+    }
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flexdash/node-red-flexdash.git"
+  },
+  "keywords": [
+    "flexdash",
+    "dashboard",
+    "node-red"
+  ],
+  "author": "Thorsten von Eicken",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/flexdash/node-red-flexdash/issues"
+  },
+  "homepage": "https://github.com/flexdash/node-red-flexdash/plugin#readme"
+}

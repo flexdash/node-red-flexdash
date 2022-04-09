@@ -1,7 +1,10 @@
 // FlexDash-config node for Node-RED
 // Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
-module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
+module.exports = async function(RED) { try { // use try-catch to get stack backtrace of any error
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+  console.log("Loading flexdash plugin.js now")
+
 
   const WidgetAPI = require("./widget-api.js")
 
@@ -170,16 +173,23 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   // ===== Exports
 
-  flexdash_global = new FlexDashGlobal()
-  flow_persistence = new FlowPersistence()
+  var flexdash_global = new FlexDashGlobal()
+  var flow_persistence = new FlowPersistence()
 
+  //await new Promise((resolve) => setTimeout(resolve, 2000))
+  //console.log("Loading plugin now")
+
+  console.log("Registering plugin")
   RED.plugins.registerPlugin("flexdash", {
     type: "dashboard", // gotta make something up...
-    onadd: () => { RED.log.info("FlexDash plugin loaded")},
+    onadd: () => {
+      RED.log.info("FlexDash plugin added")
+    },
     _flowPersistence: flow_persistence,
     initWidget: flexdash_global.initWidget.bind(flexdash_global),
     destroyWidget: flexdash_global.destroyWidget.bind(flexdash_global)
   })
 
+  console.log("Loaded flexdash plugin.js")
 } catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
 }

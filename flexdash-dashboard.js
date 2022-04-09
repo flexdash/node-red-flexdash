@@ -1,7 +1,7 @@
 // FlexDash-config node for Node-RED
 // Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
-module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
+module.exports = async function(RED) { try { // use try-catch to get stack backtrace of any error
   const { createServer } = require('http')
   const { Server } = require("socket.io")
   const { Store, StoreError } = require("./store.js")
@@ -21,6 +21,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   RED.events.on("flows:started", info => {
     RED.log.info(`flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
+    setTimeout(() => require("process").exit(0), 2000)
   })
 
   // Flow of configuration change messages and calls
@@ -363,6 +364,10 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       res.status(404).send()
     }
   }
+
+  // await new Promise((resolve) => setTimeout(resolve, 2000))
+  // console.log("Loading node now")
+
 
   RED.nodes.registerType("flexdash dashboard", FlexDashDashboard)
 } catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
