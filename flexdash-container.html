@@ -80,24 +80,29 @@
     defaults: {
       name: { value: "" },
       kind: { value: "grid" },
-      fd_pos: { value: 999, validate: function(v) { return v>=0 } },
+      fd_pos: { value: 999, validate: function(v) { console.log("fd_pos",v); return v>=0 } },
       fd_id: { value: "" },
       // params for grids
       tab: { value: "" },
-      weak_tab: { type:"flexdash tab", value:"", required:false, validate:(v) => {
-          if (this.kind != 'grid') return true
-          const configNode = RED.nodes.node(v)
-          return configNode && (configNode.valid == null || configNode.valid)
-        }},
+      weak_tab: { type:"flexdash tab", value:"", required:false, validate: function (v) {
+        console.log("validating weak_tab:", $('#node-config-input-kind')?.val(), $('#node-config-input-tab')?.val())
+        console.log("validating weak_tab: v=", v, "kind=", this.kind, "tab=", this.tab, "weak_tab=", this.weak_tab)
+        if ($('#node-config-input-kind')?.val() != 'grid') return true // covers ''== undefined' case!
+        const configNode = RED.nodes.node(v||this.tab)
+        // console.log("validate weak_tab configNode:", configNode, configNode?.valid, "->",
+        //   configNode && (configNode.valid == null || configNode.valid))
+        return configNode && (configNode.valid == null || configNode.valid)
+      }},
       min_cols: { value: 1, validate: function(v) { return (v>0 && v<=20) } },
       max_cols: { value: 20, validate: function(v) { return (v>0 && v<=20) } },
 
       // params for panels
-      parent: { type:"flexdash container", value:"", required:false, validate: (v) => {
-          if (this.kind != 'panel') return true
-          const configNode = RED.nodes.node(v)
-          return configNode && (configNode.valid == null || configNode.valid) && configNode.kind != 'panel'
-        }},
+      parent: { type:"flexdash container", value:"", required:false, validate: function (v) {
+        if ($('#node-config-input-kind')?.val() != 'panel') return true // covers ''== undefined' case!
+        const configNode = RED.nodes.node(v)
+        console.log("validate parent", v, configNode, configNode?.valid)
+        return configNode && (configNode.valid == null || configNode.valid) && configNode.kind != 'panel'
+      }},
       solid: { value: false },
       cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
       rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
@@ -114,6 +119,7 @@
 
     oneditprepare() {
       try {
+        console.log("Oneditprepare container", "tab:", this.tab)
         // console.log("container oneditprepare entered")
         // toggle UI between two alternatives
         function show_if(cond, sel_true, sel_false) {
@@ -181,6 +187,7 @@
         const weak_tab = $('#node-config-input-weak_tab')
         $('#node-config-input-tab').val(is_grid ? weak_tab.val() : "")
         weak_tab.val("")
+        console.log("Oneditsave container", "tab:", this.tab)
 
         // generate a flexdash ID if we don't have one
         const fd_id = $('#node-config-input-fd_id')
@@ -247,10 +254,10 @@
         the widgets it contains are rendered with their usual borders.</small>
     </div>
     <div class="form-row">
-      <label for="node-input-rows">Rows</label>
-      <input type="number" id="node-input-rows" style="width: 6em"><br>
-      <label for="node-input-cols">Cols</label>
-      <input type="number" id="node-input-cols" style="width: 6em"><br>
+      <label for="node-config-input-rows">Rows</label>
+      <input type="number" id="node-config-input-rows" style="width: 6em"><br>
+      <label for="node-config-input-cols">Cols</label>
+      <input type="number" id="node-config-input-cols" style="width: 6em"><br>
       <small class="fd-indent">Number of grid rows and columns occupied by the panel.</small>
     </div>
   </div>
