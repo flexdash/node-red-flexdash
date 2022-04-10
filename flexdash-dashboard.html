@@ -100,9 +100,10 @@
     <h2>FlexDash dashboard node</h2>
     <p>Each FlexDash dashboard node corresponds to a web page that displays a
       dashboard with multiple tabs filled with widgets.
-      You can create multiple dashboards (i.e. multiple config nodes) and assign different ports
+      You can create multiple dashboards using multiple config nodes and assign different ports
       or different paths to each one in the advanced options.</p>
-    <p><b>To access this dashboard</b> point your browser at <a class="point-to" href="/">/</a></p>
+    <p><b>To access this dashboard</b> point your browser at
+      <span style="color:darkblue;"><a class="point-to" href="/">/</a></span></p>
   </div>
   <div class="form-row">
     <label for="node-config-input-name" style="width:auto">Dashboard name</label>
@@ -148,7 +149,7 @@
       <br>
       <small class="fd-indent">Point your browser at: <a class="point-to" href="/">/</a></small>
     </div>
-    <div class="form-row">
+    <div class="form-row" style="display:none;">
       <input type="checkbox" id="node-config-input-saveConfig"
             style="display: inline-block; width: auto; vertical-align: top; margin-right: 1ex;">
       <label for="node-config-input-saveConfig" style="width: auto">
@@ -171,6 +172,7 @@
   </div>
 
   <!-- Development options -->
+<div style="display:none">
   <hr />
   <div class="form-row hidden" style="margin-bottom: 12px; cursor: pointer;" id="dev-click">
     <i class="fa fa-caret-right" style="cursor: pointer;" id="dev-btn"></i>
@@ -207,6 +209,7 @@
     </div>
 
   </div>
+</div>
 </script>
 
 <script type="text/html" data-help-name="flexdash dashboard">

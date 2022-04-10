@@ -6,7 +6,7 @@
 
   // construct defaults for the node, setting all but bool to null so widget defaults happen
   var widgetDefaults = Object.fromEntries(Object.values(widgetInfo.props).map(p =>
-    [p.name, {value: p.type==='boolean' ? p.default : null}]
+    [p.name, {value: p.default}]
   ))
   //console.log(widgetInfo.name, "widgetDefaults", widgetDefaults)
   

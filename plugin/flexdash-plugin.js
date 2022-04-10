@@ -1,10 +1,7 @@
 // FlexDash-config node for Node-RED
 // Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
-module.exports = async function(RED) { try { // use try-catch to get stack backtrace of any error
-  await new Promise((resolve) => setTimeout(resolve, 2000))
-  console.log("Loading flexdash plugin.js now")
-
+module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
 
   const WidgetAPI = require("./widget-api.js")
 
@@ -14,7 +11,6 @@ module.exports = async function(RED) { try { // use try-catch to get stack backt
     constructor() {
       this.widgets = {}
     }
-
 
     // initWidget ensures that a widget for this node exists, creating it if it doesn't, and 
     // then initializing it's static params with the NR node's config
@@ -179,7 +175,6 @@ module.exports = async function(RED) { try { // use try-catch to get stack backt
   //await new Promise((resolve) => setTimeout(resolve, 2000))
   //console.log("Loading plugin now")
 
-  console.log("Registering plugin")
   RED.plugins.registerPlugin("flexdash", {
     type: "dashboard", // gotta make something up...
     onadd: () => {
@@ -190,6 +185,5 @@ module.exports = async function(RED) { try { // use try-catch to get stack backt
     destroyWidget: flexdash_global.destroyWidget.bind(flexdash_global)
   })
 
-  console.log("Loaded flexdash plugin.js")
 } catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
 }
