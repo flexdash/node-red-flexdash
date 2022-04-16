@@ -91,8 +91,15 @@ class FDWidgetCodeGen {
     this.info.payload_prop = 'value'
 
     // parse props
-    this.info.props = {}
+    this.info.props = {
+      title: {
+        name: 'title', name_text: 'Title', name_kebab: 'title', type: 'string', input_type: 'str',
+        tip: 'Text to display in the widget header. ',
+        default: this.info.name_text, default_html: `'${this.info.name_text}'`,
+      }
+    }
     for (const prop in props) {
+      if (prop === 'title') continue
       const p = {}
       // prop name
       p.name = prop
@@ -131,7 +138,7 @@ class FDWidgetCodeGen {
 
       this.info.props[prop] = p
     }  
-  }  
+  }
 
   async doit() {
     console.log(`Generating code for ${this.info.vue_file}`)

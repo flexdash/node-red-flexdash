@@ -8,12 +8,15 @@
 module.exports = class WidgetAPI {
   // Each NRFDAPI object provides the API calls to one Node-RED node
   constructor(fd, widget_id, node) {
-    console.log(`WidgetAPI ${fd} ${widget_id} ${Object.keys(node)}`)
     this.fd = fd
     this.widget_id = widget_id
     this.node = node
   }
   
+  // checkProp verifies that a prop being set dynamically actually exists by looking whether
+  // there's a static setting for it. There really isn't much harm in setting a non-existent
+  // prop so this check could be eliminated. It's here because it provides early feedback in
+  // the common case where it's a actually an error.
   _checkProp(widget, prop) {
     if (!(prop in widget.static)) {
       this.node.warn(`Widget of node ${this.node.id} has no prop '${prop}'`)
@@ -41,14 +44,18 @@ module.exports = class WidgetAPI {
 
       if (value !== undefined) {
         this.setAbsPath(fdpath, value)
-        // ensure that the widget's dynamic/<prop> field points there
-        if (w.dynamic[prop] != fdprop) {
-          this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', prop, fdprop)
+        // ensure that the widget's dynamic/<prop> field is true
+        if (w.dynamic[prop] !== true) {
+          this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', prop, true)
         }
+        // ensure that the widget's dynamic/<prop> field points there
+        // if (w.dynamic[prop] != fdprop) {
+        //   this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', prop, fdprop)
+        // }
       } else {
         this.deleteAbsPath(path)
         if (path == prop && prop in w.dynamic) {
-          this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', p, null)
+          this.fd.store.updateWidgetProp(this.widget_id, 'dynamic', p, undefined)
         }
       }
 

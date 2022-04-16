@@ -14,15 +14,7 @@
   var paletteLabel = widgetInfo.name_text.toLocaleLowerCase()
 
   // update the text for the help sidebar
-  var helpHtml = `
-    <h3>${widgetInfo.help_title}</h3>
-    <p>The ${paletteLabel} node displays a ${widgetInfo.name_text} widget in the FlexDash dashboard.</p>
-    ${widgetInfo.help_body}
-  `.trim()
-  $(`script[data-help-name="${widgetInfo.name_kebab}"]`).html(helpHtml) // hidden help text
-  $(`#${widgetInfo.name_kebab}-help-text`).replaceWith(helpHtml) // shown help text
-
-  var allTypes = ['str','num','bool','json']
+  var helpHtml = flexdash.load_help_html(widgetInfo, paletteLabel)
 
 
   RED.nodes.registerType(widgetInfo.name_kebab, {
@@ -37,10 +29,10 @@
     // node config properties that the user can edit in the flow editor
     defaults: {
       // required fields for FlexDash Widget nodes
-      fd_container: { type:"flexdash container", value:"", required:true },
-      fd_cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
-      fd_rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
-      fd_pos: { value: 999, validate: function(v) { return v>=0 } },
+      fd_id: { value: "" }, // flexdash ID of this widget
+      fd_container: { type:"flexdash container", value:"", required:true }, // grid/panel
+      fd_cols: { value: 1, validate: function(v) { return v>0 && v<=20 } }, // widget width
+      fd_rows: { value: 1, validate: function(v) { return v>0 && v<=100 } }, // widget height
       // name field of NR node (standard)
       name: { value: '' },
   
@@ -53,39 +45,10 @@
     labelStyle() { return this.name ? "node_label_italic" : "" },
 
     oneditprepare() {
-      // fetch the html for the widget props tab and insert into DOM
-      // first we need to put toegther the URL, which comes out to something like
-      // resources/@flexdash/node-red-fd-testnodes/testgauge-props.html
-      // (see "Editor resources" in Node-RED's "Creating nodes" guide)
-      let url = `${widgetInfo.resources_path}/${widgetInfo.base_filename}-props.html`
-      $('#fd-prop-rows').load(url, () => {
-        // after inserting into DOM, initialize the typed input fields
-        $('.fd-typed-input').each((ix, el) => {
-          const prop = (el.id || "").replace("node-input-", "") // name of corresponding prop
-          if (prop in widgetInfo.props) {
-            const it = widgetInfo.props[prop].input_type // str, num, bool, etc.
-            const conf = it && it !== 'any' // construct config passed into typedInput()
-              ? { type:it, types:[it], typeField: el.id + '-type' }
-              : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
-            //console.log("typedInput", prop, conf, this)
-            $(el).typedInput(conf) // init the typedInput field
-            $(el).typedInput("value", this[prop]) // necessary due to dynamic loading...
-          }
-        })
-      })
-
-      // pre-fill fd_container field with most recently used
-      const sel_add = $('#node-input-fd_container [selected]').val() == "_ADD_"
-      if (sel_add && fd_last_container) { // fd_last_container is a global...
-        $('#node-input-fd_container option').removeClass("selected")
-        $(`#node-input-fd_container [value=${fd_last_container}]`).addClass('selected')
-      }
-    },
-
-    oneditsave() {
-      // update the most recently used fd_container value
-      const p = $('#node-input-fd_container [selected]').val()
-      if (p != "_ADD_") fd_last_container = p
+      // fetch the html to edit the widget props and insert into DOM
+      flexdash.load_props_edit(widgetInfo)
+      // adjust the widget position in its container (grid/panel), also selects last-used container
+      //flexdash.adjust_position()
     },
   })
 </script>
@@ -95,18 +58,21 @@
     <div class="form-row">
       <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
       <input type="text" id="node-input-name" placeholder="Name">
+      <br><small class="fd-indent">Name on node in Node-RED, not shown in dashboard.</small>
+      <input type="hidden" id="node-input-fd_id">
     </div>
     <div class="form-row">
       <label for="node-input-fd_container">Container</label>
       <input type="text" id="node-input-fd_container">
+      <br><small class="fd-indent">Dashboard Grid or Panel in which widget is shown.</small>
     </div>
     <div class="form-row">
       <label for="node-input-rows">Rows</label>
       <input type="number" id="node-input-fd_rows" style="width: 6em">
       <label for="node-input-cols">Cols</label>
       <input type="number" id="node-input-fd_cols" style="width: 6em">
+      <br><small class="fd-indent">Widget dimensions in grid units.</small>
     </div>
-    <input type="hidden" id="node-input-fd_pos">
   
     <!-- widget props -->
     <div id="fd-prop-rows" style="display:contents"></div>

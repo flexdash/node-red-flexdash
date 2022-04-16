@@ -1,10 +1,16 @@
 <script type="text/javascript">
-  // ===== handle mutations coming in from the FlexDash side of things
+  
+    // Init FlexDash global
+    try { flexdash } catch(e) { flexdash = {} }
+    flexdash.last_container = null // last container selected, auto-select it when adding the next node
 
-  RED.plugins.registerPlugin("my-test-editor-only-plugin", {
+    RED.plugins.registerPlugin("flexdash-plugin", {
     type: "flexdash",
     onadd: function() {
+      console.log("FlexDash plugin added")
       var mutation_seq = 0
+      
+      // ===== handle mutations coming in from the FlexDash side of things
 
       RED.comms.subscribe('flexdash-mutation', (topic, object) => {
         const { seq } = object
@@ -27,12 +33,10 @@
                   { type: "error" }
                 )
                 // RED.notify(
-                //   node._("common.notification.error",
-                //     {
+                //   node._("common.notification.error", {
                 //       message: node._("common.notification.errors.unexpected",
                 //         { status: res.status, message: res.statusMessage })
-                //     }),
-                //   "error")
+                //   }), "error")
                 return null
               } else { // success
                 return res.json()
@@ -48,15 +52,15 @@
             })
         }
       })
-
-      //const skip = {id:1, type:1, x:1, y:1, z:1, wires:1}
     
-      function processMutations(m) {
-        console.log("FlexDash mutations:", m)
-        for (const nrid in m) {
+      function processMutations(mutations) {
+        console.log("FlexDash mutations:", mutations)
+        for (const nrid in mutations) {
+          const m = mutations[nrid]
           const node = RED.nodes.node(nrid)
           if (!node) { console.log("Failed to find node", nrid); continue }
           //console.log(`Node for ${nrid} has: ${Object.keys(node).join(' ')}`)
+
           // prep history event and perform changes
           const undo = {}
           const historyEvent = { t: 'edit', node: node, changes: { },
@@ -65,15 +69,17 @@
           }
           //console.log("Mutation", JSON.stringify(m[nrid]))
           for (const k in node._def.defaults) {
-            if (k in m[nrid]) {
+            // handle updated fields that are part of the node's defaults
+            if (k in m) {
               undo[k] = node[k]
-              node[k] = m[nrid][k]
-              historyEvent.changes[k] = m[nrid][k]
-            } else if (['fd_cols', 'fd_rows'].includes(k) && k.substring(3) in m[nrid]) {
+              node[k] = m[k]
+              historyEvent.changes[k] = m[k]
+            // handle rows/cols specially 'cause in widgets they're fd_cols/fd_rows
+            } else if (['fd_cols', 'fd_rows'].includes(k) && k.substring(3) in m) {
               const k3 = k.substring(3)
               undo[k] = node[k]
-              node[k] = m[nrid][k3]
-              historyEvent.changes[k] = m[nrid][k3]
+              node[k] = m[k3]
+              historyEvent.changes[k] = m[k3]
             }
           }
           console.log("Changes:", JSON.stringify(historyEvent.changes))
@@ -83,12 +89,216 @@
             RED.nodes.dirty(true)
             RED.history.push(historyEvent)
           }
+
+          // if this is a container, ensure the position of all contained nodes is up-to-date
+          console.log("processMutations:", node.kind, node.id, m.id?.at(0))
+          const ty = m.id.at(0)
+          if (!m.id && m.tabs) update_positions(m.tabs)
+          else if (ty == 't') update_positions(m.grids)
+          else if (ty == 'g') update_positions(m.widgets)
+          else if (ty == 'w' && m.kind.endsWith("Panel")) update_positions(m.static.widgets)
+
         }
         RED.view.redraw()
         // RED.notify(...
       }
 
-    }
-  })
+      // update_positions processes the list of items in the container as it comes from the mutation
+      // and updates the fd_pos fields of the respective nodes.
+      function update_positions(items) { // items is a list of FlexDash IDs
+        items.forEach((fd_id, pos) => {
+          const nrid = fd_id.substring(1) // FIXME: doesn't handle stuff added within FlexDash...
+          const node = RED.nodes.node(nrid)
+          console.log("Eval update_positions:", fd_id, nrid, pos, node)
+          if (!node) return
+          if (node.fd_pos == pos) return
+          // position has changed, create history event & perform change
+          console.log("Position changed for", nrid, "from", node.fd_pos, "to", pos)
+          const historyEvent = { t: 'edit', node, dirty: true, changed: true,
+            changes: { fd_pos: pos },
+          }
+          node.fd_pos = pos
+          node.changed = true
+          RED.nodes.dirty(true)
+          RED.history.push(historyEvent)
+        })
+      }
+
+      // ===== clear flexdash global when switching to a different project
+
+      RED.events.on('workspace:clear', (info) => {
+        console.log("Workspace cleared:", info)         // TODO: do something!
+      })
+
+      // ===== flexdash global with misc functionality
+
+      // add a child node to a parent (IDs are NR IDs)
+      function add_child(parent, child_id) {
+        if (typeof parent == 'string') parent = RED.nodes.node(parent)
+        if (!parent) return
+        if (parent.fd_children.includes(child_id)) return // works thanks to commas
+        parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
+        console.log("added child", child_id, "to", parent.id)
+      }
+
+      // remove child node fromits parent node
+      function remove_child(parent, child_id) {
+        if (typeof parent == 'string') parent = RED.nodes.node(parent)
+        if (!parent) return
+        const i = parent.fd_children.indexOf(child_id)
+        if (i >= 0) {
+          parent.fd_children = parent.fd_children.substring(0, i-1) // leading comma...
+                             + parent.fd_children.substring(i+child_id.length)
+          console.log('removed child', child_id, 'from', parent.id)
+        }
+      }
+
+      // the fd_registry keeps track of all flexdash nodes so they can be found globally by their ID
+      flexdash.registry = (function(){
+        class FDRegistry {
+          constructor() {
+            RED.events.on("nodes:add", (node) => this.check_node(node, 'add'))
+            RED.events.on("nodes:change", (node) => this.check_node(node, 'change'))
+            RED.events.on("nodes:remove", (node) => this.remove_node(node))
+            RED.comms.subscribe('flexdash', (...args) => this.handle_msg(...args))
+          }  
+
+          //is_widget(node) { return 'fd_container' in node && 'fd_pos' in node }
+
+          // check_node performs some checks on FlexDash nodes, in particular, it maintains the
+          // fd_pos positions.
+          // The nodes:add and nodes:change events both lead here in part because nodes:add is not
+          // emitted when a container is created, so we have to catch its nodes:change event.
+          check_node(node, ev) {
+            try { // caller swallows exceptions
+              
+              // figure out parent node and ensure this node has a FlexDash ID
+              let parent = null
+              if (node.type == 'flexdash tab') {
+                parent = node.fd
+                if (!node.fd_id) node.fd_id = 't' + node.id
+              } else if (node.type == 'flexdash container' && node.kind.endsWith('Grid')) {
+                parent = node.tab
+                if (!node.fd_id) node.fd_id = 'g' + node.id
+              } else if (node.type == 'flexdash container' && node.kind.endsWith('Panel')) {
+                parent = node.parent
+                if (!node.fd_id) node.fd_id = 'w' + node.id // panel is actually a widget
+              } else if (node.fd_container) {
+                // widget -- need to handle widgets in subflows
+                parent = node.fd_container
+                if (!node.fd_id) {
+                  console.log("Widget:", widget)
+                  node.fd_id = 'w' + node.id
+                }
+              } else {
+                return // not a flexdash-related node
+              }
+              console.log("check_node", ev, node)
+              
+              // if this node has children, remove child nodes that no longer exist
+              if ('fd_children' in node && node.fd_children) {
+                const removed = []
+                const children = node.fd_children.split(',')
+                console.log("children:", JSON.stringify(children), children.length)
+                for (let i=0; i<children.length; /*noop*/) {
+                  const child = children[i]
+                  if (child && !RED.nodes.node(child)) {
+                    console.log('removed child', child, 'from', node.id)
+                    children.splice(i, 1)
+                    removed.push(child)
+                  } else {
+                    i++
+                  }
+                }
+                node.fd_children = children.join(',')
+                if (removed.length > 0) console.log("removed children:", removed.join(' '))
+              }
+
+              // ensure this node is a child of its (possibly new) parent
+              parent = RED.nodes.node(parent)
+              if (!parent) debugger
+              if (!parent?.fd_children?.includes(node.id)) {
+                // node either added or moved to new parent, first remove from old parent
+                RED.nodes.eachConfig(n => {
+                  if (typeof n != 'object') debugger
+                  if ('fd_children' in n) remove_child(n, node.id)
+                })
+                // add to new parent
+                if ('fd_children' in parent) {
+                  add_child(parent, node.id)
+                } else {
+                  debugger
+                }
+              } else console.log(`${node.id} is already a child of ${parent.id}`)
+            } catch (e) { console.log(`Failed to add node ${node}: ${e}\n${e.stack}`) }
+          }  
+
+          remove_node(node) {
+            try { // caller swallows exceptions
+              if (node == flexdash.last_container) flexdash.last_container = null
+
+              // remove node from parent's fd_children list
+              if (node.type == 'tab') remove_child(node.fd, node.id)
+              else if (node.type == 'grid' && node.kind.endsWith('Grid')) remove_child(node.tab, node.id)
+              else if (node.type == 'grid' && node.kind.endsWith('Panel')) remove_child(node.parent, node.id)
+              else if (node.fd_container) remove_child(node.fd_container, node.id)
+
+              // if (node.type == "flexdash tab") this.resort_children(node.fd)
+              // else if (node.type == "flexdash container") {
+              //   const is_grid = node.kind.endsWith("Grid")
+              //   const parent = is_grid ? node.tab : node.parent
+              //   this.resort_children(parent)
+              // } else if (this.is_widget(node)) {
+              //   this.resort_children(node.fd_container)
+              // }
+            } catch (e) { console.log(`Failed to remove node ${node}: ${e}\n${e.stack}`) }
+          }
+
+          handle_msg(t, o) {
+            console.log("flexdash message: t=", t, "o=", o)
+          }
+        }
+
+        return new FDRegistry()
+      })()
+
+      // load the help text for a widget side-bar from the auto-generated info
+      flexdash.load_help_html = function(widgetInfo, paletteLabel) {
+        const helpHtml = `
+          <h3>${widgetInfo.help_title}</h3>
+          <p>The ${paletteLabel} node displays a ${widgetInfo.name_text} widget in the FlexDash dashboard.</p>
+          ${widgetInfo.help_body}
+        `.trim()
+        $(`script[data-help-name="${widgetInfo.name_kebab}"]`).html(helpHtml) // hidden help text
+        $(`#${widgetInfo.name_kebab}-help-text`).replaceWith(helpHtml) // shown help text
+      }
+
+      // fetch the html for the widget props editing and insert into DOM
+      flexdash.load_props_edit = function(widgetInfo) {
+        // first we need to put together the URL, which comes out to something like
+        // resources/@flexdash/node-red-fd-testnodes/testgauge-props.html
+        // (see "Editor resources" in Node-RED's "Creating nodes" guide)
+        const url = `${widgetInfo.resources_path}/${widgetInfo.base_filename}-props.html`
+        // load that url into DOM
+        const allTypes = ['str','num','bool','json']
+        $('#fd-prop-rows').load(url, () => {
+          // after inserting into DOM, initialize the typed input fields
+          $('.fd-typed-input').each((ix, el) => {
+            const prop = (el.id || "").replace("node-input-", "") // name of corresponding prop
+            if (prop in widgetInfo.props) {
+              const it = widgetInfo.props[prop].input_type // str, num, bool, etc.
+              const conf = it && it !== 'any' // construct config passed into typedInput()
+                ? { type:it, types:[it], typeField: el.id + '-type' }
+                : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
+              //console.log("typedInput", prop, conf, this)
+              $(el).typedInput(conf) // init the typedInput field
+              $(el).typedInput("value", this[prop]) // necessary due to dynamic loading...
+            }
+          })
+        })
+      }
+
+    } // end of onadd()
+  }) // end of registerPlugin
 
 </script>

@@ -2,95 +2,26 @@
      Copyright ©2022 by Thorsten von Eicken, see LICENSE
 -->
 
-// function refresh...
-// RED.nodes.eachConfig(function(node) {
-//   switch (node.type) {
-// RED.nodes.eachNode(function(node) {
-//   if (/^ui_/.test(node.type)) {
-//       if (groups.hasOwnProperty(node.group)) {
-//  RED.events.on("editor:save",editSaveEventHandler);
+<script type="module">
 
-
-// nodesAddEventHandler = function(node) {
-//       if (/^ui_/.test(node.type) && !listElements[node.id]) {
-//           pendingAdd.push(node);
-//           clearTimeout(pendingAddTimer);
-//           pendingAddTimer = setTimeout(handlePendingAdds,100);
-//       }
-//   };
-//   RED.events.on("nodes:add", nodesAddEventHandler);
-
-// to locate and present a drop-down of config nodes, see updateConfigNodeSelect() in editor.js
-
-
-<script type="text/javascript">
-  console.log("Loading fd-container")
-
-  fd_registry = (function(){
-    class FDRegistry {
-      constructor() {
-        this.dashboards = {}
-        this.containers = {}
-        this.widgets = {}
-        RED.events.on("nodes:add", (node) => this.add_node(node))
-        RED.events.on("nodes:remove", (node) => this.remove_node(node))
-        RED.comms.subscribe('flexdash', (...args) => this.handle_msg(...args))
-      }
-
-      add_node(node) {
-        if (node.type == "flexdash dashboard") {
-          this.dashboards[node.id] = node
-          if (!flexdash_id) flexdash_id = node.id // HACK
-          console.log("Added flexdash dashboard:", node.id, "type", node.type)
-        } else if (node.type == "flexdash container") {
-          this.containers[node.id] = node
-          console.log("Added flexdash container:", node.id, "type", node.type)
-        } else if (node._def?.flexdash) {
-          this.widgets[node.id] = node
-          console.log("Added flexdash widget:", node.id, "type", node.type, node)
-        }
-      }
-
-      remove_node(node) {
-        if (node.type == "flexdash dashboard") {
-          delete this.dashboards[node.id]
-          console.log("Removed flexdash dashboard:", node.id, "type", node.type)
-        } else if (node.type == "flexdash container") {
-          delete this.containers[node.id]
-          console.log("Removed flexdash container:", node.id, "type", node.type)
-        } else if (node._def?.flexdash) {
-          delete this.widgets[node.id]
-          console.log("Removed flexdash widget:", node.id, "type", node.type)
-        }
-      }
-
-      handle_msg(t, o) {
-        console.log("flexdash message: t=", t, "o=", o)
-      }
-    }
-
-    return new FDRegistry()
-  })()
-
-  fd_last_container = null
+  function is_panel(node) { return node?.kind?.endsWith("Panel") }
+  function has_panel_val(el) { return el?.val()?.endsWith("Panel") }
+  function has_grid_val(el) { return el?.val()?.endsWith("Grid") }
 
   RED.nodes.registerType('flexdash container', {
     category: 'config',
 
     defaults: {
       name: { value: "" },
-      kind: { value: "grid" },
-      fd_pos: { value: 999, validate: function(v) { console.log("fd_pos",v); return v>=0 } },
-      fd_id: { value: "" },
+      kind: { value: "StdGrid" },
+      fd_id: { value: "" }, // flexdash ID of this grid/panel
+      fd_children: { value: "" }, // comma-separated list of child node IDs
+
       // params for grids
       tab: { value: "" },
       weak_tab: { type:"flexdash tab", value:"", required:false, validate: function (v) {
-        console.log("validating weak_tab:", $('#node-config-input-kind')?.val(), $('#node-config-input-tab')?.val())
-        console.log("validating weak_tab: v=", v, "kind=", this.kind, "tab=", this.tab, "weak_tab=", this.weak_tab)
-        if ($('#node-config-input-kind')?.val() != 'grid') return true // covers ''== undefined' case!
+        if (!has_grid_val($('#node-config-input-kind'))) return true // covers ''== undefined' case!
         const configNode = RED.nodes.node(v||this.tab)
-        // console.log("validate weak_tab configNode:", configNode, configNode?.valid, "->",
-        //   configNode && (configNode.valid == null || configNode.valid))
         return configNode && (configNode.valid == null || configNode.valid)
       }},
       min_cols: { value: 1, validate: function(v) { return (v>0 && v<=20) } },
@@ -98,10 +29,9 @@
 
       // params for panels
       parent: { type:"flexdash container", value:"", required:false, validate: function (v) {
-        if ($('#node-config-input-kind')?.val() != 'panel') return true // covers ''== undefined' case!
+        if (!has_panel_val($('#node-config-input-kind'))) return true // covers ''== undefined' case!
         const configNode = RED.nodes.node(v)
-        console.log("validate parent", v, configNode, configNode?.valid)
-        return configNode && (configNode.valid == null || configNode.valid) && configNode.kind != 'panel'
+        return configNode && (configNode.valid == null || configNode.valid) && !is_panel(configNode)
       }},
       solid: { value: false },
       cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
@@ -109,17 +39,17 @@
     },
 
     label() { 
-      const name = this.name || `#${this.fd_pos}`
-      const is_grid = this.kind === "grid"
-      const parent = RED.nodes.node(is_grid ? this.tab : this.parent)
-      const parent_name = parent ? `, ${parent.label()}` : ""
-      return `${is_grid ? 'Grid' : 'Panel'} ${name}${parent_name}`
+      const name = this.name || (this.fd_pos != null ? `#${this.fd_pos+1}` : null)
+      if (!name) return 'New grid'
+      const parent = RED.nodes.node(is_panel(this) ? this.parent : this.tab)
+      const parent_name = parent ? ` < ${parent.label()}` : ""
+      return `${this.kind} ${name}${parent_name}`
     },
     //labelStyle() { return this.name ? "node_label_italic" : "" },
 
     oneditprepare() {
       try {
-        console.log("Oneditprepare container", "tab:", this.tab)
+        console.log("Oneditprepare container", this.id, "tab:", this.tab)
         // console.log("container oneditprepare entered")
         // toggle UI between two alternatives
         function show_if(cond, sel_true, sel_false) {
@@ -130,27 +60,30 @@
         // set weak_tab to value of tab, see oneditsave for explanation
         if (this.tab) $(`#node-config-input-weak_tab [value=${this.tab}]`).attr('selected',"")
 
+        // tweak position
+        //flexdash.adjust_container_position(is_panel(this) ? 'parent' : 'weak_tab')
+
         // handle grid/tab toggle buttons
         function select_grid_tab(which) {
           // handle button state
           $(".kind-button-group").removeClass("selected")
-          $(`.sel-${which}`).addClass("selected")
+          $(`.kind-button-group[kind=${which}]`).addClass("selected")
+          $('#node-config-input-kind').val(which)
           // toggle the panel and set the value in the param to be saved
-          const is_grid = which == 'grid'
-          show_if(is_grid, "#grid-only", "#panel-only")
-          $('#node-config-input-kind').val(is_grid ? "grid" : "panel")
+          const is_panel = which.endsWith('Panel')
+          show_if(is_panel, "#panel-only", "#grid-only")
           // select the most recent container if we're switching to panel
-          if (!is_grid && fd_last_container) {
+          if (is_panel && flexdash.last_container) {
             const sel_add = $('#node-config-input-parent [selected]').val() == "_ADD_"
             if (sel_add) {
               $('#node-config-input-parent option').removeAttr("selected")
-              $(`#node-config-input-parent [value=${fd_last_container}]`).attr('selected',"")
+              $(`#node-config-input-parent [value=${flexdash.last_container}]`).attr('selected',"")
             }
           }
         }
         select_grid_tab(this.kind)
         $(".kind-button-group").on("click", function() {
-          select_grid_tab($(this).hasClass("sel-grid") ? "grid" : "panel")
+          select_grid_tab($(this).attr("kind"))
         })
 
         const label = this.label || this._def.label // !@#$%^&* on create...
@@ -165,33 +98,23 @@
       try {
         // console.log(`container oneditsave entered, this.weak_tab=${this.weak_tab}, $(weak_tab)=${$('#node-config-input-weak_tab').val()}`)
         // fix-up fields that depend on the kind
-        const is_grid = $('#node-config-input-kind').val() == "grid"
-        if (is_grid) {
+        const is_panel = has_panel_val($('#node-config-input-kind'))
+        if (is_panel) {
+          // avoid panels within panels
+          const p = $('#node-config-input-parent [selected]').val()
+          if (p == this.id) $('#node-config-input-parent [selected]').val("")
+        } else {
           // clear the parent field so we don't depend on some random config node
           $('#node-config-input-parent [selected]').val("")
           $('#node-config-input-parent').removeClass("input-error")
-        } else {
-          const p = $('#node-config-input-parent [selected]').val()
-          if (p == this.id) {
-            // avoid circular references
-            $('#node-config-input-parent [selected]').val("")
-          } else if (p != "_ADD_") {
-            // remember the last container
-            fd_last_container = p
-          }
         }
 
-        // switch the flexdash tab ID to a different field so we don't depend on it on export
+        // switch the flexdash tab ID to a different field so we don't depend on it on export;
         // this is hideous hack... createExportableNodeSet exports config nodes referenced in 
         // params that have a type field. So we move the weak_tab ID to tab and voila, no dependency!
         const weak_tab = $('#node-config-input-weak_tab')
-        $('#node-config-input-tab').val(is_grid ? weak_tab.val() : "")
+        $('#node-config-input-tab').val(is_panel ? "" : weak_tab.val())
         weak_tab.val("")
-        console.log("Oneditsave container", "tab:", this.tab)
-
-        // generate a flexdash ID if we don't have one
-        const fd_id = $('#node-config-input-fd_id')
-        if (!fd_id.val()) fd_id.val((is_grid ? "g" : "w") + this.id)
 
         // console.log("FlexDash container save:", Object.assign({}, this))
       } catch(e) { console.log("FlexDash container save error", e); throw e }
@@ -210,13 +133,16 @@
   <div class="form-row">
     <label for="kind-span">Container type</label>
     <span class="button-group" id=""kind-span>
-      <button type="button" class="red-ui-button toggle kind-button-group sel-grid"
-        >grid</button
-      ><button type="button" class="red-ui-button toggle kind-button-group sel-panel"
+      <button type="button" class="red-ui-button toggle kind-button-group" kind="StdGrid"
+        >std grid</button
+        ><button type="button" class="red-ui-button toggle kind-button-group" kind="ArrayGrid"
+        >array grid</button
+        ><button type="button" class="red-ui-button toggle kind-button-group" kind="Panel"
         >panel</button>
     </span>
-    <small class="fd-indent">A grid is the primary container for widgets and panels. It reflows
+    <small class="fd-indent">A standard grid is the primary container for widgets and panels. It reflows
       its content based on the width of the browser window.
+      An array grid is a grid that can repeat its content multiple times.
       A panel can be used within a grid to create a sub-grid in which widgets can be arranged
       at fixed positions without being impacted by the window width.
     </small>
@@ -239,6 +165,19 @@
     </div>  
   </div>
   
+  <!-- Fields specific to array grids -->
+  <div id="array-grid-only" style="display: none">
+    <div class="form-row">
+      <label for="node-config-input-repeat">Repeat</label>
+      <input type="number" id="node-config-input-repeat"><br>
+      <small class="fd-indent">Number of repeats (1..N), i.e. array size.
+        To send data to widgets in the array grid, use `msg.array_ix = [0-based-index]`.
+        The number of repeats can be controlled dynamically using the fd_control node, and
+        instead of a numeric array index it is also possible to use a key.</index>
+      </small>
+    </div>  
+  </div>
+
   <!-- Fields specific to panels -->
   <div id="panel-only" style="display: none">
     <div class="form-row">
@@ -265,7 +204,7 @@
   <!-- hidden fields -->
   <input type="hidden" id="node-config-input-kind">
   <input type="hidden" id="node-config-input-fd_id">
-  <input type="hidden" id="node-config-input-fd_pos">
+  <input type="hidden" id="node-config-input-fd_children">
   <input type="hidden" id="node-config-input-tab">
 
 </script>

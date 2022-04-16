@@ -16,11 +16,11 @@ module.exports = function(RED) {
         if (!config.fd) return // nothing we can really do here
         this.fd = RED.nodes.getNode(config.fd)
         if (!this.fd) return
-        this.fd.initTab(this)
+        RED.plugins.get('flexdash').initTab(this)
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
-        if (this.fd) this.fd.destroyTab(this)
+        if (this.fd) RED.plugins.get('flexdash').destroyTab(this)
       })
     }
 

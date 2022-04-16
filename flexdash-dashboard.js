@@ -15,13 +15,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   }
   const flowPersistence = RED.plugins.get('flexdash')._flowPersistence
 
-  RED.events.on("flows:stopping", info => {
-    RED.log.info(`flows:stopping ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
-  })
-
-  RED.events.on("flows:started", info => {
-    RED.log.info(`flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
-  })
 
   // Flow of configuration change messages and calls
   //
@@ -52,28 +45,28 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
         this.name = config.name || "FlexDash"
         this.inputHandlers = {} // input from widgets; key: node.id, value: function(payload)
+        this.config = config
+
+        // Instantiate a store, this is where our local version of the config and the state
+        // are cached so they can be sent to newly connecting dashboards.
+        // The store is initialized with our config
+        const store_config = { dash: { title: this.name, tabs:[] }, tabs: {}, grids: {}, widgets: {} }
+        this.store = new Store(store_config,
+          (...args) => this._sendMutation(...args)) // send to connected dashboards
+        this.store.do_queue = true
+        this.StoreError = StoreError // "export" to allow other modules to catch StoreErrors
+        RED.plugins.get('flexdash').initDash(this)
 
         // start the web servers!
         this.app = null // express app
         this.devPath = null // path to dev server (generated here)
         Object.assign(this, this._startWeb(config)) // app, path, io, ioPath, 
-
-        // time to instantiate a store, this is where our local version of the config and the state
-        // are cached so they can be sent to newly connecting dashboards.
-        // The store is initialized with the our config
-        let tabs
-        try { tabs = JSON.parse(config.tabs) }
-        catch (e) { tabs = {} }
-        const store_config = {
-          dash: { title: this.name, tabs: Object.keys(tabs) },
-          tabs, grids: {}, widgets: {},
-        }
-        this.store = new Store(store_config,
-            (...args) => this._sendMutation(...args)) // send to connected dashboards
-        this.StoreError = StoreError // allows other modules to catch StoreErrors
       } catch (e) { console.error(e.stack); throw e }
 
-      this.on("close", () => io.close())
+      this.on("close", () => {
+        RED.plugins.get('flexdash').destroyDash(this)
+        io.close()
+      })
 
       // hook handlers to save FlexDash configuration and send the config back out on start-up
       this.io.on("connection", (socket) => {
@@ -115,57 +108,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           this.log(`FlexDash disconnect ${socket.id} due to ${reason}`)
         })
       })
-    }
-
-    // ===== public methods called by other internal nodes, such as flexdash container and tab
-
-    initTab(tab) {
-      flowPersistence.register(this.id, tab.config.fd_id, tab.id)
-      const c = tab.config
-      if (!c.fd_id || !c.fd_id.startsWith('t')) throw new Error(`bad tab ID: ${c.fd_id}`)
-      const fd_config = { id: c.fd_id, title: c.name, icon: c.icon, pos: c.fd_pos }
-      this.store.addTab('grid', fd_config)
-    }
-
-    destroyTab(tab) {
-      flowPersistence.unregister(this.id, tab.config.fd_id)
-      this.store.deleteTab(tab.config.fd_id)
-    }
-
-    initGrid(grid) {
-      flowPersistence.register(this.id, grid.config.fd_id, grid.id)
-      const c = grid.config
-      if (!c.fd_id || !c.fd_id.startsWith('g')) throw new Error(`bad grid ID: ${c.fd_id}`)
-      const tab = RED.nodes.getNode(c.tab)
-      const fd_config = {
-        id: c.fd_id, kind: 'FixedGrid', title: c.name,
-        pos: c.fd_pos, min_cols: c.min_cols, max_cols: c.max_cols,
-      }
-      this.store.addGrid(tab.config.fd_id, fd_config)
-    }
-
-    destroyGrid(grid) {
-      flowPersistence.unregister(this.id, grid.config.fd_id)
-      this.store.deleteGrid(grid.config.fd_id)
-    }
-
-    initPanel(panel) {
-      flowPersistence.register(this.id, panel.config.fd_id, panel.id)
-      const c = panel.config
-      if (!c.fd_id || !c.fd_id.startsWith('w')) throw new Error(`bad panel ID: ${c.fd_id}`)
-      const grid = RED.nodes.getNode(c.parent)
-      const fd_config = {
-        id: c.fd_id, kind: 'Panel', title: c.name,
-        pos: c.fd_pos, rows: c.rows, cols: c.cols,
-        dyn_root: "node-red/" + c.id,
-        static: { solid: c.solid, widgets: [] },
-      }
-      this.store.addWidget(grid.config.fd_id, fd_config)
-    }
-
-    destroyPanel(panel) {
-      flowPersistence.unregister(this.id, panel.config.fd_id)
-      this.store.deleteWidget(panel.config.fd_id)
     }
 
     // ===== internal private methods
@@ -227,7 +169,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             return res.status(500).send(`Cannot read index.html`)
           }
           res.send(data.toString().replace(
-            '{}', `{sio:window.location.origin+"${ioPath}",title:"${this.name}"}`
+            '{}', `{sio:window.location.origin+"${ioPath}",title:"${this.name}",no_add_delete:true}`
           ))
         })
       })

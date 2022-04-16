@@ -3,7 +3,6 @@
 -->
 
 <script type="text/javascript">
-  flexdash_id = null // hack
 
   // ===== FlexDash dashboard config node
 
@@ -21,7 +20,7 @@
       devServer:  { value: false }, // enable development server
       devInstall: { value: false }, // enable installation of development server
       name:       { value: "FlexDash", required: true }, // dashboard title
-      tabs:       { value: "{}" },
+      fd_children: { value: "" }, // comma-separated list of child node IDs
     },
 
     label() {
@@ -85,6 +84,8 @@
       })
     },
 
+    oneditsave() {
+    },
   })
 </script>
 
@@ -111,7 +112,7 @@
     <br>
     <small class="fd-indent">The name will show in the dashboard's title bar.</small>
   </div>
-  <input type="hidden" id="node-config-input-tabs">
+  <input type="hidden" id="node-config-input-fd_children">
 
   <!-- Advanced options -->
   <hr />

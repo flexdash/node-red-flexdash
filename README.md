@@ -66,6 +66,40 @@ They send/receive raw messages to/from FlexDash which supports advanced usage.
 However, the current saving of dashboard configuration changes does not really support
 such advanced usage, so these nodes are not currently exported.
 
+## Disabled flows
+
+When flows are disabled the nodes simply don't show up in the runtime. This means that the list of widgets in a container has IDs that are missing and look like they were deleted.
+
+The config coming out of the flow editor needs to ensure that all nodes referenced in the "children"
+list exist (in the flow editor). Then in the run-time, missing nodes found in the children list are
+assumed to be disabled and are marked as such, but not removed.
+
+When altering the position of widgets in the dashboard, the missing widgets need to be kept. When the
+config is pushed back into the flow editor, the missing widgets should be "reconnected" with the disabled nodes.
+
+- the pruning of deleted nodes in children lists must only happen in the flow editor
+
+## Subflows
+
+In the flow editor, widgets in subflows must be associated with an ArrayGrid (or a (Subflow?)Panel
+in an ArrayGrid) and listed in the grid's children. Not clear how a static order is represented...
+
+In the runtime, the subflow instance widgets show up, they need to be mapped to their template node
+using the _alias property. The ordering in the ArrayGrid is then determined via the subflow node's ID.
+
+Changing the order in the dashboard should result in a change in the order list in the ArrayGrid.
+Changing the dimension and other properties needs to map back to the template nodes.
+
+- the main trick seems to be to map N nodes in the runtime to 1 template node (which may not exist
+  in the runtime?), plus an ordering/data key
+- message routing then needs to use the ordering/data key also
+
+Panels need to be similarly mapped back, but need to be transparent to the widget ordering/data
+key stuff. Not clear how this happens...
+
+It's not clear how to handle nesting of subflows, maybe it's just a concatenation of the subflow
+instance IDs for the purpose of the ordering representation?
+
 
 ## License
 
