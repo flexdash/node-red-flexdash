@@ -184,12 +184,8 @@
                 parent = node.parent
                 if (!node.fd_id) node.fd_id = 'w' + node.id // panel is actually a widget
               } else if (node.fd_container) {
-                // widget -- need to handle widgets in subflows
                 parent = node.fd_container
-                if (!node.fd_id) {
-                  console.log("Widget:", widget)
-                  node.fd_id = 'w' + node.id
-                }
+                if (!node.fd_id) node.fd_id = 'w' + node.id
               } else {
                 return // not a flexdash-related node
               }
