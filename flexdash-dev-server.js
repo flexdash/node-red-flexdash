@@ -207,8 +207,13 @@ class ViteDevServer {
       if (req.url == '/') {
         if (!req.originalUrl.endsWith('/')) req.originalUrl += '/'
         const url = proxyUrl + req.originalUrl + 'index.html'
-        this.mungeResponse(url, res, '{}',
-            `{sio:window.location.origin+"${this.fd.ioPath}",title:"${this.fd.name}"}`)
+        const fd_opts = JSON.stringify({
+          sio: `window.location.origin+'${this.fd.ioPath}'`, // .replace below removes outer """
+          title: this.fd.name,
+          no_add_delete: true,
+          edit: true
+        }).replace(/"(w[^"]*)"/, '$1')
+        this.mungeResponse(url, res, '{}', fd_opts)
 
       // proxy vite client source (/@vite.client) to munge vite's port
       } else if (req.url == '/@vite/client') {
