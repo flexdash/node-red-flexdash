@@ -158,6 +158,8 @@ class ViteDevServer {
 
   // ===== proxy to vite
 
+  // mungeResponse performs a replace(from, to) operation on the response body, adjusts the response
+  // headers as needed.
   mungeResponse(url, resp, from, to) {
     let buff = []
     //console.log(`munge requesting ${url}`)

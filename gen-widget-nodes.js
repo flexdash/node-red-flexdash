@@ -10,7 +10,7 @@ const propTMPL = `
     <label for="node-input-##name##">##name_text##</label>
     <input type="text" id="node-input-##name##" class="fd-typed-input" placeholder="##default_html##" />
     <input type="hidden" id="node-input-##name##-type" />
-    <br><small class="fd-indent">##tip##Change using <tt>msg.params[##name##]</tt>.</small>
+    <br><small class="fd-indent">##tip##Change using <tt>msg.props[##name##]</tt>.</small>
 </div>
 `.trim()
 

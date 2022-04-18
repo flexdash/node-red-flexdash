@@ -18,7 +18,7 @@ module.exports = function (RED) {
       const props = typeof msg.props === 'object' ? Object.assign({}, msg.props) : {}
       // msg.payload is interpreted as setting the ##payload_prop## prop
       if ('payload' in msg) props.##payload_prop## = msg.payload
-      widget.setProps(props, msg.flexdash_index) // msg.flexdash_index is used in ArrayGrids/subflows
+      widget.setProps(msg.topic, props) // msg.topic is used in ArrayGrid
     })
 
     // handle widget input messages, we receive the payload sent by the widget

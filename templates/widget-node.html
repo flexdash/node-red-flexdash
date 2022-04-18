@@ -29,10 +29,11 @@
     // node config properties that the user can edit in the flow editor
     defaults: {
       // required fields for FlexDash Widget nodes
-      fd_id: { value: "" }, // flexdash ID of this widget
       fd_container: { type:"flexdash container", value:"", required:true }, // grid/panel
       fd_cols: { value: 1, validate: function(v) { return v>0 && v<=20 } }, // widget width
       fd_rows: { value: 1, validate: function(v) { return v>0 && v<=100 } }, // widget height
+      fd_array: { value: false }, // create array of this widget
+      fd_array_max: { value: 10, validate: function(v) { return v>0 && v<1000} }, // max array size
       // name field of NR node (standard)
       name: { value: '' },
   
@@ -46,36 +47,65 @@
 
     oneditprepare() {
       // fetch the html to edit the widget props and insert into DOM
-      flexdash.load_props_edit(widgetInfo)
-      // adjust the widget position in its container (grid/panel), also selects last-used container
-      //flexdash.adjust_position()
+      flexdash.load_props_edit(this, widgetInfo)
+      // select last-used container
+      flexdash.select_last_container()
+
+      // manage tabs
+      const tabs = RED.tabs.create({id: "fd-tabs", onchange: function(tab) {
+        $("#fd-tabs-content").children().hide()
+        $("#" + tab.id).show()
+        //RED.tray.resize()
+      }})
+      tabs.addTab({ id: "fd-tab-general", label: "General" })
+      tabs.addTab({ id: "fd-tab-props", label: "Widget props" })
+      tabs.activateTab(this.fd_container ? "fd-tab-props" : "fd-tab-general")
     },
   })
 </script>
 
 <script type="text/html" data-template-name="##name_kebab##">
-    <!-- node properties -->
-    <div class="form-row">
-      <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
-      <input type="text" id="node-input-name" placeholder="Name">
-      <br><small class="fd-indent">Name on node in Node-RED, not shown in dashboard.</small>
-      <input type="hidden" id="node-input-fd_id">
+  <div class="form-row">
+    <ul style="min-width: 600px; margin-bottom: 20px;" id="fd-tabs"></ul>
+  </div>
+  <div id="fd-tabs-content" style="min-height: calc(100% - 95px);">
+    
+    <!-- general properties tab -->
+    <div id="fd-tab-general" style="display:none">
+      <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+        <br><small class="fd-indent">Name on node in Node-RED, not shown in dashboard.</small>
+      </div>
+      <div class="form-row">
+        <label for="node-input-fd_container">Container</label>
+        <input type="text" id="node-input-fd_container">
+        <br><small class="fd-indent">Dashboard Grid or Panel in which widget is shown.</small>
+      </div>
+      <div class="form-row">
+        <label for="node-input-fd_rows">Rows</label>
+        <input type="number" id="node-input-fd_rows" style="width: 6em">
+        <label for="node-input-fd_cols" class="fd-cols">Cols</label>
+        <input type="number" id="node-input-fd_cols" style="width: 6em">
+        <br><small class="fd-indent">Widget dimensions in grid units.</small>
+      </div>
+      <hr />
+      <div class="form-row">
+        <label for="node-input-fd_array">Widget Array</label>
+        <input type="checkbox" id="node-input-fd_array" class="fd-checkbox">
+        <small margin-left="2em">Generate an array of widgets based on distinct <tt>msg.topic</tt> values.</small>
+      </div>
+      <div class="form-row">
+        <label for="node-input-fd_array_max">Max widgets</label>
+        <input type="number" id="node-input-fd_array_max" style="width: 6em">
+        <br><small class="fd-indent">Prevent run-away arrays by limiting the max number of widgets generated.</small>
+      </div>
     </div>
-    <div class="form-row">
-      <label for="node-input-fd_container">Container</label>
-      <input type="text" id="node-input-fd_container">
-      <br><small class="fd-indent">Dashboard Grid or Panel in which widget is shown.</small>
-    </div>
-    <div class="form-row">
-      <label for="node-input-rows">Rows</label>
-      <input type="number" id="node-input-fd_rows" style="width: 6em">
-      <label for="node-input-cols">Cols</label>
-      <input type="number" id="node-input-fd_cols" style="width: 6em">
-      <br><small class="fd-indent">Widget dimensions in grid units.</small>
-    </div>
-  
+    
     <!-- widget props -->
-    <div id="fd-prop-rows" style="display:contents"></div>
+    <div id="fd-tab-props" style="display:none">
+      <div id="fd-prop-rows" style="display:contents"></div>
+    </div>
   </div>
 </script>
 

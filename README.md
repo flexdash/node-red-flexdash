@@ -36,6 +36,19 @@ Quick-start (more in detail in the
 - point your browser at http://localhost:1880/flexdash
   (same hostname/port you use for the Node-RED editor)
 
+## To do
+
+- enhance Widget API to support more complex data structures, specifically, ring buffers (arrays) and
+  messages
+- set-up demos for all widgets
+- during NR deploy block changes from dashboards
+- keep static/dynamic setting across deploy
+- replace typedInput by something better, support unsetting
+- color picker
+- implement checks for unsupported combinations: non-global tabs/dashboards, panels in panels,
+  grids in subflows, nested subflows, ArrayGrid in subflow
+- fix order of props in NR edit pane
+
 
 ## Internals
 

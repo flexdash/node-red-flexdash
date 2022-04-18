@@ -55,7 +55,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           (...args) => this._sendMutation(...args)) // send to connected dashboards
         this.store.do_queue = true
         this.StoreError = StoreError // "export" to allow other modules to catch StoreErrors
-        RED.plugins.get('flexdash').initDash(this)
+        RED.plugins.get('flexdash')._newNode(this.id, {})
 
         // start the web servers!
         this.app = null // express app
@@ -64,7 +64,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
-        RED.plugins.get('flexdash').destroyDash(this)
         io.close()
       })
 

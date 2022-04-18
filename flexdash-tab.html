@@ -11,7 +11,6 @@
     defaults: {
       name: { value: "" },
       icon: { value: "mdi-view-dashboard" },
-      fd_id: { value: "" }, // flexdash ID of this tab
       fd: { type:"flexdash dashboard", value:"", required:true }, // node id of dashboard
       fd_children: { value: "" }, // comma-separated list of child node IDs
     },
@@ -58,7 +57,6 @@
   </div>
   
   <!-- hidden fields -->
-  <input type="hidden" id="node-config-input-fd_id">
   <input type="hidden" id="node-config-input-fd_children">
 
 </script>
