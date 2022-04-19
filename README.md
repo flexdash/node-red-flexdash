@@ -38,22 +38,24 @@ Quick-start (more in detail in the
 
 ## To do
 
-- enhance Widget API to support more complex data structures, specifically, ring buffers (arrays) and
+- [ ] enhance Widget API to support more complex data structures, specifically, ring buffers (arrays) and
   messages
-- set-up demos for all widgets
-- during NR deploy block changes from dashboards
-- keep static/dynamic setting across deploy
-- replace typedInput by something better, support unsetting
-- color picker
-- implement checks for unsupported combinations: non-global tabs/dashboards, panels in panels,
+- [ ] set-up demos for all widgets
+- [ ] during NR deploy block changes from dashboards
+- [X] keep static/dynamic setting across deploy
+- [ ] replace typedInput by something better, support unsetting
+- [ ] color picker for node-red using the material design palette
+- [ ] implement checks for unsupported combinations: non-global tabs/dashboards, panels in panels,
   grids in subflows, nested subflows, array-widgets in array-panels, array/subflow combinations
-- fix order of props in NR edit pane
-- support array-panels
-- fix edit button for panels overlapping edit button of widget
-- fix reordering of array widgets
-- fix editing of array-widgets: need to propagate changes to all other widgets in the array
-- support fd-custom node, i.e., compile vue SFC on-the-fly server-side
-- implement array_max in array-widgets
+- [ ] fix order of props in NR edit pane
+- [ ] support array-panels
+- [ ] fix edit button for panels overlapping edit button of widget
+- [ ] fix reordering of array widgets
+- [ ] fix editing of array-widgets in the dashboard: need to propagate changes to all other widgets in the array
+- [ ] support fd-custom node, i.e., compile vue SFC on-the-fly server-side
+- [ ] implement array_max in array-widgets
+- [ ] new-dashboard should automatically use a different path
+- [X] Windows 10 support
 
 ## Internals
 
