@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.4.17",
+  "version": "0.4.18",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
@@ -8,7 +8,7 @@
     "http-proxy-middleware": "^2.0.3",
     "socket.io": ">=4.1.0",
     "tar": "^6.0.0",
-    "@flexdash/node-red-flexdash-plugin": "^0.4.17"
+    "@flexdash/node-red-flexdash-plugin": "^0.4.18"
   },
   "publishConfig": {
     "access": "public"
@@ -30,7 +30,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dopublish": "./bundle.sh 0.4.5 && npm publish && cd plugin && npm publish"
+    "dopublish": "./bundle.sh 0.4.6 && npm publish && cd plugin && npm publish"
   },
   "repository": {
     "type": "git",
