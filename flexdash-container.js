@@ -27,8 +27,7 @@ module.exports = function(RED) {
           this.fd_id = 'g' + this.id
           this.fp.register(this.fd.id, this.fd_id, this.id)
           // construct grid data to put into the store
-          //if (config.kind == ArrayGrid) this.storeArrayGrid(); else
-          this.storeGrid('StdGrid') // no such thing as an ArrayGrid...
+          this.storeGrid()
         } else {
           this.fd = RED.nodes.getNode(config.parent)?.fd
           if (!this.fd) return
@@ -50,24 +49,14 @@ module.exports = function(RED) {
     }
 
     // construct the grid data to put into the store
-    storeGrid(kind) {
+    storeGrid() {
       const c = this.config
       const fd_config = {
-        id: this.fd_id, kind: kind, title: c.name,
+        id: this.fd_id, kind: c.kind, title: c.title,
         min_cols: c.min_cols, max_cols: c.max_cols,
       }
       this.plugin._newNode(this.id, fd_config)
     }
-
-    // construct the array grid data to put into the store
-    // storeArrayGrid() {
-    //   const c = this.config
-    //   const fd_config = {
-    //     id: this.fd_id, kind: 'ArrayGrid', title: c.name,
-    //     min_cols: c.min_cols, max_cols: c.max_cols,
-    //   }
-    //   this.plugin.new_node(this.id, fd_config)
-    // }
 
     removeGrid() {
       this.fp.unregister(this.fd.id, this.fd_id)
@@ -78,10 +67,10 @@ module.exports = function(RED) {
     storePanel() {
       const c = this.config
       const fd_config = {
-        id: this.fd_id, kind: this.kind, title: c.name,
+        id: this.fd_id, kind: c.kind,
         rows: c.rows, cols: c.cols,
         dyn_root: "node-red/" + c.id,
-        static: { solid: c.solid },
+        static: { title: c.title, solid: c.solid }, dynamic: {},
       }
       this.plugin._newNode(this.id, fd_config)
     }

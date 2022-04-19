@@ -89,15 +89,28 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             try {
               this._recvConfig(socket, topic, payload)
             } catch (err) {
-              this.error(`Error storing FlexDash config in context store '${this.ctxName}': ${err.stack}`)
+              this.error(`Error persiting config change:\n${err.stack}`)
             }
           }
 
           // handle incoming messages to forward to nodes
           if (topic.startsWith("nr/")) {
             const id = topic.substring(3)
+            console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
             if (id in this.inputHandlers) {
-              this.inputHandlers[id].call({}, payload)
+              console.log("Input handler for " + id)
+              this.inputHandlers[id].call({}, undefined, payload)
+            } else {
+              const ix = id.indexOf('-')
+              console.log("ix=" + ix)
+              if (ix > 0) {
+                const id2 = id.substring(0, ix)
+                console.log("id2=" + id2)
+                if (id2 in this.inputHandlers) {
+                  console.log("Input handler for " + id2)
+                  this.inputHandlers[id2].call({}, id.substring(ix+1), payload)
+                }
+              }
             }
           }
         })
@@ -215,7 +228,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // it to other clients, and finally queue it for the flow editor to persist
     // internal-only
     _recvConfig(socket, topic, payload) { // topic has leading $config
-      this.debug(`Saving config of ${topic} for ${socket.id}`)
+      this.log(`Saving config of ${topic} for ${socket.id}`)
       // insert the payload into the store's config portion
       this.store.set(topic, payload)
       // propagate config change to any other connected browser

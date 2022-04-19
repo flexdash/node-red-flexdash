@@ -13,21 +13,18 @@
       icon: { value: "mdi-view-dashboard" },
       fd: { type:"flexdash dashboard", value:"", required:true }, // node id of dashboard
       fd_children: { value: "" }, // comma-separated list of child node IDs
+      title: { value: "" },
     },
 
     label() {
       const i = this.icon && this.icon.replace(/^mdi-/, '')
-      const name = this.name || i || (this.fd_pos != null ? `#${this.fd_pos+1}` : null)
-      if (!name) return "New tab"
-      const dash = this.fd?.title || ""
-      return `Tab ${name} < Dash ${dash}`
+      return this.name || i || "FlexDash tab"
     },
+    labelStyle() { return this.name ? "node_label_italic" : "" },
 
     oneditprepare() {
       const label = this.label || this._def.label // !@#$%^&* on create...
       $('#node-config-title').text(label.bind(this)())
-
-      //flexdash.adjust_container_position('fd')
     },
 
     oneditsave() {
@@ -40,13 +37,19 @@
   <div class="form-row">
     <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
     <input type="text" id="node-config-input-name" placeholder="Name">
-    <small class="fd-indent">Name shown in tab bar in dashboard. Leave Empty to only show icon.
+    <small class="fd-indent">Name of tab config node in Node-RED. Not displayed in dashboard. 
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-title">Title</label>
+    <input type="text" id="node-config-input-title" placeholder="Title">
+    <small class="fd-indent">Name shown in the dashboard's tab bar. Leave Empty to only show icon.
     </small>
   </div>
   <div class="form-row">
     <label for="node-config-input-icon">Icon (material design icons)</span></label>
     <input type="text" id="node-config-input-icon" placeholder="mdi-airplane-takeoff" />
-    <small class="fd-indent">Material design icon name to show in tab bar. Include the 'mdi-' prefix.
+    <small class="fd-indent">Material design icon to show in tab bar. Include the 'mdi-' prefix.
       See <a href="https://materialdesignicons.com">https://materialdesignicons.com</a>
     </small>
   </div>

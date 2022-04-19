@@ -4,9 +4,19 @@
 
 <script type="module">
 
-  function is_panel(node) { return node?.kind?.endsWith("Panel") }
-  function has_panel_val(el) { return el?.val()?.endsWith("Panel") }
-  function has_grid_val(el) { return el?.val()?.endsWith("Grid") }
+  function is_panel(node) { return  }
+
+  // is_a tests whether node.kind == what, except that it's not so easy... is_a is used in validations
+  // and while the edit panel is up, this.kind is not updated, so we need to look into the DOM.
+  // Except that that the contents of the DOM may not be about this node, so we should not get
+  // confused...
+  function is_a(node, what) {
+    const id = $('#node-config-input-name').attr('nrid')
+    if (id != node.id) return node?.kind?.endsWith(what) // DOM isn't about us, all we have is this.kind
+    const val = $('#node-config-input-kind').val()
+    if (typeof val != 'string') return node?.kind?.endsWith(what) // DOM doesn't have kind, use this.kind
+    return val.endsWith(what) // get latest state from DOM
+  }
 
   RED.nodes.registerType('flexdash container', {
     category: 'config',
@@ -15,11 +25,12 @@
       name: { value: "" },
       kind: { value: "StdGrid" },
       fd_children: { value: "" }, // comma-separated list of child node IDs
+      title: { value: "" },
 
       // params for grids
       tab: { value: "" },
       weak_tab: { type:"flexdash tab", value:"", required:false, validate: function (v) {
-        if (!has_grid_val($('#node-config-input-kind'))) return true // covers ''== undefined' case!
+        if (!is_a(this, "Grid")) return true
         const configNode = RED.nodes.node(v||this.tab)
         return configNode && (configNode.valid == null || configNode.valid)
       }},
@@ -28,27 +39,24 @@
 
       // params for panels
       parent: { type:"flexdash container", value:"", required:false, validate: function (v) {
-        if (!has_panel_val($('#node-config-input-kind'))) return true // covers ''== undefined' case!
+        if (!is_a(this, "Panel")) return true
         const configNode = RED.nodes.node(v)
-        return configNode && (configNode.valid == null || configNode.valid) && !is_panel(configNode)
+        const parent_is_panel = configNode?.kind?.endsWith("Panel")
+        return configNode && (configNode.valid == null || configNode.valid) && !parent_is_panel
       }},
       solid: { value: false },
       cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
       rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
     },
 
-    label() { 
-      const name = this.name || (this.fd_pos != null ? `#${this.fd_pos+1}` : null)
-      if (!name) return 'New grid'
-      const parent = RED.nodes.node(is_panel(this) ? this.parent : this.tab)
-      const parent_name = parent ? ` < ${parent.label()}` : ""
-      return `${this.kind} ${name}${parent_name}`
-    },
-    //labelStyle() { return this.name ? "node_label_italic" : "" },
+    label() { return this.name || this.kind },
+    labelStyle() { return this.name ? "node_label_italic" : "" },
 
     oneditprepare() {
       try {
-        console.log("Oneditprepare container", this.id, "tab:", this.tab)
+        //console.log("Oneditprepare container", this.id)
+        $('#node-config-input-name').attr('nrid', this.id)
+
         // console.log("container oneditprepare entered")
         // toggle UI between two alternatives
         function show_if(cond, sel_true, sel_false) {
@@ -58,9 +66,7 @@
 
         // set weak_tab to value of tab, see oneditsave for explanation
         if (this.tab) $(`#node-config-input-weak_tab [value=${this.tab}]`).attr('selected',"")
-
-        // tweak position
-        //flexdash.adjust_container_position(is_panel(this) ? 'parent' : 'weak_tab')
+        $(`#node-config-input-weak_tab`).attr('nrid', this.id)
 
         // handle grid/tab toggle buttons
         function select_grid_tab(which) {
@@ -97,7 +103,7 @@
       try {
         // console.log(`container oneditsave entered, this.weak_tab=${this.weak_tab}, $(weak_tab)=${$('#node-config-input-weak_tab').val()}`)
         // fix-up fields that depend on the kind
-        const is_panel = has_panel_val($('#node-config-input-kind'))
+        const is_panel = is_a(this, "Panel")
         if (is_panel) {
           // avoid panels within panels
           const p = $('#node-config-input-parent [selected]').val()
@@ -114,6 +120,7 @@
         const weak_tab = $('#node-config-input-weak_tab')
         $('#node-config-input-tab').val(is_panel ? "" : weak_tab.val())
         weak_tab.val("")
+        //console.log("Oneditsave container", this.id)
 
         // console.log("FlexDash container save:", Object.assign({}, this))
       } catch(e) { console.log("FlexDash container save error", e); throw e }
@@ -126,6 +133,12 @@
   <div class="form-row">
     <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
     <input type="text" id="node-config-input-name" placeholder="Name">
+    <small class="fd-indent">Name of panel or grid config node in Node-RED. Not displayed in dashboard.
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-title">Title</label>
+    <input type="text" id="node-config-input-title" placeholder="Title">
     <small class="fd-indent">Name shown above panel or grid in dashboard. Hidden if left empty.
     </small>
   </div>
@@ -133,15 +146,13 @@
     <label for="kind-span">Container type</label>
     <span class="button-group" id=""kind-span>
       <button type="button" class="red-ui-button toggle kind-button-group" kind="StdGrid"
-        >std grid</button
-        ><button type="button" class="red-ui-button toggle kind-button-group" kind="ArrayGrid"
-        >array grid</button
+        >grid</button
         ><button type="button" class="red-ui-button toggle kind-button-group" kind="Panel"
         >panel</button>
     </span>
-    <small class="fd-indent">A standard grid is the primary container for widgets and panels. It reflows
-      its content based on the width of the browser window.
-      An array grid is a grid that can repeat its content multiple times.
+    <small class="fd-indent">A grid is the primary container for widgets and panels.
+      It displays a grid of widgets and panels, and reflows its content based on the width of
+      the browser window.<br>
       A panel can be used within a grid to create a sub-grid in which widgets can be arranged
       at fixed positions without being impacted by the window width.
     </small>
@@ -164,23 +175,10 @@
     </div>  
   </div>
   
-  <!-- Fields specific to array grids -->
-  <div id="array-grid-only" style="display: none">
-    <div class="form-row">
-      <label for="node-config-input-repeat">Repeat</label>
-      <input type="number" id="node-config-input-repeat"><br>
-      <small class="fd-indent">Number of repeats (1..N), i.e. array size.
-        To send data to widgets in the array grid, use `msg.array_ix = [0-based-index]`.
-        The number of repeats can be controlled dynamically using the fd_control node, and
-        instead of a numeric array index it is also possible to use a key.</index>
-      </small>
-    </div>  
-  </div>
-
   <!-- Fields specific to panels -->
   <div id="panel-only" style="display: none">
     <div class="form-row">
-      <label for="node-config-input-parent">Containing grid</label>
+      <label for="node-config-input-parent">Grid</label>
       <input type="text" id="node-config-input-parent">
       <small class="fd-indent">Grid in which the panel is shown.</small>
     </div>  

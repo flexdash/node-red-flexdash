@@ -14,24 +14,30 @@ module.exports = function (RED) {
     
     // handle flow input messages, basically massage them a bit and update the FD widget
     this.on("input", msg => {
+      // if message has a topic and a `_delete` property then delete array-widget topic
+      if ('topic' in msg && msg._delete) {
+        widget.deleteTopic(msg.topic)
+        return
+      }
       // prepare update of widget props
-      const props = typeof msg.props === 'object' ? Object.assign({}, msg.props) : {}
+      const props = Object.assign({}, msg) // shallow clone
       // msg.payload is interpreted as setting the ##payload_prop## prop
       if ('payload' in msg) props.##payload_prop## = msg.payload
-      widget.setProps(msg.topic, props) // msg.topic is used in ArrayGrid
+      // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _
+      for (const p of ['topic', 'payload']) delete props[p]
+      widget.setProps(msg.topic, props)
     })
 
     // handle widget input messages, we receive the payload sent by the widget
     if (##output##) {
-      widget.onInput(payload => {
+      widget.onInput((topic, payload) => {
         // propagate the payload into the flow and attach the node's ID
-        this.send({payload, _flexdash_node: this.id})
+        let msg = { payload: payload, _flexdash_node: this.id }
+        if (topic != undefined) msg.topic = topic
+        this.send(msg)
       })
     }
-
-    // handle destruction of node: need to destroy widget too!
-    this.on("close", () => { RED.plugins.get('flexdash').destroyWidget(this) })
-}
+  }
 
   RED.nodes.registerType("##name_kebab##", ##name##)
 }

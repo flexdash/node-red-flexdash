@@ -9,11 +9,11 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   let new_nodes = {} // new nodes (re-)created for this deployment, key: nr_id, value: {node, config}
   let dynamics = {} // widget.dynamic setting when node is removed to avoid switch to static
 
-  // For ArrayGrids we need to keep track of a bunch of stuff. This is atored here so it survives
+  // For widget-array nodes we need to keep track of topics. This is stored here so it survives
   // redeployment, similar to 'dynamics' above.
-  // array_mapping in indexed by ArrayGrid node ID and contains an object with topic_keys and
-  // topic_sort_key as value
-  const array_mapping = {}
+  // array_topics is indexed by widget node ID and contains a sorted array of topics, widgets are
+  // displayed in the order of the array.
+  const array_topics = {}
   let fd_configs = {} // node configs for all flexdash-related nodes, used to gen disabled widgets
 
   // initWidget ensures that a widget for this node exists, creating it if it doesn't, and 
@@ -26,10 +26,11 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   // the widget, e.g. by setting its props.
   function initWidget(node, config, widget_kind) {
     try { // ensure we can produce a stack backtrace
-      RED.log.info(`Initializing ${widget_kind} widget for node ${node.id}`)
+      RED.log.info(`Initializing ${widget_kind} widget for node ${node.id} with ${JSON.stringify(config)}`)
       // determine FlexDash ID
       let widget_id = 'w' + config.id
       if (node._alias) {
+        throw new Error("Widgets in subflows are not supported")
         // this node is in a subflow, construct a special fd_id
         console.log("Widget:", node)
         RED.nodes.eachNode(n => {
@@ -64,6 +65,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       node._fd_container = container
       node._fd_id = widget_id
       
+      // widget in subflow
       if (node._alias) {
         // this node is in a subflow, patch up the reference in the container
         // coming from the flow-editor, the container has a reference to the subflow template node,
@@ -72,11 +74,21 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         //container.config.fd_children += ',' + node.id
         console.log("Container:", container.config)
         throw new Error("Widgets in subflows not supported yet")
-      } else if (container.config.kind == "ArrayGrid") {
-        console.log(`Widget ${widget_id} is in ArrayGrid ${container.id}`)
+
+      // widget array
+      } else if (config.fd_array) {
+        console.log(`Widget ${widget_id} is an array up to  ${config.fd_array_max}`)
+        node._fd_array_max = config.fd_array_max
         node._fd_config = config
         node._fd_kind = widget_kind
-        return new WidgetAPI(node, plugin)
+
+        // create widgets for existing topics
+        if (!(node.id in array_topics)) array_topics[node.id] = []
+        for (const topic of array_topics[node.id]) {
+          addWidget(widget_kind, config, fd, topic)
+        }
+
+      // plain widget
       } else {
         // delete any DisabledWidget that this node may collide with due to be re-enabled
         // (this code runs before the general ripping out in the flows:started callback)
@@ -85,10 +97,12 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         // register with flow persistence so config changes coming back get saved...
         flow_persistence.register(fd.id, widget_id, node.id)
 
+        // create widget and register for destruction when node gets destroyed
         addWidget(widget_kind, config, fd)
-        return new WidgetAPI(node, plugin)
       }
-
+      
+      node.on("close", () => destroyWidget(node))
+      return new WidgetAPI(node, plugin)
     } catch (e) {
       console.warn(`FlexDashGlobal initWidget: failed to initialize widget for node '${node.id}': ${e.stack}`)
       return null
@@ -97,15 +111,18 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   function destroyWidget(node) {
     try { // ensure we can produce a stack backtrace
+      console.log("Destroying widget for node", node.id)
       const widget_id = node._fd_id
       if (!widget_id) return // initWidget must have bailed...
-      if (node._fd_container) return // widget in an array grid, nothing to do  FIXME: save dynamics!
       const fd = node._fd
-      flow_persistence.unregister(fd.id, widget_id)
-      // save away the "dynamic" settings for this widget (selects static/dynamic value per prop)
-      const w = fd.store.config.widgets[widget_id]
-      if (w?.dynamic) dynamics[widget_id] = w.dynamic
-      fd.store.deleteWidget(widget_id)
+      const widgets = node._fd_array_max ? array_topics[node.id].map(t=>widget_id+'-'+t) : [widget_id]
+      for (const w_id of widgets) {
+        flow_persistence.unregister(fd.id, w_id)
+        // save away the "dynamic" settings for this widget (selects static/dynamic value per prop)
+        const w = fd.store.config.widgets[w_id]
+        if (w?.dynamic) dynamics[w_id] = w.dynamic
+        fd.store.deleteWidget(w_id)
+      }
     } catch (e) {
       console.warn(`FlexDashGlobal destroyWidget: '${node.id}': ${e.stack}`)
     }
@@ -157,22 +174,11 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             typeof config.fd_children, config.fd_children)
           continue
         }
-        const cc_nrids = config.fd_children.split(',') // "cc_" = "config children"
-        if (cc_nrids[0] == '') cc_nrids.shift() // leading comma
+        const cc_nrids = parse_fd_children(config.fd_children)
         let child_fdids
         if (node.type == 'flexdash dashboard' || node.type == 'flexdash tab') {
           child_fdids = genConfigChildren(cc_nrids, node.fd)
-        } else if (config.kind == "ArrayGrid" ) {
-          // iterate through topics saved in array_mapping and create widgets for each
-          child_fdids = []
-          let topics = Object.keys(array_mapping) || []
-          topics.sort((a,b) => array_mapping[a] - array_mapping[b])
-          for (const topic of topics) {
-            const c_fdids = genArrayGridChildren(cc_nrids, topic, node.fd)
-            child_fdids.push(...c_fdids)
-          }
-          console.log(`Initial ArrayGrid ${id}: ${cc_nrids.join(' ')}\n-> ${child_fdids.join(' ')}`)
-        } else {
+        } else { // panel or grid
           child_fdids = genGridChildren(cc_nrids, node.fd)
         }
         //console.log("Children for " + node.id + ": " + JSON.stringify(child_fdids))
@@ -222,6 +228,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     }
   })
 
+  // parse a container's fd_children: a comma-separated list of Node-RED IDs, with leading comma
+  function parse_fd_children(fd_children) {
+    const nrids = fd_children.split(',')
+    if (nrids[0] == '') nrids.shift() // leading comma
+    return nrids
+  }
+
   // generate config node children, i.e., children of dash and tabs
   // for active config nodes it's a simple ID mapping
   // for config nodes in disabled flows we produce a FlexDash ID with leading 'x'
@@ -240,12 +253,20 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   }
 
   // generate grid/panel children
-  // for active nodes it's a simple ID mapping
+  // for normal active nodes it's a simple ID mapping
+  // for active widget-array nodes we generate widgets for existing topics
   // for widget nodes in disabled flows we generate a placeholder DisabledWidget
   function genGridChildren(child_nrids, fd) {
     return child_nrids.map(c_nrid => {
       let c_node = RED.nodes.getNode(c_nrid)
-      if (c_node) return c_node.fd_id || c_node._fd_id // node is active, easy...
+      if (c_node) {
+        const c_fdid = c_node.fd_id || c_node._fd_id // panel vs. widget
+        // node is non-array & active
+        if (!c_node._fd_array_max) return c_fdid
+        // node is widget-array, add widgets for existing topics (see flat() at end of function)
+        return array_topics[c_nrid].map(t => c_fdid + '-' + t)
+      }
+
       // look for disabled node
       if (c_nrid in fd_configs) {
         const c_config = fd_configs[c_nrid]
@@ -257,34 +278,10 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           return genDisabledWidget(c_config, fd)
         }
       } else {
-        console.log('********** deleted node?', c_nrid)
-        return 'x'
+        console.log('********** deleted node?', c_nrid) // bug in flexdash-plugin.html check_node()?
+        return undefined
       }
-    })
-  }
-
-  // generate array grid children for one topic
-  function genArrayGridChildren(child_nrids, topic, fd) {
-    return child_nrids.map(c_nrid => {
-      let c_node = RED.nodes.getNode(c_nrid)
-      if (c_node) {
-        // active node, create a clone widget for the array
-        const clone = Object.assign(c_node._fd_config)
-        return addWidget(c_node._fd_kind, c_node._fd_config, fd, topic)
-      } else if (c_nrid in fd_configs) {
-        // node is disabled, flag it as such
-        const c_config = fd_configs[c_nrid]
-        if ('fd_children' in c_config) {
-          //console.log("Found disabled config node: " + JSON.stringify(config))
-          return 'x' + c_nrid // flag as disabled
-        } else {
-          return genDisabledWidget(c_config, fd)
-        }
-      } else {
-        console.log('********** deleted node?', c_nrid)
-        return 'x'
-      }
-    })
+    }).flat()
   }
 
   // insert a disabled widget into the store as a marker for a widget in a disabled flow
@@ -304,7 +301,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   function addWidget(kind, config, fd, topic=null) {
     let widget_id = 'w' + config.id
     if (topic !== null) widget_id += '-' + topic // used for arrays
-    // work out the props for the widget
+    // work out the props for the widget, skip FD and Node-RED internal stuff
     let props = {}
     const skip = {id:1, type:1, x:1, y:1, z:1, wires:1, _alias:1}
     for (const [k, v] of Object.entries(config)) {
@@ -315,55 +312,62 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       static: props,
       dynamic: dynamics[widget_id] || {},
       dyn_root: `node-red/${widget_id}`,
-      output: `nr/${widget_id}`,
+      output: `nr/${widget_id.substring(1)}`, // strip leading 'w', a bit cheesy...
     }
     fd.store.addWidget(fd_config)
+    flow_persistence.register(fd.id, widget_id, config.id)
     return widget_id
   }
 
   // add a topic to an array, which involves generating widgets for all the nodes in the array
   // this is called from the Widget API when a message with a new topic appears
-  function addArrayTopic(grid, topic_key, topic_sort) {
-    if (!(grid.id in array_mapping)) array_mapping[grid.id] = {}
-    const topics = array_mapping[grid.id]
+  function addWidgetTopic(node, topic) {
+    const topics = array_topics[node.id]
+    if (topics.includes(topic)) return
     
-    // new topic: need to generate widgets and then sort grid children
-    if (!(topic_key in topics)) {
-      console.log(`Adding ArrayGrid topic ${topic_key}(${topic_sort}) to ${grid.id}`)
-      topics[topic_key] = topic_sort
-      // get list of nrids to generate children from
-      const child_nrids = grid.config.fd_children.split(',')
-      if (child_nrids[0] == '') child_nrids.shift() // leading comma
-      const new_fdids = genArrayGridChildren(child_nrids, topic_key, grid.fd)
-      // add the new widgets to the grid's children
-      const fd = grid.fd
-      const child_fdids = fd.store.config.grids[grid.fd_id].widgets.concat(new_fdids)
-      console.log("Sorting: " + JSON.stringify(child_fdids))
-      child_fdids.sort((a,b) => arraySortFun(grid, a, b))
-      fd.store.updateGrid(grid.fd_id, {widgets: child_fdids})
+    // new topic: need to generate widget and then sort topics
+    console.log(`Adding array-widget topic ${topic} to ${node.id}`)
+    addWidget(node._fd_kind, node._fd_config, node._fd, topic)
+    topics.push(topic)
+    topics.sort()
 
-    // existing topic but sort key has been changed: re-sort grid children
-    } else if (topics[topic_key] != topic_sort) {
-      console.log(`Resorting ArrayGrid topic ${topic_key}(${topic_sort}) of ${grid.id}`)
-      const child_fdids = fd.store.config.grids[grid.fd_id].widgets
-      child_fdids.sort((a,b) => arraySortFun(grid, a, b))
-      fd.store.updateGrid(grid.fd_id, {widgets: child_fdids})
-    }
-
-    console.log("Array mapping: " + JSON.stringify(array_mapping[grid.id]))
+    // regenerate the list of container's children (easier than trying to insert new widget)
+    updateContainerChildren(node._fd_container)
   }
 
-  // sort two fdids in an array based on the topic sort order and then the widget order within the topic
-  // this function is rather inefficient, but we hope it's tolerable...
-  function arraySortFun(grid, a, b) {
-    // split parent/template widget_id and topic
-    const [ aw, at ] = a.split('-')
-    const [ bw, bt ] = b.split('-')
-    if (at == bt) {
-      return grid.config.fd_children.indexOf(aw) - grid.config.fd_children.indexOf(bw)
+  function updateContainerChildren(container, fd_children=null) {
+    fd_children = parse_fd_children(fd_children === null ? container.config.fd_children : fd_children)
+    const c_children = fd_children.map(c_nrid => {
+      let c_node = RED.nodes.getNode(c_nrid)
+      if (c_node) {
+        const fd_id = c_node.fd_id || c_node._fd_id // panel vs. widget
+        // node is non-array & active
+        if (!c_node._fd_array_max) return fd_id
+        // node is widget-array, expand topics (see flat() at end of function)
+        return array_topics[c_nrid].map(t => fd_id + '-' + t)
+      }
+      return 'w' + c_nrid // flag as disabled widget
+    }).flat()
+    if (container.config.kind.endsWith('Panel')) {
+      container.fd.store.updateWidgetProp(container.fd_id, 'static', 'widgets', c_children)
     } else {
-      return array_mapping[grid.id][at] - array_mapping[grid.id][bt]
+      container.fd.store.updateGrid(container.fd_id, {widgets: c_children})
     }
+  }
+
+  function deleteWidgetTopic(node, topic) {
+    console.log("Deleting array-widget topic " + topic + " from " + node.id)
+    // remove topic from array_topics
+    const ix = array_topics[node.id].indexOf(topic)
+    if (ix < 0) return
+    array_topics[node.id].splice(ix, 1)
+    // remove widget from container children
+    updateContainerChildren(node._fd_container)
+    // remove widget from store
+    const widget_id = node._fd_id + '-' + topic
+    flow_persistence.unregister(node._fd.id, widget_id)
+    node._fd.store.deleteWidget(widget_id)
+    // note: we don't save the dynamic stuff 'cause it's not a destroy-deploy-recreate situation
   }
 
   // Communication with the flow editor goes via a global singleton, defined here.
@@ -415,11 +419,17 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     }
 
     convert_ids(fd_nrid, fdids) {
-      return fdids.map(fdid => {
-          const nr_id = this.id_map[`${fd_nrid}/${fdid}`]
-          if (!nr_id) throw new Error(`there is no node for ${fd_nrid}/${fdid}`)
-          return ',' + nr_id
-        }).join('')
+      let nrids = ""
+      let prev_nrid = null
+      for (const fdid of fdids) {
+        const nr_id = this.id_map[`${fd_nrid}/${fdid}`]
+        if (!nr_id) throw new Error(`there is no node for ${fd_nrid}/${fdid}`)
+        if (nr_id == prev_nrid) continue // repeated array-widgets
+        nrids += ',' + nr_id
+        prev_nrid = nr_id
+      }
+      console.log("*** convert_ids: " + JSON.stringify(fdids) + " -> " + nrids)
+      return nrids
     }
     
     // save a mutation to the flow store, i.e., send it to the flow editor for persistence
@@ -437,14 +447,21 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         // add Node-RED ID to config data before sending to flow editor
         const nr_id = this.id_map[`${fd_nrid}/${el_fdid}`]
         if (!nr_id) throw new Error(`there is no node for ${fd_nrid}/${el_fdid}`)
+        const node = RED.nodes.getNode(nr_id)
         // convert FlexDash IDs -> Node-RED IDs
-        if (kind == 'tabs' || kind == 'grids') {
-          const f = {tabs: 'grids', grids: 'widgets'}[kind]
-          config.fd_children = this.convert_ids(fd_nrid, config[f]) 
-          delete config[kind]
+        if (kind == 'tabs') {
+          config.fd_children = this.convert_ids(fd_nrid, config.grids)
+          delete config.grids
+        } else if (kind == 'grids') {
+          config.fd_children = this.convert_ids(fd_nrid, config.widgets)
+          delete config.widgets
+          // FIXME: this is a hack to make the movement of array-widgets work
+          if (config.fd_children != node.config.fd_children) updateContainerChildren(node, config.fd_children)
         } else if (config.kind.endsWith("Panel")) {
-          config.fd_children = this.convert_ids(fd_nrid, config.static.widgets) 
+          config.fd_children = this.convert_ids(fd_nrid, config.static.widgets)
           delete config.static.widgets
+          // FIXME: this is a hack to make the movement of array-widgets work
+          if (config.fd_children != node.config.fd_children) updateContainerChildren(node, config.fd_children)
         }
         this.mutations[nr_id] = config
       } else {
@@ -474,7 +491,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     initWidget, destroyWidget,
     // private stuff
     _flowPersistence: flow_persistence,
-    _addArrayTopic: addArrayTopic,
+    _addWidgetTopic: addWidgetTopic,
+    _deleteWidgetTopic: deleteWidgetTopic,
     _newNode(id, config) { new_nodes[id] = config },
   }
 
