@@ -254,7 +254,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     
     _normalize_xtra(p) {
       const _xtra_re = /\/node_modules\/(([^/]+\/){1,2}widgets\/dist\/[^/]+\.js)$/
-      const m = path.normalize(p).match(_xtra_re)
+      //const m = path.normalize(p).match(_xtra_re) // normalize converts to \ on windows
+      const m = p.match(_xtra_re)
       return m && m[1] ? m[1] : null
     }
 
@@ -302,17 +303,18 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
     // handle HTTP request to fetch an extra-widgets library file
     _xtra_lib(url_path, req, res) {
-      const file_path = this._normalize_xtra("x/node_modules/" + url_path)
+      let file_path = this._normalize_xtra("x/node_modules/" + url_path)
       if (!file_path) {
         this.log("Rejected xtra request for " + url_path)
         return res.status(404).send()
       }
+      file_path = path.normalize(file_path) // also converts to \ on windows
       
       const dirs = [ process.cwd(), RED.settings.userDir ]
       for (const dir of dirs) {
-        const p = path.join(dir, "node_modules", file_path)
-        if (FS.existsSync(p)) {
-          return res.sendFile(p)
+        const d = path.join(dir, "node_modules")
+        if (FS.existsSync(path.join(d, file_path))) {
+          return res.sendFile(file_path, { root: d }) // root option helps windows
         }
       }
       res.status(404).send()

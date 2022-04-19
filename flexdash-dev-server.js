@@ -95,9 +95,14 @@ class ViteDevServer {
 
       // launch process and register handlers for stdout/stderr
       const env = { HOME: process.env.HOME, PATH: process.env.PATH, SHELL: process.env.SHELL}
-      this.vite = cp.spawn(this.viteBin, ["-c", viteConfig, "--no-clearScreen"],
-        { cwd: this.sourceDir, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
+      // attempt at making things work under windows
+      this.vite = cp.spawn("node", [this.viteBin, "-c", viteConfig, "--no-clearScreen"],
+        { cwd: this.sourceDir, env, shell: true, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
       )
+      // original linux-only
+      // this.vite = cp.spawn(this.viteBin, ["-c", viteConfig, "--no-clearScreen"],
+      //   { cwd: this.sourceDir, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
+      // )
       this.showStatus("OK")
     } catch (e) {
       this.warn(`*** FlexDash Dev server did not start: ${e.stack || e}`)
@@ -109,6 +114,7 @@ class ViteDevServer {
     // process std, primarily to find out which port vite is listening on
     this.vite.stdout.on('data', data => {
       data = data.toString()
+      data = data.replace(/\u001b\[\d+m/g, "") // remove ANSI color codes
       console.log(data.replace(/[^\n]*\n/gs, "FD dev: $&").trimEnd())
       let m
       if (m = data.match(/^\s+> Local: *http:\/\/localhost:(\d+)\//m)) {
@@ -280,13 +286,13 @@ class ViteDevServer {
               this.log(`widgets: found ${name}`)
               try {
                 await fs.promises.mkdir(path.join(xtraDir, name))
-                await fs.promises.symlink(p, path.join(xtraDir, name, 'widgets'), 'dir')
+                await fs.promises.symlink(p, path.join(xtraDir, name, 'widgets'), 'junction')
               } catch(e) {
-                if (e.message.include("EEXIST")) {
+                if (e.message.includes("EEXIST")) {
                   console.log(`Warning: duplicate module ${name} found!`)
                 } else {
-                  console.log(err)
-                  errs.push(err)
+                  console.log(e)
+                  errs.push(e)
                 }
               }
             }

@@ -30,7 +30,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dopublish": "./bundle.sh 0.4.6 && npm publish && cd plugin && npm publish"
+    "dopublish": "./bundle.sh 0.4.6 && npm publish && cd plugin && npm publish",
+    "bump": "npm version patch && cd plugin && npm version patch"
   },
   "repository": {
     "type": "git",
