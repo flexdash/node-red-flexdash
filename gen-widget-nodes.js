@@ -10,7 +10,7 @@ const propTMPL = `
     <label for="node-input-##name##">##name_text##</label>
     <input type="text" id="node-input-##name##" class="fd-typed-input" placeholder="##default_html##" />
     <input type="hidden" id="node-input-##name##-type" />
-    <br><small class="fd-indent">##tip##Change using <tt>msg.props[##name##]</tt>.</small>
+    <br><small class="fd-indent">##tip##Change using <tt>msg[##name##]</tt>.</small>
 </div>
 `.trim()
 
@@ -87,9 +87,6 @@ class FDWidgetCodeGen {
     // parse output
     this.info.output = !!this.widget.output // boolean whether there's an output or not
 
-    // parse node-red info
-    this.info.payload_prop = 'value'
-
     // parse props
     this.info.props = {
       title: {
@@ -129,15 +126,20 @@ class FDWidgetCodeGen {
         p.default_html = JSON.stringify(def).replace(/"/g, "'")
       else
         p.default_html = def.toString()
+
       // type
       let type = props[prop].type
       if (type && 'name' in type) type = type['name'].toLowerCase()
-      if (!type && props[prop].default) type = typeof props[prop].default
+      //if (!type && props[prop].default) type = typeof props[prop].default
       p.type = type
       p.input_type = type && typeMap[type] || "any" // for typedInput field
 
       this.info.props[prop] = p
-    }  
+    }
+
+    if ('value' in this.info.props) this.info.payload_prop = 'value'
+    else if ('data' in this.info.props) this.info.payload_prop = 'data'
+    else this.info.payload_prop = ''
   }
 
   async doit() {

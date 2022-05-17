@@ -4,8 +4,6 @@
 
 <script type="module">
 
-  function is_panel(node) { return  }
-
   // is_a tests whether node.kind == what, except that it's not so easy... is_a is used in validations
   // and while the edit panel is up, this.kind is not updated, so we need to look into the DOM.
   // Except that that the contents of the DOM may not be about this node, so we should not get
@@ -29,21 +27,30 @@
 
       // params for grids
       tab: { value: "" },
-      weak_tab: { type:"flexdash tab", value:"", required:false, validate: function (v) {
-        if (!is_a(this, "Grid")) return true
-        const configNode = RED.nodes.node(v||this.tab)
-        return configNode && (configNode.valid == null || configNode.valid)
-      }},
+      weak_tab: {
+        type:"flexdash tab", value:"", required:false,
+        validate(v) {
+          if (!is_a(this, "Grid")) return true
+          const configNode = RED.nodes.node(v||this.tab)
+          return configNode && (configNode.valid == null || configNode.valid)
+        }
+      },
       min_cols: { value: 1, validate: function(v) { return (v>0 && v<=20) } },
       max_cols: { value: 20, validate: function(v) { return (v>0 && v<=20) } },
 
       // params for panels
-      parent: { type:"flexdash container", value:"", required:false, validate: function (v) {
-        if (!is_a(this, "Panel")) return true
-        const configNode = RED.nodes.node(v)
-        const parent_is_panel = configNode?.kind?.endsWith("Panel")
-        return configNode && (configNode.valid == null || configNode.valid) && !parent_is_panel
-      }},
+      parent: {
+        type:"flexdash container", value:"", required:false,
+        validate(v) { // validate gets ID string
+          if (!is_a(this, "Panel") || is_a(this, "SubflowPanel")) return true
+          const configNode = RED.nodes.node(v)
+          const parent_is_panel = configNode?.kind?.endsWith("Panel")
+          return configNode && (configNode.valid == null || configNode.valid) && !parent_is_panel
+        },
+        filter(c) { // filter gets object
+          return c.kind?.endsWith("Grid")
+        }
+      },
       solid: { value: false },
       cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
       rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
@@ -56,29 +63,24 @@
       try {
         //console.log("Oneditprepare container", this.id)
         $('#node-config-input-name').attr('nrid', this.id)
-
-        // console.log("container oneditprepare entered")
-        // toggle UI between two alternatives
-        function show_if(cond, sel_true, sel_false) {
-          if (cond) { $(sel_true).show(); $(sel_false).hide() }
-          else { $(sel_true).hide(); $(sel_false).show() }
-        }
+        $('#fd-node-id').html(this.id)
 
         // set weak_tab to value of tab, see oneditsave for explanation
         if (this.tab) $(`#node-config-input-weak_tab [value=${this.tab}]`).attr('selected',"")
         $(`#node-config-input-weak_tab`).attr('nrid', this.id)
 
         // handle grid/tab toggle buttons
-        function select_grid_tab(which) {
+        function select_grid_tab(kind) {
           // handle button state
           $(".kind-button-group").removeClass("selected")
-          $(`.kind-button-group[kind=${which}]`).addClass("selected")
-          $('#node-config-input-kind').val(which)
+          $(`.kind-button-group[kind=${kind}]`).addClass("selected")
+          $('#node-config-input-kind').val(kind)
           // toggle the panel and set the value in the param to be saved
-          const is_panel = which.endsWith('Panel')
-          show_if(is_panel, "#panel-only", "#grid-only")
+          $("#stdgrid-only,#panels-only,#panel-only,#subflowpanel-only").hide()
+          $(`#${kind.toLowerCase()}-only`).show()
+          if (kind.endsWith('Panel')) $(`#panels-only`).show()
           // select the most recent container if we're switching to panel
-          if (is_panel && flexdash.last_container) {
+          if (kind == "Panel" && flexdash.last_container) {
             const sel_add = $('#node-config-input-parent [selected]').val() == "_ADD_"
             if (sel_add) {
               $('#node-config-input-parent option').removeAttr("selected")
@@ -91,9 +93,6 @@
           select_grid_tab($(this).attr("kind"))
         })
 
-        const label = this.label || this._def.label // !@#$%^&* on create...
-        $('#node-config-title').text(label.bind(this)())
-
         // console.log("FlexDash container prepare", this)
       } catch(e) { console.log("FlexDash container prepare error", e); throw e }
     },
@@ -103,22 +102,20 @@
       try {
         // console.log(`container oneditsave entered, this.weak_tab=${this.weak_tab}, $(weak_tab)=${$('#node-config-input-weak_tab').val()}`)
         // fix-up fields that depend on the kind
-        const is_panel = is_a(this, "Panel")
-        if (is_panel) {
-          // avoid panels within panels
-          const p = $('#node-config-input-parent [selected]').val()
-          if (p == this.id) $('#node-config-input-parent [selected]').val("")
-        } else {
+        const kind = $('#node-config-input-kind').val()        
+
+        if (kind == 'SubflowPanel' || kind == 'StdGrid') {
           // clear the parent field so we don't depend on some random config node
           $('#node-config-input-parent [selected]').val("")
           $('#node-config-input-parent').removeClass("input-error")
+          console.log("clearing parent field")
         }
 
         // switch the flexdash tab ID to a different field so we don't depend on it on export;
-        // this is hideous hack... createExportableNodeSet exports config nodes referenced in 
+        // this is a hideous hack... createExportableNodeSet exports config nodes referenced in 
         // params that have a type field. So we move the weak_tab ID to tab and voila, no dependency!
         const weak_tab = $('#node-config-input-weak_tab')
-        $('#node-config-input-tab').val(is_panel ? "" : weak_tab.val())
+        $('#node-config-input-tab').val(kind.endsWith("Panel") ? "" : weak_tab.val())
         weak_tab.val("")
         //console.log("Oneditsave container", this.id)
 
@@ -129,7 +126,6 @@
 </script>
 
 <script type="text/html" data-template-name="flexdash container">
-  <h3 id="node-config-title"></h3>
   <div class="form-row">
     <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
     <input type="text" id="node-config-input-name" placeholder="Name">
@@ -144,22 +140,26 @@
   </div>
   <div class="form-row">
     <label for="kind-span">Container type</label>
-    <span class="button-group" id=""kind-span>
+    <span class="button-group" id="kind-span">
       <button type="button" class="red-ui-button toggle kind-button-group" kind="StdGrid"
         >grid</button
         ><button type="button" class="red-ui-button toggle kind-button-group" kind="Panel"
-        >panel</button>
+        >panel</button
+        ><button type="button" class="red-ui-button toggle kind-button-group" kind="SubflowPanel"
+        >subflow panel</button>
     </span>
     <small class="fd-indent">A grid is the primary container for widgets and panels.
       It displays a grid of widgets and panels, and reflows its content based on the width of
       the browser window.<br>
       A panel can be used within a grid to create a sub-grid in which widgets can be arranged
-      at fixed positions without being impacted by the window width.
+      at fixed positions without being impacted by the window width.<br>
+      A subflow panel is a panel that holds all widgets of a subflow, it can only be used with
+      nodes in a subflow.
     </small>
   </div>
   
   <!-- Fields specific to grids -->
-  <div id="grid-only" style="display: none">
+  <div id="stdgrid-only" style="display: none">
     <div class="form-row">
       <label for="node-config-input-weak_tab">Tab</label>
       <input type="text" id="node-config-input-weak_tab">
@@ -173,18 +173,24 @@
       <small class="fd-indent">Minimum and maximum number of grid columns shown in the grid.
         This can be used to constrain the reflow based on window width.</small>
     </div>  
+    <div class="form-row">
+      <label>Node ID</label><span id="fd-node-id"></span>
+    </div>  
   </div>
   
-  <!-- Fields specific to panels -->
-  <div id="panel-only" style="display: none">
-    <div class="form-row">
+  <!-- Fields specific to "normal" panels -->
+  <div id="panels-only" style="display: none">
+    <div id="panel-only" class="form-row">
       <label for="node-config-input-parent">Grid</label>
       <input type="text" id="node-config-input-parent">
       <small class="fd-indent">Grid in which the panel is shown.</small>
-    </div>  
+    </div>
+    <div id="subflowpanel-only" class="form-row">
+      <pp>You must associate this panel with a subflow using the selector at the bottom-right</pp>
+    </div>
     <div class="form-row">
       <label for="node-config-input-solid">Solid</span></label>
-      <input type="checkbox" id="node-config-input-solid" />
+      <input type="checkbox" id="node-config-input-solid" class="fd-checkbox" />
       <small class="fd-indent">A solid panel looks like a single widget and the widgets
         within it are rendered without borders. A non-solid panel looks like a sub-grid and
         the widgets it contains are rendered with their usual borders.</small>
@@ -197,7 +203,7 @@
       <small class="fd-indent">Number of grid rows and columns occupied by the panel.</small>
     </div>
   </div>
-
+  
   <!-- hidden fields -->
   <input type="hidden" id="node-config-input-kind">
   <input type="hidden" id="node-config-input-fd_children">

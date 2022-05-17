@@ -125,7 +125,7 @@ class Store {
       }
     } else if (typeof(dir) === 'object') {
       if (value !== undefined) {
-        if (log) console.log(`Updated ${path} with:`, JSON.stringify(value))
+        if (log) console.log(`>> Updated ${path} with:`, JSON.stringify(value))
         dir[p] = value
       } else {
         if (log) console.log(`Deleted ${path}`)

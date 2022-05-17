@@ -36,7 +36,7 @@ module.exports = class WidgetAPI {
     try {
       const prop = path.split('/')[0]
       let widget_id = this.node._fd_id
-      console.log("set", topic, path, value, this.node._fd_kind)
+      //console.log(`FD set ${topic}/${path} = ${value}  ${this.node._fd_kind||""}`)
 
       // for arrays, we need to determine the actual widget...
       if (this.node._fd_array_max) {

@@ -31,11 +31,13 @@
     // node config properties that the user can edit in the flow editor
     defaults: {
       // required fields for FlexDash Widget nodes
-      fd_container: { type:"flexdash container", value:"", required:true }, // grid/panel
-      fd_cols: { value: 1, validate: function(v) { return v>0 && v<=20 } }, // widget width
-      fd_rows: { value: 1, validate: function(v) { return v>0 && v<=100 } }, // widget height
+      fd_container: {
+        type: "flexdash container", value: "", required: true, // grid/panel
+        validate: flexdash.validate_widget_container },
+      fd_cols: { value: 1, validate(v) { return v>0 && v<=20 } }, // widget width
+      fd_rows: { value: 1, validate(v) { return v>0 && v<=100 } }, // widget height
       fd_array: { value: false }, // create array of this widget
-      fd_array_max: { value: 10, validate: function(v) { return v>0 && v<1000} }, // max array size
+      fd_array_max: { value: 10, validate(v) { return v>0 && v<1000} }, // max array size
       // name field of Node-RED node (standard)
       name: { value: '' },
   

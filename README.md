@@ -56,6 +56,13 @@ Quick-start (more in detail in the
 - [ ] implement array_max in array-widgets
 - [ ] new-dashboard should automatically use a different path
 - [X] Windows 10 support
+- [ ] Basic login mechanism
+- [ ] Wrap onInput callback into try/catch
+- [ ] Pass flexdash client id to onInput handler
+- [ ] Edit mode disable/off/on setting, per-user if there's auth
+- [ ] Create an "any widget" node
+
+
 
 ## Internals
 
@@ -119,6 +126,51 @@ key stuff. Not clear how this happens...
 
 It's not clear how to handle nesting of subflows, maybe it's just a concatenation of the subflow
 instance IDs for the purpose of the ordering representation?
+
+SubflowPanels:
+- End up with widget IDs `w<subflow instance ID>-<panel config ID>
+- ID of containing grid is in subflow instance env variable
+- Containing grid has fd_children with `w<subflow>-<panel>` because the order of these needs
+  to be persisted.
+- The panel node ID is pretty useless 'cause it changes at each deploy
+
+Widgets in SubflowPanels:
+- End up with widget IDs `w<subflow instance ID>-<widget config ID> mostly because otherwise it
+  requires an extra data structure to locate the widget instance node ID (prob would have to do the
+  latter to support array widgets in subflows).
+- When expanding the SubflowPanel's fd_children the widget config ID is converted to wSSS-NNN.
+
+Array widgets:
+- End up with widget IDs `w<widget ID>-<index> in order to support the one-to-many.
+
+## Node-RED internals
+
+- The flow editor operates on node configs that it passes to the runtime.
+- The runtime has the node configs, but then operates on node objects, i.e. instantiations of
+  the configs.
+- The flow config can be traversed in the runtime using RED.nodes.eachNode, eachConfig,
+  eachSubflow, etc. Confusingly RED.nodes.node is to query active instantiated nodes!
+- There are nodes in the config that are not instantiated: nodes in disabled flows and nodes in
+  subflows are two examples.
+- The set of active/instantiated flows cannot be traversed (no eachXxx function).
+- There are nodes in the active set that are not in the config: nodes in instances of subflows are
+  one example.
+- Everything is a node: a flow, a subflow, a subflow instance, a node, a config node, etc.
+- Special fields:
+  - `.z` refers to the flow in which a node is located, it doesn't exist in global config nodes
+  - `._alias` in runtime is found in nodes in subflows and refers to the node (config) that the
+    node was instantiated from
+  - `.d` is true(?) for nodes in disabled flows
+- Subflows:
+  - The subflow "template" is represented by a type=subflow node.
+  - A node type `subflow:<subflow node id>` is created for each subflow.
+  - Subflow instance nodes are of that type
+  - For each node in a subflow "template" a new node in instantiated on deploy, its `._alias` has the
+    ID of the node "template".
+  - The "template" nodes are not instantiated in the runtime, they remain solely as configs, i.e.,
+    no constructor gets called.
+
+  
 
 
 ## License

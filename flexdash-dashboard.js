@@ -46,6 +46,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         this.name = config.name || "FlexDash"
         this.inputHandlers = {} // input from widgets; key: node.id, value: function(payload)
         this.config = config
+        this.plugin = RED.plugins.get('flexdash')
 
         // Instantiate a store, this is where our local version of the config and the state
         // are cached so they can be sent to newly connecting dashboards.
@@ -55,7 +56,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           (...args) => this._sendMutation(...args)) // send to connected dashboards
         this.store.do_queue = true
         this.StoreError = StoreError // "export" to allow other modules to catch StoreErrors
-        RED.plugins.get('flexdash')._newNode(this.id, {})
+        this.plugin._newNode(this.id, this, {})
 
         // start the web servers!
         this.app = null // express app
@@ -64,6 +65,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
+        this.plugin._delNode(this.id)
         io.close()
       })
 
@@ -95,23 +97,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
           // handle incoming messages to forward to nodes
           if (topic.startsWith("nr/")) {
-            const id = topic.substring(3)
-            console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
-            if (id in this.inputHandlers) {
-              console.log("Input handler for " + id)
-              this.inputHandlers[id].call({}, undefined, payload)
-            } else {
-              const ix = id.indexOf('-')
-              console.log("ix=" + ix)
-              if (ix > 0) {
-                const id2 = id.substring(0, ix)
-                console.log("id2=" + id2)
-                if (id2 in this.inputHandlers) {
-                  console.log("Input handler for " + id2)
-                  this.inputHandlers[id2].call({}, id.substring(ix+1), payload)
-                }
-              }
-            }
+            this._recvData(socket, topic.substring(3), payload)
           }
         })
 
@@ -241,6 +227,26 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       let kind = tt[0] // 'dash', 'tabs', 'grids', or 'widgets'
       const config = kind == 'dash' ? this.store.config.dash : this.store.config[kind][tt[1]]
       flowPersistence.saveMutation(this.id, kind, tt[1], config)
+    }
+
+    // receive a data message from dashboard and forward to appropriate node
+    _recvData(socket, topic, payload) {
+      console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
+      if (topic in this.inputHandlers) {
+        console.log("Input handler for " + topic)
+        this.inputHandlers[topic].call({}, undefined, payload)
+      } else {
+        const ix = topic.indexOf('-')
+        console.log("ix=" + ix)
+        if (ix > 0) {
+          const id2 = topic.substring(0, ix)
+          console.log("id2=" + id2)
+          if (id2 in this.inputHandlers) {
+            console.log("Input handler for " + id2)
+            this.inputHandlers[id2].call({}, topic.substring(ix+1), payload, socket.id)
+          }
+        }
+      }
     }
 
     // send an internally generated mutation to all connected dashboards

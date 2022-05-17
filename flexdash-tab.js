@@ -22,7 +22,7 @@ module.exports = function(RED) {
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
-        if (this.fd) this.removeTab()
+        this.removeTab()
       })
     }
 
@@ -33,12 +33,13 @@ module.exports = function(RED) {
       // construct the tab data to put into the store
       const fd_config = { id: this.fd_id, title: c.name, icon: c.icon }
       console.log("Pushing", this.id)
-      this.plugin._newNode(this.id, fd_config)
+      this.plugin._newNode(this.id, this, fd_config)
     }
   
     removeTab() {
       this.fp.unregister(this.fd.id, this.fd_id)
       this.fd.store.deleteTab(this.fd_id)
+      this.plugin._delNode(this.id)
     }
   
   }
