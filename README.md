@@ -64,8 +64,8 @@ Quick-start (more in detail in the
 - [ ] Create an "any widget" node
 - [ ] Add logging verbosity switch to dashboard config node
 - [ ] Don't log every message sent to FD, or at least shorten
-- [ ] Fix display of tab name as title if title is empty
-- [ ] Remove "Widget X has not proop Y" warning
+- [X] Fix display of tab name as title if title is empty
+- [ ] Remove "Widget X has not prop Y" warning
 
 ## Internals
 
