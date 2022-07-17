@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.4.19",
+  "version": "0.4.20",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
@@ -19,6 +19,7 @@
       "flexdash dashboard": "flexdash-dashboard.js",
       "flexdash container": "flexdash-container.js",
       "flexdash tab": "flexdash-tab.js",
+      "flexdash iframe": "flexdash-iframe.js",
       "flexdash dev server": "flexdash-dev-server.js"
     }
   },
