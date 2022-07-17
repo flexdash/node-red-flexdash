@@ -1,0 +1,92 @@
+<!-- FlexDash iframe node for Node-RED
+     Copyright ©2022 by Thorsten von Eicken, see LICENSE
+-->
+
+<script type="text/javascript">
+
+  RED.nodes.registerType('flexdash iframe', {
+    category: 'flexdash',
+    color: "#F0E4B8",
+    inputs: 1,
+    outputs: 0,
+    icon: "font-awesome/fa-window-frame", // icon in flow editor
+    paletteLabel: "FD iframe",
+
+
+    defaults: {
+      name: { value: "" },
+      icon: { value: "mdi-view-dashboard" }, // icon in FlexDash tab bar
+      fd: { type:"flexdash dashboard", value:"", required:true }, // node id of dashboard
+      fd_children: { value: "" }, // comma-separated list of child node IDs (always empty for iframe)
+      title: { value: "" },
+      url: { value: "" }, // URL to display in iframe
+      slot: { value: 'a' }, // slot used for caching iframe content
+    },
+
+    label() {
+      const i = this.icon && this.icon.replace(/^mdi-/, '')
+      return this.name || i || "FlexDash iframe"
+    },
+    labelStyle() { return this.name ? "node_label_italic" : "" },
+
+    oneditprepare() {
+      const label = this.label || this._def.label // !@#$%^&* on create...
+      $('#node-title').text(label.bind(this)())
+
+      $('#node-input-slot').typedInput({
+        types: [ { value: 'slot', options: ['a','b'] } ]
+      })
+    },
+
+    oneditsave() {
+      console.log("IFrame slot:", JSON.stringify(this.slot))
+      console.log(this)
+    },
+  })
+</script>
+
+<script type="text/html" data-template-name="flexdash iframe">
+  <h3 id="node-title"></h3>
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+    <small class="fd-indent">Name of iframe config node in Node-RED. Not displayed in dashboard. 
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-title">Title</label>
+    <input type="text" id="node-input-title" placeholder="Title">
+    <small class="fd-indent">Name shown in the dashboard's tab bar. Leave Empty to only show icon.
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-icon">Icon (material design icons)</span></label>
+    <input type="text" id="node-input-icon" placeholder="mdi-airplane-takeoff" />
+    <small class="fd-indent">Material design icon to show in tab bar. Include the 'mdi-' prefix.
+      See <a href="https://materialdesignicons.com">https://materialdesignicons.com</a>
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-fd">Dashboard</label>
+    <input type="text" id="node-input-fd">
+    <small class="fd-indent">Dashboard to which this tab belongs.</small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-url">URL</label>
+    <input type="text" id="node-input-url" placeholder="https://">
+    <small class="fd-indent">URL of web page to show in iframe.</small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-slot">Cache slot</label>
+    <input type="text" id="node-input-slot">
+    <small class="fd-indent">Cache slot for iframe content to avoid reload when switching tabs.</small>
+  </div>
+
+  <!-- hidden fields -->
+  <input type="hidden" id="node-input-fd_children">
+
+</script>
+
+<script type="text/html" data-help-name="flexdash iframe">
+  <p>Represents an iframe tab in FlexDash</p>
+</script>

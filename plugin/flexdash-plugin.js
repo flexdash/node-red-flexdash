@@ -154,7 +154,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         for (const id in fd_containers) {
           const c = fd_containers[id].config
           let info = `${c.id} ${c.kind ? c.kind : c.type.replace(/flexdash /, '')}`
-          info += ` ${c.name||c.title}`
+          info += ` "${c.name||c.title}"`
           if (c.z) info += ` z=${c.z}`
           for (const k of ['parent', 'tab', 'fd', 'fd_container']) if (c[k]) info += ` ${k}=${c[k]}`
           if (c.fd_children) info += `\n    children: ${c.fd_children.substring(1)}`
@@ -200,16 +200,20 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         const fd_config = new_nodes[config.id]
         switch (node.type) {
           case 'flexdash dashboard':
-            node.store.updateDash({tabs: child_fdids})
+            node.store.updateDash({ tabs: child_fdids })
             break
           case 'flexdash tab':
-            if (fd_config) node.fd.store.addTab({...fd_config, grids: child_fdids})
-            else           node.fd.store.updateTab(node.fd_id, {grids: child_fdids})
+            if (fd_config) node.fd.store.addTab({ ...fd_config, grids: child_fdids })
+            else node.fd.store.updateTab(node.fd_id, { grids: child_fdids })
+            break
+          case 'flexdash iframe':
+            if (fd_config) node.fd.store.addTab({ ...fd_config })
+            else node.fd.store.updateTab(node.fd_id, {})
             break
           case 'flexdash container':
             if (node.config.kind.endsWith("Grid")) {
-              if (fd_config) node.fd.store.addGrid({...fd_config, widgets: child_fdids})
-              else           node.fd.store.updateGrid(node.fd_id, {widgets: child_fdids})
+              if (fd_config) node.fd.store.addGrid({ ...fd_config, widgets: child_fdids })
+              else node.fd.store.updateGrid(node.fd_id, { widgets: child_fdids })
             } else { // panel
               if (fd_config) node.fd.store.addWidget(fd_config)
               node.fd.store.updateWidgetProp(node.fd_id, 'static', 'widgets', child_fdids)
@@ -217,16 +221,20 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             break
         }
       }
-      new_nodes = {}
-      dynamics = {}
-      all_node_configs = {}
-
+      
       // stop queuing mutations in all stores
       for (const fd of Object.values(fd_containers).filter(c => c.type == 'flexdash dashboard')) {
         fd.store.stopQueueing()
       }
+      
+    } catch (e) {
+      console.error(e.stack) // do not rethrow 'cause NR will die
+    } finally {
+      new_nodes = {}
+      dynamics = {}
+      all_node_configs = {}
+    }
 
-    } catch (e) { console.error(e.stack)  } // do not rethrow 'cause NR will die
   })
 
   RED.events.on("flows:stopping", info => {
@@ -255,9 +263,9 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
          return 'x' + c_nrid // flag as disabled
       } else {
         console.log('********** deleted node?', c_nrid)
-        return 'x' + c_nrid
+        return undefined
       }
-    })
+    }).filter(x=>x)
   }
 
   // generate grid/panel children

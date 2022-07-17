@@ -299,11 +299,12 @@ onadd: function() {
               if ('fd_children' in parent) {
                 add_child(parent, node_id)
               }
-            } else console.log(`${node_id} is already a child of ${parent_id}`)
+            } // else console.log(`${node_id} is already a child of ${parent_id}`)
           } else console.log(`parent ${parent_id} of ${node_id} does not exist`)
         }
 
         try { // caller swallows exceptions
+          console.log(`Add ${node.type} ${node.id} in ${node.z}`)
           if (ev == 'change') {
             // assume all nodes have been added to the registry and we can prune dead children
             if (this.need_pruning) this.prune_all_children()
@@ -318,8 +319,8 @@ onadd: function() {
           // dashboard
           if (node.type == 'flexdash dashboard') {
             // nothing...
-          // tab
-          } else if (node.type == 'flexdash tab') {
+          // grid tab or iframe tab
+          } else if (node.type == 'flexdash tab' || node.type == 'flexdash iframe') {
             add_to_parent(node.fd)
           // grid
           } else if (node.type == 'flexdash container' && node.kind.endsWith('Grid')) {
@@ -327,7 +328,7 @@ onadd: function() {
             add_to_parent(node.tab)
             if (!flexdash.last_container) flexdash.last_container = node.id
             this.check_remove_subflowpanel(node.id) // may have changed from subflow panel to grid
-            console.log("cleared parent field", "users:", this.users?.map(u=>u.type).join(','))
+            //console.log("cleared parent field", "users:", this.users?.map(u=>u.type).join(','))
           // subflow panel
           } else if (node.type == 'flexdash container' && node.kind == 'SubflowPanel') {
             this.parent = "" // ensure we don't somehow depend on a random other grid
