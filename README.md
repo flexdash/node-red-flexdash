@@ -44,10 +44,11 @@ Quick-start (more in detail in the
 - [ ] during NR deploy block changes from dashboards
 - [X] keep static/dynamic setting across deploy
 - [ ] replace typedInput by something better, support unsetting
+- [ ] support editing multiline text prop values in node-red
 - [ ] color picker for node-red using the material design palette
 - [ ] implement checks for unsupported combinations: non-global tabs/dashboards, panels in panels,
   grids in subflows, nested subflows, array-widgets in array-panels, array/subflow combinations
-- [ ] fix order of props in NR edit pane
+- [X] fix order of props in NR edit pane
 - [ ] support array-panels
 - [ ] fix edit button for panels overlapping edit button of widget
 - [ ] fix reordering of array widgets
@@ -61,8 +62,10 @@ Quick-start (more in detail in the
 - [ ] Pass flexdash client id to onInput handler
 - [ ] Edit mode disable/off/on setting, per-user if there's auth
 - [ ] Create an "any widget" node
-
-
+- [ ] Add logging verbosity switch to dashboard config node
+- [ ] Don't log every message sent to FD, or at least shorten
+- [ ] Fix display of tab name as title if title is empty
+- [ ] Remove "Widget X has not proop Y" warning
 
 ## Internals
 
