@@ -82,12 +82,12 @@ class Store {
   // insert "dynamic" data into the store
   // Interprets the path as a hierarchy of object "levels" separated by slashes and
   // mutates the data at the final path element.
-  // If the path does not exist it is created using objects, i.e., arrays must be insrted
+  // If the path does not exist it is created using objects, i.e., arrays must be inserted
   // explicitly and cannot be created just by traversing a path.
   // If the type of the second to last path element (i.e. the last "directory" element) is
   // an array then a value can be appended by writing to one past the last index.
   set(path, value) {
-    const log = true
+    const log = false
     let pp = path.split("/") // split levels of hierarchy
     pp = pp.filter(p => p.length > 0) // remove empty components, e.g. leading slash
     if (pp.length == 0) throw new StoreError("Cannot replace entire hierarchy")
@@ -125,7 +125,7 @@ class Store {
       }
     } else if (typeof(dir) === 'object') {
       if (value !== undefined) {
-        if (log) console.log(`>> Updated ${path} with:`, JSON.stringify(value))
+        if (log) console.log(`Updated ${path} with:`, JSON.stringify(value))
         dir[p] = value
       } else {
         if (log) console.log(`Deleted ${path}`)
