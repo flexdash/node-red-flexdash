@@ -166,9 +166,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             this.warn(`Cannot read ${paths.prodIndexHtml}: ${err}`)
             return res.status(500).send(`Cannot read index.html`)
           }
-          res.send(data.toString().replace(
-            '{}', `{sio:window.location.origin+"${ioPath}",title:"${this.name}",no_add_delete:true}`
-          ))
+          let flexdash_options = {
+            sio: `window.location.origin+"${ioPath}"`,
+            title: this.name,
+            no_add_delete: true,
+            no_demo: true,
+          }
+          res.send(data.toString().replace('{}', JSON.stringify(flexdash_options)))
         })
       })
       app.use(path||'/', Express.static(paths.prodRoot, { extensions: ['html'] }))

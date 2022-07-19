@@ -194,7 +194,7 @@ class ViteDevServer {
     // middleware, not great, but at least it works
     let wsSubscribed = false
     this.fd.app.use(this.path, (req, res, next) => {
-      //this.log(`PROXY ${req.url} (${req.originalUrl})`)
+      //this.log(`PROXY ${req.baseUrl} ${req.path} ${req.url} (${req.originalUrl})`)
       if (!this.viteProxy) return next() // we're dead, wish we could unmount...
 
       // we can't ask http-proxy-middleware to deal with websockets because it has no way to remove
@@ -212,21 +212,21 @@ class ViteDevServer {
       }
 
       // proxy / to return munged index.html (insert socket.io url)
-      if (req.url == '/') {
-        if (!req.originalUrl.endsWith('/')) req.originalUrl += '/'
-        const url = proxyUrl + req.originalUrl + 'index.html'
+      if (req.path == '/') {
+        const url = proxyUrl + req.baseUrl + '/index.html'
         const fd_opts = JSON.stringify({
           sio: `window.location.origin+'${this.fd.ioPath}'`, // .replace below removes outer """
           title: this.fd.name,
           no_add_delete: true,
+          no_demo: true,
           edit: true
         }).replace(/"(w[^"]*)"/, '$1')
         this.mungeResponse(url, res, '{}', fd_opts)
 
       // proxy vite client source (/@vite.client) to munge vite's port
-      } else if (req.url == '/@vite/client') {
+      } else if (req.path == '/@vite/client') {
         // extract port from host header of incoming request
-        const url = proxyUrl + req.originalUrl
+        const url = proxyUrl + req.baseUrl + req.path
         const m = req.get('Host').match(/^[^:]+:(\d+)/)
         const port = m ? parseInt(m[1], 10) : (req.protocol == "https" ? 443 : 80)
         this.mungeResponse(url, res, "1880/flexdash-src/", `${port}/flexdash-src/`)
