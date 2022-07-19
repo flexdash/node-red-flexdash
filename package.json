@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.4.25",
+  "version": "0.4.26",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
     "express": ">=4.0.0",
@@ -31,7 +31,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dopublish": "./bundle.sh 0.4.10 && npm publish && cd plugin && npm publish",
+    "dopublish": "./bundle.sh 0.4.11 && npm publish && cd plugin && npm publish",
     "bump": "cd plugin && npm version patch && cd .. && npm version patch",
     "bumpx": "npm version patch && cd plugin && npm version patch && git commit -m 'bump version' plugin/package.json"
   },
