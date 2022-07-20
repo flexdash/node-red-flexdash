@@ -15,7 +15,7 @@ module.exports = class WidgetAPI {
   // the common case where it's a actually an error.
   _checkProp(widget, prop) {
     if (!(prop in widget.static)) {
-      this.node.warn(`Widget of node ${this.node.id} has no prop '${prop}'`)
+      //this.node.warn(`Widget of node ${this.node.id} has no prop '${prop}'`)
     }
   }
 

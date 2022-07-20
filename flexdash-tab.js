@@ -22,7 +22,9 @@ module.exports = function(RED) {
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
-        this.removeTab()
+        try { // use try-catch to get stack backtrace of any error
+          this.removeTab()
+        } catch (e) { console.error(e.stack); throw e }
       })
     }
 
@@ -32,7 +34,6 @@ module.exports = function(RED) {
       this.fp.register(this.fd.id, this.fd_id, this.id)
       // construct the tab data to put into the store
       const fd_config = { id: this.fd_id, title: c.title, icon: c.icon }
-      console.log("Pushing", this.id)
       this.plugin._newNode(this.id, this, fd_config)
     }
   

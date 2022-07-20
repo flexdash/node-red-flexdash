@@ -20,31 +20,28 @@ module.exports = function(RED) {
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
-        this.removeIframe()
+        try { // use try-catch to get stack backtrace of any error
+          this.removeIframe()
+        } catch (e) { console.error(e.stack); throw e }
       })
     }
 
     // an iframe tab has: title, url, slot ('a'|'b')
     storeIframe() {
-      try { // use try-catch to get stack backtrace of any error
-        const c = this.config
-        this.fd_id = 't' + this.id
-        this.fp.register(this.fd.id, this.fd_id, this.id)
-        // construct the iframe tab data to put into the store
-        const fd_config = { id: this.fd_id, title: c.title, icon: c.icon, url: c.url, slot: c.slot||'a' }
-        console.log("Pushing", this.id)
-        this.plugin._newNode(this.id, this, fd_config)
-      } catch (e) { console.error(e.stack); throw e }
-  }
+      const c = this.config
+      this.fd_id = 't' + this.id
+      this.fp.register(this.fd.id, this.fd_id, this.id)
+      // construct the iframe tab data to put into the store
+      const fd_config = { id: this.fd_id, title: c.title, icon: c.icon, url: c.url, slot: c.slot||'a' }
+      console.log("Pushing", this.id)
+      this.plugin._newNode(this.id, this, fd_config)
+    }
   
     removeIframe() {
       if (this.fp) {
         this.fp.unregister(this.fd.id, this.fd_id)
         this.fd.store.deleteTab(this.fd_id)
-        console.log("REmoving", this.id)
         this.plugin._delNode(this.id)
-      } else {
-        console.log("OOPS!", this)
       }
     }
   

@@ -23,6 +23,16 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   let all_node_configs = {} // key: nr_id, value: config; used to create DisabledWidgets
 
+  // logging controlled by a flag in the dashboard config nodes
+  // the flag is global, but shows up in every dashboard config node, should really show up in
+  // a side-panel for FlexDash...
+  // let verbose_logging = false
+  // function log(...args) {
+  //   if (verbose_logging) {
+  //     RED.log.info(...args)
+  //   }
+  // }
+
 
   // initWidget ensures that a widget for this node exists, creating it if it doesn't, and 
   // then initializing it's static params with the NR node's config
@@ -34,7 +44,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   // the widget, e.g. by setting its props.
   function initWidget(node, config, widget_kind) {
     try { // ensure we can produce a stack backtrace
-      RED.log.info(`Initializing ${widget_kind} widget for node ${node.id} with ${JSON.stringify(config)}`)
+      RED.log.debug(`Initializing ${widget_kind} widget for node ${node.id} with ${JSON.stringify(config)}`)
       
       // check rows & cols
       config.fd_rows = parseInt(config.fd_rows, 10)
@@ -69,7 +79,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       
       // widget array
       if (config.fd_array) {
-        console.log(`Widget ${widget_id} is an array up to  ${config.fd_array_max}`)
+        //RED.log.debug(`Widget ${widget_id} is an array up to ${config.fd_array_max}`)
         node._fd_array_max = config.fd_array_max
         node._fd_config = config
         node._fd_kind = widget_kind
@@ -86,7 +96,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       } else {
         if (node._alias) {
           // widget in subflow
-          console.log(`Widget ${node.id} in subflow ${node.z} of template node ${node._alias}`)
+          //RED.log.debug(`Widget ${node.id} in subflow ${node.z} of template node ${node._alias}`)
           widget_id = 'w' + node.z + '-' + node._alias
         }
         node._fd_id = widget_id
@@ -104,14 +114,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       node.on("close", () => destroyWidget(node))
       return new WidgetAPI(node, plugin)
     } catch (e) {
-      console.warn(`FlexDashGlobal initWidget: failed to initialize widget for node '${node.id}': ${e.stack}`)
+      RED.log.warn(`FlexDashGlobal initWidget: failed to initialize widget for node '${node.id}': ${e.stack}`)
       return null
     }
   }
 
   function destroyWidget(node) {
     try { // ensure we can produce a stack backtrace
-      console.log("Destroying widget for node", node.id)
       const widget_id = node._fd_id
       if (!widget_id) return // initWidget must have bailed...
       const fd = node._fd
@@ -124,7 +133,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         fd.store.deleteWidget(w_id)
       }
     } catch (e) {
-      console.warn(`FlexDashGlobal destroyWidget: '${node.id}': ${e.stack}`)
+      RED.log.warn(`FlexDashGlobal destroyWidget: '${node.id}': ${e.stack}`)
     }
   }
 
@@ -137,8 +146,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   // enabling/disabling flows.
   RED.events.on("flows:started", info => {
     try {
-      console.log(`\n***** flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
-      console.log("New nodes:", Object.keys(new_nodes).join(' '))
+      RED.log.debug(`\n***** flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
+      RED.log.debug("New nodes:", Object.keys(new_nodes).join(' '))
 
       // Find all FlexDash node configs so we can create DisabledWidget widgets when we encounter them
       all_node_configs = Object.fromEntries(info.config.flows
@@ -150,7 +159,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // debug printing
       if (true) {
         //console.log(configs.filter(c => c.type.startsWith('subflow:')))
-        console.log(`Found ${Object.keys(fd_containers).length} flexdash container nodes`)
         for (const id in fd_containers) {
           const c = fd_containers[id].config
           let info = `${c.id} ${c.kind ? c.kind : c.type.replace(/flexdash /, '')}`
@@ -159,14 +167,12 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           for (const k of ['parent', 'tab', 'fd', 'fd_container']) if (c[k]) info += ` ${k}=${c[k]}`
           if (c.fd_children) info += `\n    children: ${c.fd_children.substring(1)}`
           //info += ' ' + Object.keys(c).join(',')
-          console.log(info)
+          RED.log.debug(info)
         }
-        console.log()
       }
 
       // remove all DisabledWidget widgets from the store so we don't end up with duplicates
       for (const fd of Object.values(fd_containers).filter(c => c.type == 'flexdash dashboard')) {
-        if (!fd.store) console.log(fd)
         for (const w of Object.values(fd.store.config.widgets)) {
            if (w.kind === 'DisabledWidget') fd.store.deleteWidget(w.id)
         }
@@ -176,14 +182,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       for (const id in fd_containers) {
         const node = fd_containers[id]
         const config = node.config
-        if (!('fd_children' in config)) console.log("Error: no fd_children in", config)
+        if (!('fd_children' in config)) RED.log.warn("Error: no fd_children in", config)
 
-        console.log("Generating config for " + config.type, config.id, `kind=${config.kind}`)
+        //RED.log.debug("Generating config for " + config.type, config.id, `kind=${config.kind}`)
 
         // convert children Node-RED IDs to FlexDash IDs, create/flag missing children
         if (typeof config.fd_children !== 'string') {
-          console.log(`Node '${node.id}' has non-string fd_children:`,
-            typeof config.fd_children, config.fd_children)
+          RED.log.warn(`Node '${node.id}' has non-string fd_children: ${typeof config.fd_children} ${config.fd_children}`)
           continue
         }
         const cc_nrids = parse_fd_children(config.fd_children)
@@ -191,10 +196,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         if (node.type == 'flexdash dashboard' || node.type == 'flexdash tab') {
           child_fdids = genConfigChildren(cc_nrids, node.fd)
         } else { // panel or grid
-          console.log("Grid fd_children:", config.fd_children)
           child_fdids = genGridChildren(node.config, cc_nrids, node.fd)
         }
-        //console.log("Children for " + node.id + ": " + JSON.stringify(child_fdids))
 
         // add config to store
         const fd_config = new_nodes[config.id]
@@ -238,9 +241,9 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   })
 
   RED.events.on("flows:stopping", info => {
-    RED.log.info(`flows:stopping ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
+    //RED.log.info(`flows:stopping ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
     for (const fd of Object.values(fd_containers).filter(c => c.type == 'flexdash dashboard')) {
-      if (fd) console.log("Queueing mutations for " + fd.id)
+      if (fd) RED.log.info("Queueing mutations for " + fd.id)
       if (fd) fd.store.do_queue = true
     }
   })
@@ -262,7 +265,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       if (c_nrid in all_node_configs) {
          return 'x' + c_nrid // flag as disabled
       } else {
-        console.log('********** deleted node?', c_nrid)
+        RED.log.warn('Missing FD child node ${c_nrid}: assuming deleted')
         return undefined
       }
     }).filter(x=>x)
@@ -296,7 +299,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       }
       
       // look for disabled node
-      console.log("Grid child missing:", c_nrid)
       const c_config = all_node_configs[c_nrid]
       if (c_config) {
         // node is disabled, flag it as such
@@ -307,14 +309,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         }  
       }  
       
-      console.log('********** deleted node?', c_nrid) // bug in flexdash-plugin.html check_node()?
+      RED.log.warn("Missing FD grid child node ${c_nrid}, assuming deleted")
       return 'x' + c_nrid
     }).flat()
   }
 
   // insert a disabled widget into the store as a marker for a widget in a disabled flow
   function genDisabledWidget(config, fd) {
-    //console.log("Found disabled widget: " + JSON.stringify(config))
     const widget = {
       id: 'w' + config.id, kind: 'DisabledWidget',
       cols: config.fd_cols, rows: config.fd_rows,
@@ -435,13 +436,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // register an element (tab, grid, widget) mapping: flexdash-dashboard node-red ID, element
     // flexdash ID get mapped to element node-red ID
     register(fd_nrid, el_fdid, el_nrid) {
-      RED.log.info(`FD register ${el_fdid}`)
+      //RED.log.info(`FD register ${el_fdid}`)
       this.id_map[`${fd_nrid}/${el_fdid}`] = el_nrid
     }
 
     // unregister an element
     unregister(fd_nrid, el_fdid) {
-      RED.log.info(`FD unregister ${el_fdid}`)
+      //RED.log.info(`FD unregister ${el_fdid}`)
       const nrid = this.id_map[`${fd_nrid}/${el_fdid}`]
       if (nrid) delete this.mutations[nrid]
       delete this.id_map[`${fd_nrid}/${el_fdid}`]
@@ -515,10 +516,11 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   const plugin = {
     type: "dashboard", // gotta make something up...
-    onadd: () => RED.log.info("FlexDash plugin added"),
+    onadd: () => RED.log.info(`FlexDash plugin version ${process.env.npm_package_version}`),
     // public functions
     initWidget, destroyWidget,
     // private stuff
+    _log: log,
     _flowPersistence: flow_persistence,
     _addWidgetTopic: addWidgetTopic,
     _deleteWidgetTopic: deleteWidgetTopic,

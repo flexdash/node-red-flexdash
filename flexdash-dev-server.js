@@ -408,7 +408,7 @@ module.exports = function (RED) {
 
       // handle flow input messages, basically massage them a bit and update the FD widget
       this.on("input", msg => {
-        console.log("on-input:", JSON.stringify(msg))
+        RED.log.debug("on-input:", JSON.stringify(msg))
         switch(msg.payload) {
           case "stop": viteDevServer.stop(this); break
           case "restart": viteDevServer.stop(this); viteDevServer.start(this, this.fd); break

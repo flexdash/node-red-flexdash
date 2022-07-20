@@ -15,7 +15,7 @@ onadd: function() {
 
   RED.comms.subscribe('flexdash-mutation', (topic, object) => {
     const { seq } = object
-    console.log("FlexDash-mutation seq=", seq)
+    //console.log("FlexDash-mutation seq=", seq)
     if (seq > mutation_seq) {
       mutation_seq = seq
       fetch('_flexdash/mutations')
@@ -28,7 +28,7 @@ onadd: function() {
             //   "error")
             return null
           } else if (!res.ok) {
-            console.log("Ooops, failed to fetch mutations:", res.statusText)
+            //console.log("Ooops, failed to fetch mutations:", res.statusText)
             RED.notify(
               `Unexpected error from FlexDash plugin: ${res.statusMessage}`,
               { type: "error" }
@@ -45,7 +45,7 @@ onadd: function() {
         }).then(m => {
           if (m) processMutations(m)
         }).catch(err => {
-          console.log("Failed to fetch mutations:", err)
+          //console.log("Failed to fetch mutations:", err)
           RED.notify(`No response from Node-RED: ${err.message}`, { type: "error" })
           // RED.notify(node._("common.notification.error", {
           //   message: node._("common.notification.errors.no-response")
@@ -55,7 +55,7 @@ onadd: function() {
   })
 
   function processMutations(mutations) {                         // TODO: handle array/object types
-    console.log("FlexDash mutations:", mutations)
+    //console.log("FlexDash mutations:", mutations)
     for (const nrid in mutations) {
       const m = mutations[nrid]
       const node = RED.nodes.node(nrid)
@@ -95,7 +95,7 @@ onadd: function() {
           }
         }
       }
-      console.log("Changes:", JSON.stringify(historyEvent.changes))
+      //console.log("Changes:", JSON.stringify(historyEvent.changes))
       if (Object.keys(undo).length > 0) {
         node.changed = true
         node.dirty = true
@@ -110,7 +110,7 @@ onadd: function() {
   // ===== clear flexdash global when switching to a different project
 
   RED.events.on('workspace:clear', (info) => {
-    console.log("Workspace cleared:", info)         // TODO: do something!
+    //console.log("Workspace cleared:", info)         // TODO: do something!
   })
 
   // ===== flexdash global with misc functionality
@@ -130,7 +130,7 @@ onadd: function() {
     } else {
       // new child, append
       parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
-      console.log("added child", child_id, "to", parent.id)
+      //console.log("added child", child_id, "to", parent.id)
     }
   }
 
@@ -143,7 +143,7 @@ onadd: function() {
       prune_children(parent) // opportunistic
       parent.fd_children = parent.fd_children.substring(0, i-1) // leading comma...
                           + parent.fd_children.substring(i+child_id.length)
-      console.log('removed child', child_id, 'from', parent.id)
+      //console.log('removed child', child_id, 'from', parent.id)
     }
   }
 
@@ -167,7 +167,7 @@ onadd: function() {
         pruned.push(c_id)
       }
     }
-    if (pruned.length) console.log("pruned children of", parent.id, ":", pruned.join(','), " keeping ", c1)
+    //if (pruned.length) console.log("pruned children of", parent.id, ":", pruned.join(','), " keeping ", c1)
     parent.fd_children = c1
     delete parent.old_children
   }
@@ -200,7 +200,7 @@ onadd: function() {
     subflow.defaults.flexdash_grid = {
       type: "flexdash container", value: "", _type: { },
       required: false, // lie: the subflow template itself gets this var too and it fails validation if true
-      validate(v) { //console.log("VVV", this.type, v);
+      validate(v) {
         const grid = RED.nodes.node(v)
         return this.type == 'subflow' || grid?.type == 'flexdash container' && grid?.kind.endsWith('Grid')
       },
@@ -210,7 +210,7 @@ onadd: function() {
     let one = subflow.oneditprepare
     subflow.oneditprepareorig = one
     subflow.oneditprepare = function() {
-      console.log("subflow_oneditprepare")
+      //console.log("subflow_oneditprepare")
       // let the original create the form
       one.call(this)
       // show input for flexdash grid
@@ -221,7 +221,7 @@ onadd: function() {
   function unpatch_subflow_instance(subflowId) {
     subflow = RED.nodes.getType("subflow:" + subflowId)
     if (!subflow) return
-    console.log(`Unpatching subflow ${subflowId}`)
+    //console.log(`Unpatching subflow ${subflowId}`)
     delete subflow.defaults.flexdash_grid
     if (subflow.oneditprepareorig) {
       subflow.oneditprepare = subflow.oneditprepareorig
@@ -235,7 +235,7 @@ onadd: function() {
     const e = node.env.find(e => e.name == name)
     if (e) Object.assign(e, v)
     else node.env.push(v)
-    console.log("set_env_var", name, value, node.env, JSON.stringify(node.env))
+    //console.log("set_env_var", name, value, node.env, JSON.stringify(node.env))
   }
 
   function get_env_var(node, name) {
@@ -259,7 +259,6 @@ onadd: function() {
       }  
 
       prune_all_children() {
-        console.log("Pruning all flexdash fd_children")
         RED.nodes.eachConfig(n => {
           if (n.type.startsWith('flexdash ') && 'fd_children' in n) prune_children(n)
         })
@@ -299,12 +298,12 @@ onadd: function() {
               if ('fd_children' in parent) {
                 add_child(parent, node_id)
               }
-            } // else console.log(`${node_id} is already a child of ${parent_id}`)
-          } else console.log(`parent ${parent_id} of ${node_id} does not exist`)
+            }
+          }
         }
 
         try { // caller swallows exceptions
-          console.log(`Add ${node.type} ${node.id} in ${node.z}`)
+          //console.log(`Add ${node.type} ${node.id} in ${node.z}`)
           if (ev == 'change') {
             // assume all nodes have been added to the registry and we can prune dead children
             if (this.need_pruning) this.prune_all_children()
@@ -357,7 +356,7 @@ onadd: function() {
             if (node.fd_container) flexdash.last_container = node.fd_container
           // subflow instance
           } else if (node.type.startsWith('subflow:')) {
-            console.log("subflow instance", node.id, node.flexdash_grid)
+            //console.log("subflow instance", node.id, node.flexdash_grid)
             if (ev == "add") node.flexdash_grid = get_env_var(node, "flexdash_grid")
             else if ('flexdash_grid' in node) set_env_var(node, 'flexdash_grid', node.flexdash_grid)
             const sfp = this.get_subflowpanel(node.type.substring(8))
@@ -365,15 +364,12 @@ onadd: function() {
               patch_subflow_instance(node.id, sfp) // subflow instance added later than panel
               const fdg = get_env_var(node, 'flexdash_grid')
               if (fdg) add_to_parent(fdg, node.id + '-' + sfp)
-              if (fdg) console.log(`Added ${sfp} to ${fdg}`)
-            } else {
-              console.log(this.subflow_panels)
             }
           //other
           } else {
             return // not a flexdash-related node
           }  
-          console.log("check_node", ev, node)
+          //console.log("check_node", ev, node)
           
         } catch (e) { console.log(`Failed to add node ${node}: ${e}\n${e.stack}`) }
       }
@@ -404,7 +400,7 @@ onadd: function() {
       }
 
       handle_msg(t, o) {
-        console.log("flexdash message: t=", t, "o=", o)
+        //console.log("flexdash message: t=", t, "o=", o)
       }
 
     }
@@ -483,7 +479,7 @@ onadd: function() {
 
   // select the most recent container if it's on _ADD_
   flexdash.select_last_container = function() {
-    console.log("last_container:", flexdash.last_container, "sel:", $('#node-input-fd_container [selected]').val())
+    //console.log("last_container:", flexdash.last_container, "sel:", $('#node-input-fd_container [selected]').val())
     if (!flexdash.last_container) return
     const sel_add = $('#node-input-fd_container [selected]').val() == "_ADD_"
     if (sel_add) {

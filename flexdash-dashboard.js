@@ -235,18 +235,18 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
     // receive a data message from dashboard and forward to appropriate node
     _recvData(socket, topic, payload) {
-      console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
+      //console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
       if (topic in this.inputHandlers) {
-        console.log("Input handler for " + topic)
+        //console.log("Input handler for " + topic)
         this.inputHandlers[topic].call({}, undefined, payload)
       } else {
         const ix = topic.indexOf('-')
-        console.log("ix=" + ix)
+        //console.log("ix=" + ix)
         if (ix > 0) {
           const id2 = topic.substring(0, ix)
-          console.log("id2=" + id2)
+          //console.log("id2=" + id2)
           if (id2 in this.inputHandlers) {
-            console.log("Input handler for " + id2)
+            //console.log("Input handler for " + id2)
             this.inputHandlers[id2].call({}, topic.substring(ix+1), payload, socket.id)
           }
         }
@@ -295,7 +295,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
               else resolve()
             }
           })(err, paths).then(() => {}).catch(e => {
-            console.log("Error in linkWidgetDir: " + e.stack)
+            RED.log.warn("Error in linkWidgetDir: " + e.stack)
           })
         }
 
@@ -332,5 +332,9 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   }
 
   RED.nodes.registerType("flexdash dashboard", FlexDashDashboard)
+  FS.readFile(paths.prodRoot+'/VERSION', 'utf8', (err, data) => {
+    if (!err && data) RED.log.info(`FlexDash version ${data}`)
+  })
+
 } catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
 }
