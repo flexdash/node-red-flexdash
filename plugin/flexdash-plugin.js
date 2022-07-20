@@ -520,7 +520,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // public functions
     initWidget, destroyWidget,
     // private stuff
-    _log: log,
     _flowPersistence: flow_persistence,
     _addWidgetTopic: addWidgetTopic,
     _deleteWidgetTopic: deleteWidgetTopic,
