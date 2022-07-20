@@ -1,6 +1,8 @@
 // FlexDash-config node for Node-RED
 // Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
+let path = require('path')
+
 // The plugin exported here provides a small number of globals that nodes can call without having a
 // handle onto any flexdash object.
 module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
@@ -517,7 +519,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     type: "dashboard", // gotta make something up...
     onadd: () => {
       const version = require(path.join(__dirname, '/package.json')).version
-      RED.log.info(`Node-RED FlexDash plugin version ${version}`),
+      RED.log.info(`Node-RED FlexDash plugin version ${version}`)
     },
     // public functions
     initWidget, destroyWidget,
