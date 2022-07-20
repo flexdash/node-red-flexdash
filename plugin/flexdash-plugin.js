@@ -355,7 +355,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     if (topics.includes(topic)) return
     
     // new topic: need to generate widget and then sort topics
-    console.log(`Adding array-widget topic ${topic} to ${node.id}`)
     const w_id = 'w' + node.id + '-' + topic
     addWidget(node._fd_kind, node._fd_config, node._fd, w_id, w_id)
     topics.push(topic)
@@ -516,7 +515,10 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   const plugin = {
     type: "dashboard", // gotta make something up...
-    onadd: () => RED.log.info(`FlexDash plugin version ${process.env.npm_package_version}`),
+    onadd: () => {
+      const version = require(path.join(__dirname, '/package.json')).version
+      RED.log.info(`Node-RED FlexDash plugin version ${version}`),
+    },
     // public functions
     initWidget, destroyWidget,
     // private stuff

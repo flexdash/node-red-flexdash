@@ -33,7 +33,6 @@ module.exports = function(RED) {
       this.fp.register(this.fd.id, this.fd_id, this.id)
       // construct the iframe tab data to put into the store
       const fd_config = { id: this.fd_id, title: c.title, icon: c.icon, url: c.url, slot: c.slot||'a' }
-      console.log("Pushing", this.id)
       this.plugin._newNode(this.id, this, fd_config)
     }
   

@@ -14,6 +14,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     prodIndexHtml: path.join(__dirname, '/flexdash/index.html'),
   }
   const flowPersistence = RED.plugins.get('flexdash')._flowPersistence
+  const version = require(path.join(__dirname, '/package.json')).version
 
 
   // Flow of configuration change messages and calls
@@ -84,7 +85,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             return
           }
           
-          this.log(`FlexDash recv: ${socket.id} ${topic} ${JSON.stringify(payload).substring(0,20)}`)
+          //this.log(`FlexDash recv: ${socket.id} ${topic} ${JSON.stringify(payload).substring(0,20)}`)
 
           // handle incoming messages for saving config
           if (config.saveConfig && topic.startsWith("$config")) {
@@ -197,7 +198,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         this.log(`Sending empty config to ${socket.id} from store ${this.ctxName}`)
         socket.emit("set", "$config", {}) // the dashboard deals with init'ing a minimal config
       } else {
-        this.log(`Sending config to ${socket.id} from store ${this.ctxName} including ${keys.join(', ')}`)
+        //this.log(`Sending config to ${socket.id} from store ${this.ctxName} including ${keys.join(', ')}`)
         for (let k of keys) {
           socket.emit("set", "$config/" + k, this.store.config[k])
         }
@@ -210,7 +211,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     _sendData(socket) {
       // enumerate all keys with our prefix
       const keys = Object.keys(this.store.sd)
-      this.log(`Sending initial data to ${socket.id} from store ${this.ctxName} with ${keys.length} keys`)
+      //this.log(`Sending initial data to ${socket.id} from store ${this.ctxName} with ${keys.length} keys`)
       socket.emit("set", "sd", this.store.sd)
     }
 
@@ -332,8 +333,11 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   }
 
   RED.nodes.registerType("flexdash dashboard", FlexDashDashboard)
+  RED.log.info("Node-RED FlexDash version " + version)
   FS.readFile(paths.prodRoot+'/VERSION', 'utf8', (err, data) => {
-    if (!err && data) RED.log.info(`FlexDash version ${data}`)
+    if (!err && data) RED.log.info(`FlexDash UI version ${data}`)
+    console.log(err)
+    console.log(data)
   })
 
 } catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
