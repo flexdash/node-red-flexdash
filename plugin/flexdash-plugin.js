@@ -158,21 +158,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         .map(c => [c.id, c])
       )
 
-      // debug printing
-      if (true) {
-        //console.log(configs.filter(c => c.type.startsWith('subflow:')))
-        for (const id in fd_containers) {
-          const c = fd_containers[id].config
-          let info = `${c.id} ${c.kind ? c.kind : c.type.replace(/flexdash /, '')}`
-          info += ` "${c.name||c.title}"`
-          if (c.z) info += ` z=${c.z}`
-          for (const k of ['parent', 'tab', 'fd', 'fd_container']) if (c[k]) info += ` ${k}=${c[k]}`
-          if (c.fd_children) info += `\n    children: ${c.fd_children.substring(1)}`
-          //info += ' ' + Object.keys(c).join(',')
-          RED.log.info(info)
-        }
-      }
-
       // remove all DisabledWidget widgets from the store so we don't end up with duplicates
       for (const fd of Object.values(fd_containers).filter(c => c.type == 'flexdash dashboard')) {
         for (const w of Object.values(fd.store.config.widgets)) {
@@ -200,7 +185,22 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         } else { // panel or grid
           child_fdids = genGridChildren(node.config, cc_nrids, node.fd)
         }
-
+        
+        // debug printing
+        if (true) {
+          const c = fd_containers[id].config
+          let info = `FD ${c.id} ${c.kind ? c.kind : c.type.replace(/flexdash /, '')}`
+          info += ` "${c.name||c.title||''}"`
+          if (c.z) info += ` z=${c.z}`
+          for (const k of ['parent', 'tab', 'fd', 'fd_container']) if (c[k]) info += ` ${k}=${c[k]}`
+          for (const ch_id of cc_nrids) {
+            const ch = all_node_configs[ch_id]
+            info += `\n   ${ch_id}   ${ch?.type} "${ch?.name||ch?.title}"`
+          }
+          //info += ' ' + Object.keys(c).join(',')
+          console.log(info)
+        }
+  
         // add config to store
         const fd_config = new_nodes[config.id]
         switch (node.type) {
@@ -466,7 +466,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         nrids += ',' + nr_id
         prev_nrid = nr_id
       }
-      console.log("*** convert_ids: " + JSON.stringify(fdids) + " -> " + nrids)
       return nrids
     }
     
