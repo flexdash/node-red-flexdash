@@ -169,7 +169,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           for (const k of ['parent', 'tab', 'fd', 'fd_container']) if (c[k]) info += ` ${k}=${c[k]}`
           if (c.fd_children) info += `\n    children: ${c.fd_children.substring(1)}`
           //info += ' ' + Object.keys(c).join(',')
-          RED.log.debug(info)
+          RED.log.info(info)
         }
       }
 
@@ -254,7 +254,14 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   function parse_fd_children(fd_children) {
     const nrids = fd_children.split(',')
     if (nrids[0] == '') nrids.shift() // leading comma
-    return nrids
+    // deduplicate while we have problems with array-widgets
+    const c = {}, ret = []
+    for (const nrid of nrids) {
+      if (nrid in c) continue
+      c[nrid] = true
+      ret.push(nrid)
+    }
+    return ret
   }
 
   // generate config node children, i.e., children of dash and tabs
