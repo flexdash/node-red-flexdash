@@ -25,17 +25,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   let all_node_configs = {} // key: nr_id, value: config; used to create DisabledWidgets
 
-  // logging controlled by a flag in the dashboard config nodes
-  // the flag is global, but shows up in every dashboard config node, should really show up in
-  // a side-panel for FlexDash...
-  // let verbose_logging = false
-  // function log(...args) {
-  //   if (verbose_logging) {
-  //     RED.log.info(...args)
-  //   }
-  // }
-
-
   // initWidget ensures that a widget for this node exists, creating it if it doesn't, and 
   // then initializing it's static params with the NR node's config
   // which is almost a clone of the config into the widget's "static" field
@@ -81,6 +70,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       
       // widget array
       if (config.fd_array) {
+        if (node._alias) throw new Error("Node is in a subflow, cannot be an array")
+
         //RED.log.debug(`Widget ${widget_id} is an array up to ${config.fd_array_max}`)
         node._fd_array_max = config.fd_array_max
         node._fd_config = config
@@ -91,7 +82,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         if (!(node.id in array_topics)) array_topics[node.id] = []
         for (const topic of array_topics[node.id]) {
           const w_id = 'w' + config.id + '-' + topic
-          addWidget(widget_kind, config, fd, w_id, w_id)
+          addWidget(widget_kind, config, fd, w_id, 'w'+config.id)
         }
         
       // non-array widget
@@ -110,7 +101,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         flow_persistence.register(fd.id, widget_id, node.id)
 
         // create widget and register for destruction when node gets destroyed
-        addWidget(widget_kind, config, fd, widget_id, config.id)
+        addWidget(widget_kind, config, fd, widget_id)
       }
       
       node.on("close", () => destroyWidget(node))
@@ -337,7 +328,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   // generate a widget from a node config
   // widget_id differs from 'w'+config.id for arrays and subflows
-  function addWidget(kind, config, fd, widget_id, output_id) {
+  function addWidget(kind, config, fd, widget_id, array_id) {
     if (!widget_id) widget_id = 'w' + config.id
     // work out the props for the widget, skip FD and Node-RED internal stuff
     let props = {}
@@ -352,6 +343,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       dyn_root: `node-red/${widget_id}`,
       output: `nr/${widget_id.substring(1)}`, // strip leading 'w', a bit cheesy...
     }
+    if (array_id != null) fd_config.group = array_id
     fd.store.addWidget(fd_config)
     flow_persistence.register(fd.id, widget_id, config.id)
     return widget_id
@@ -365,7 +357,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     
     // new topic: need to generate widget and then sort topics
     const w_id = 'w' + node.id + '-' + topic
-    addWidget(node._fd_kind, node._fd_config, node._fd, w_id, w_id)
+    addWidget(node._fd_kind, node._fd_config, node._fd, w_id, 'w'+node.id)
     topics.push(topic)
     topics.sort()
 
