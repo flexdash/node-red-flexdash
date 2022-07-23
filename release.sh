@@ -27,9 +27,9 @@ vmm=${vmm#v}
 ./bundle.sh $vmm
 git commit -a -m "version $v"
 git push
-( cd plugin;
-  npm publish --tag dev;
-  if [[ $RELEASE == 1 ]]; then npm publish --tag latest; fi
-)
+( cd plugin; npm publish --tag dev )
 npm publish
-if [[ $RELEASE == 1 ]]; then npm publish --tag latest; fi
+if [[ $RELEASE == 1 ]]; then
+  npm dist-tag add @flexdash/node-red-flexdash-plugin@$v latest
+  npm dist-tag add @flexdash/node-red-flexdash@$v latest
+fi
