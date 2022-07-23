@@ -2,7 +2,7 @@
 
 # read commandline options
 RELEASE=0
-while getopts ":h" opt; do
+while getopts ":hr" opt; do
   case $opt in
     h)
       echo "Usage: $0 [-h] [-r]"
