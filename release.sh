@@ -28,7 +28,7 @@ vmm=${vmm#v}
 git commit -a -m "version $v"
 git push
 ( cd plugin; npm publish --tag dev )
-npm publish
+npm publish --tag dev
 if [[ $RELEASE == 1 ]]; then
   npm dist-tag add @flexdash/node-red-flexdash-plugin@$v latest
   npm dist-tag add @flexdash/node-red-flexdash@$v latest
