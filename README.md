@@ -1,7 +1,7 @@
 node-red-flexdash
 ==================
 
-_Node-RED nodes to interface with [FlexDash](https://github.com/tve/flexdash)_
+_Node-RED nodes to interface with [FlexDash](https://github.com/flexdash/flexdash)_
 
 FlexDash is a self-contained web dashboard for Node-RED and IoT devices.
 This package provides [Node-RED](https://nodered.org/) nodes that interface with
@@ -10,9 +10,8 @@ receive user input messages from the dashboard.
 
 Under the hood the nodes here use [Socket.IO](http://socket.io/) and the dashboard(s) can use Node-RED's web server (i.e. the same port) or a different port.
 
-Please refer to the
-[FlexDash Documentation](https://flexdash.github.io) for a quick-start guide, tutorials,
-and more...
+For help, please read the [FlexDash Docs](https://flexdash.github.io/docs)
+and check the [Node-RED forum](https://discourse.nodered.org).
 
 ## Installation
 
@@ -74,6 +73,7 @@ Quick-start (more in detail in the
 - [ ] Don't log every message sent to FD, or at least shorten
 - [X] Fix display of tab name as title if title is empty
 - [ ] Remove "Widget X has not prop Y" warning
+- [ ] stat widget pill size
 
 ## Internals
 
