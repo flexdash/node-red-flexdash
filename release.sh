@@ -22,7 +22,7 @@ done
 
 v=$(npm version --no-git-tag-version patch)
 (cd plugin; npm version --no-git-tag-version $v)
-sed -i -e "/flexdash-plugin/s/=[0-9.]*/=$v/" package.json
+sed -i -e "/flexdash-plugin/s/=[0-9.]*/=${v#v}/" package.json
 vmm=${v%.*}
 vmm=${vmm#v}
 ./bundle.sh $vmm
