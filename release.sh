@@ -35,3 +35,5 @@ if [[ $RELEASE == 1 ]]; then
   npm dist-tag add @flexdash/node-red-flexdash-plugin@$v latest
   npm dist-tag add @flexdash/node-red-flexdash@$v latest
 fi
+echo ""
+echo "***** Published $v *****"
