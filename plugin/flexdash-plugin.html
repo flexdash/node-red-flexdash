@@ -141,19 +141,10 @@ onadd: function() {
   function add_child(parent, child_id) {
     if (typeof parent == 'string') parent = RED.nodes.node(parent)
     if (!parent) return
-    // const ix = child_id.indexOf('-')
-    // if (ix >= 0 && child_id.lastIndexOf('-') != ix) console.log(
-    //   `*** Warning: invalid child ID ${child_id}, parent=${parent.id}`)
     if (parent.fd_children.includes(child_id)) return // works given comma-separation
-    // if (parent.old_children?.includes(child_id)) {
-    //   // child previously existed in this parent, put back in same position
-    //   const ix = parent.old_children.indexOf(child_id)
-    //   parent.fd_children = parent.fd_children.split(',').splice(ix, 1).join(',')
-    // } else {
-      // new child, append
-      parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
-      //console.log("added child", child_id, "to", parent.id)
-    // }
+    // new child, append
+    parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
+    //console.log("added child", child_id, "to", parent.id)
   }
 
   // remove child node from its parent node
@@ -175,13 +166,6 @@ onadd: function() {
     for (c_id of parent.fd_children.replace(/,,+/g, ',').split(',')) {
       if (!c_id) {
         continue
-      // } else if (c_id.includes('-')) {
-      //   c_ids = c_id.split('-')
-      //   if (c_ids.every(c_id => RED.nodes.node(c_id))) {
-      //     c1 += ',' + c_id
-      //   } else {
-      //     pruned.push(c_id)
-      //   }
       } else if (RED.nodes.node(c_id)) {
         c1 += ',' + c_id
       } else {
@@ -325,13 +309,12 @@ onadd: function() {
         }
 
         try { // caller swallows exceptions
-          console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
+          //console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
           if (ev == 'change') {
             // assume all nodes have been added to the registry and we can prune dead children
             if (this.need_pruning) this.prune_all_children()
           }
           if (ev == 'add' && node.type.startsWith('flexdash ') && 'fd_children' in node) {
-            // node.old_children = node.fd_children.split(',')
             this.need_pruning = true
           }
           
@@ -384,7 +367,6 @@ onadd: function() {
               if (ev == "add") node.flexdash_grid = get_env_var(node, "flexdash_grid")
               else if ('flexdash_grid' in node) set_env_var(node, 'flexdash_grid', node.flexdash_grid)
               if (node.flexdash_grid) add_to_parent(node.flexdash_grid, node.id)
-              console.log("subflow instance", node.id, node.flexdash_grid)
             } else {
               // subflow definition
               if (node.id in this.subflow_panels) patch_subflow_instance_edit(node.id)
@@ -454,28 +436,6 @@ onadd: function() {
     html = html.replace(re, `$&${flexdash.general_properties}`)
     el.html(html)
   }
-
-  // fetch the html for the widget props editing and insert into HTML template string
-  // FIXME: this is not a great idea, because the typed-inputs need to be initialized in oneditprepare
-  // anyway, so that results in two places the node developer has to remember to call us...
-  // flexdash.insert_props_edit = function(dataTemplateName, domId, widgetInfo) {
-  //   // first we need to put together the URL, which comes out to something like
-  //   // resources/@flexdash/node-red-fd-testnodes/testgauge-props.html
-  //   // (see "Editor resources" in Node-RED's "Creating nodes" guide)
-  //   const url = `${widgetInfo.resources_path}/${widgetInfo.base_filename}-props.html`
-  //   // load that url into DOM
-  //   //const allTypes = ['str','num','bool','json']
-  //   $.get(url, (data, status) => {
-  //     console.log("*** AJAX GET:", url, status, "data=", data.length)
-  //     const el = $(`script[data-template-name="${dataTemplateName}"]`)
-  //     let html = el.html()
-  //     const re = new RegExp(` id="${domId}"[^>]*>`)
-  //     html = html.replace(re, `$&${data}`)
-  //     el.html(html)
-  //     // after inserting into DOM, initialize the typed input fields
-  //     // TODO!
-  //   })
-  // }
 
   // fetch the html for the widget props editing and insert into DOM
   flexdash.load_props_edit = function(node, widgetInfo, domId) {

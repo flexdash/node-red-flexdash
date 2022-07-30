@@ -148,7 +148,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   RED.events.on("flows:started", info => {
     try {
       RED.log.debug(`\n***** flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
-      RED.log.debug("New nodes:", Object.keys(new_nodes).join(' '))
+      RED.log.debug("New nodes: " + Object.keys(new_nodes).join(' '))
 
       // Find all FlexDash node configs so we can create DisabledWidget widgets when we encounter them
       all_node_configs = Object.fromEntries(info.config.flows
