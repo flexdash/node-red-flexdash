@@ -112,47 +112,76 @@ The config coming out of the flow editor needs to ensure that all nodes referenc
 list exist (in the flow editor). Then in the run-time, missing nodes found in the children list are
 assumed to be disabled and are marked as such, but not removed.
 
-When altering the position of widgets in the dashboard, the missing widgets need to be kept. When the
-config is pushed back into the flow editor, the missing widgets should be "reconnected" with the disabled nodes.
+When altering the position of widgets in the dashboard, the missing widgets need to be kept.
+When the config is pushed back into the flow editor, the missing widgets should be reconnected
+with the disabled nodes.
 
 - the pruning of deleted nodes in children lists must only happen in the flow editor
 
+Widgets in disabled flows:
+- End up as DisabledWidget widgets with an ID starting with an 'x' (that's not really important)
+
 ## Subflows
 
-In the flow editor, widgets in subflows must be associated with an ArrayGrid (or a (Subflow?)Panel
-in an ArrayGrid) and listed in the grid's children. Not clear how a static order is represented...
-
-In the runtime, the subflow instance widgets show up, they need to be mapped to their template node
-using the _alias property. The ordering in the ArrayGrid is then determined via the subflow node's ID.
-
-Changing the order in the dashboard should result in a change in the order list in the ArrayGrid.
-Changing the dimension and other properties needs to map back to the template nodes.
-
-- the main trick seems to be to map N nodes in the runtime to 1 template node (which may not exist
-  in the runtime?), plus an ordering/data key
-- message routing then needs to use the ordering/data key also
-
-Panels need to be similarly mapped back, but need to be transparent to the widget ordering/data
-key stuff. Not clear how this happens...
+In the flow editor, widgets in subflows must be associated with a SubflowPanel.
 
 It's not clear how to handle nesting of subflows, maybe it's just a concatenation of the subflow
-instance IDs for the purpose of the ordering representation?
+instance IDs for the purpose of the ordering representation? Not implemented for now.
 
 SubflowPanels:
-- End up with widget IDs `w<subflow instance ID>-<panel config ID>
+- End up with widget IDs `w<subflow instance ID>-<panel config ID>`
+- Changes to panel properties need to be reflected in the panel config
 - ID of containing grid is in subflow instance env variable
-- Containing grid has fd_children with `w<subflow>-<panel>` because the order of these needs
-  to be persisted.
-- The panel node ID is pretty useless 'cause it changes at each deploy
+- Containing grid has in its fd_children
+- The panel node ID is pretty useless 'cause it changes at each deploy, while the subflow instance
+  ID doesn't ('cause it's an actual node in some flow)
+- Panels don't have any output in the dashboard, thus the `output` prop doesn't need to be set.
 
 Widgets in SubflowPanels:
-- End up with widget IDs `w<subflow instance ID>-<widget config ID> mostly because otherwise it
-  requires an extra data structure to locate the widget instance node ID (prob would have to do the
-  latter to support array widgets in subflows).
-- When expanding the SubflowPanel's fd_children the widget config ID is converted to wSSS-NNN.
+- End up with widget IDs `w<subflow instance ID>-<widget config ID>`
+- The widget node IDs change with every deploy
+- Changes to widget properties need to be applied to the widget config
+- Output needs to be sent from a widget's instance node, whose ID changes per deploy
+- The containing SubflowPanel has the widget IDs in its fd_children
 
-Array widgets:
-- End up with widget IDs `w<widget ID>-<index> in order to support the one-to-many.
+Important: the structure of subflow widget IDs must not be used anywhere to drive logic, everything
+must work if these IDs are replaced by random numbers.
+
+## Array widgets
+
+- Array widgets have a single node in Node-RED, the array aspect exists only on the FlexDash side
+- An array is really a hash in that indices can be numbers or strings
+- The existing array indices are only persisted in memory (but survive deploys) in the FD plugin
+- Array widgets have IDs `w<node ID>-<index>`
+- Changes to widget properties need to be reflected in the one node (and then apply to all)
+- Output needs to be sent from the array widget node, but needs to include the index value
+
+Array widgets cannot be placed in subflows. (Really?)
+
+Important: the structure of array widget IDs must not be used anywhere to drive logic, everything
+must work if these IDs are replaced by random numbers.
+
+## IDs
+
+#### FlexDash IDs
+
+- widget nodes: `w<node-id>`
+- widget nodes in subflow: `w<subflow-instance-id>-<node-in-subflowid>`
+- array widget nodes: `w<node-id>|<topic>`
+- array widget nodes in subflow: `w<subflow-instance-id>-<node-in-subflow-id>|<topic>`
+- config nodes: `g<node-id>`, `p<node-id>`, `t<node-id>`
+
+#### fd_children IDs
+
+- widget nodes: FlexDash ID
+- array widget nodes: FlexDash ID without topic
+- config nodes: FlexDash ID
+
+#### Widget fields
+
+- dyn_root: `node-red/<widget-id>`
+- output: `nr/<node-id>`
+- group: `<array-node-id>`
 
 ## Node-RED internals
 
@@ -176,9 +205,9 @@ Array widgets:
   - The subflow "template" is represented by a type=subflow node.
   - A node type `subflow:<subflow node id>` is created for each subflow.
   - Subflow instance nodes are of that type
-  - For each node in a subflow "template" a new node in instantiated on deploy, its `._alias` has the
-    ID of the node "template".
-  - The "template" nodes are not instantiated in the runtime, they remain solely as configs, i.e.,
+  - For each node in a subflow template a new node is instantiated on deploy, its `._alias` has the
+    ID of the node template.
+  - The template nodes are not instantiated in the runtime, they remain solely as configs, i.e.,
     no constructor gets called.
 
   

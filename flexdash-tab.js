@@ -12,7 +12,6 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config)
         this.config = config
         this.plugin = RED.plugins.get('flexdash')
-        this.fp = this.plugin._flowPersistence
 
         // register as container with flexdash dashboard node
         if (!config.fd) return // nothing we can really do here
@@ -31,14 +30,12 @@ module.exports = function(RED) {
     storeTab() {
       const c = this.config
       this.fd_id = 't' + this.id
-      this.fp.register(this.fd.id, this.fd_id, this.id)
       // construct the tab data to put into the store
       const fd_config = { id: this.fd_id, title: c.title, icon: c.icon }
       this.plugin._newNode(this.id, this, fd_config)
     }
   
     removeTab() {
-      this.fp.unregister(this.fd.id, this.fd_id)
       this.fd.store.deleteTab(this.fd_id)
       this.plugin._delNode(this.id)
     }

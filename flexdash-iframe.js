@@ -15,7 +15,6 @@ module.exports = function(RED) {
         
         // register with flexdash dashboard node
         this.plugin = RED.plugins.get('flexdash')
-        this.fp = this.plugin._flowPersistence
         this.storeIframe()
       } catch (e) { console.error(e.stack); throw e }
 
@@ -30,7 +29,6 @@ module.exports = function(RED) {
     storeIframe() {
       const c = this.config
       this.fd_id = 't' + this.id
-      this.fp.register(this.fd.id, this.fd_id, this.id)
       // construct the iframe tab data to put into the store
       const fd_config = { id: this.fd_id, title: c.title, icon: c.icon, url: c.url, slot: c.slot||'a' }
       this.plugin._newNode(this.id, this, fd_config)
@@ -38,7 +36,6 @@ module.exports = function(RED) {
   
     removeIframe() {
       if (this.fp) {
-        this.fp.unregister(this.fd.id, this.fd_id)
         this.fd.store.deleteTab(this.fd_id)
         this.plugin._delNode(this.id)
       }

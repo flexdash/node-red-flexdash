@@ -41,10 +41,10 @@ module.exports = class WidgetAPI {
       // for arrays, we need to determine the actual widget...
       if (this.node._fd_array_max) {
         if (typeof topic != 'number' && typeof topic != 'string') {
-          throw new Error("[msg.]topic must be a number or string")
+          throw new Error(`msg.topic must be a number or string, not ${typeof topic}`)
         }
         this.plugin._addWidgetTopic(this.node, topic) // only adds if it doesn't exist yet
-        widget_id += '-' + topic
+        widget_id = this.plugin._genArrayFDId(widget_id, topic)
       }
       const w = this.node._fd.store.widgetByID(widget_id)
 
@@ -86,7 +86,7 @@ module.exports = class WidgetAPI {
   // onInput registers the handler of a node so it gets it's corresponding widget's output
   onInput(handler) {
     if (typeof handler !== 'function') throw new Error("onInput handler must be a function")
-    this.node._fd.inputHandlers[this.node.id] = handler
+    this.node._fd.inputHandlers[this.node._fd_id] = handler
   }
 
   // setAbsPath sets the value at an absolute path in the FlexDash data tree

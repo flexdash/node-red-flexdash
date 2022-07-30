@@ -13,7 +13,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     prodRoot: path.join(__dirname, '/flexdash'), // production bundle
     prodIndexHtml: path.join(__dirname, '/flexdash/index.html'),
   }
-  const flowPersistence = RED.plugins.get('flexdash')._flowPersistence
+  const plugin = RED.plugins.get('flexdash')
   const version = require(path.join(__dirname, '/package.json')).version
 
 
@@ -92,13 +92,17 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             try {
               this._recvConfig(socket, topic, payload)
             } catch (err) {
-              this.error(`Error persiting config change:\n${err.stack}`)
+              this.error(`Error persisting config change:\n${err.stack}`)
             }
           }
 
           // handle incoming messages to forward to nodes
           if (topic.startsWith("nr/")) {
-            this._recvData(socket, topic.substring(3), payload)
+            try {
+              this._recvData(socket, topic.substring(3), payload)
+            } catch (err) {
+              this.error(`Error handling data message:\n${err.stack}`)
+            }
           }
         })
 
@@ -200,6 +204,12 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       } else {
         //this.log(`Sending config to ${socket.id} from store ${this.ctxName} including ${keys.join(', ')}`)
         for (let k of keys) {
+          // console.log(`CONFIG: ${k}`)
+          // for (const kk in this.store.config[k]) {
+          //   if (this.store.config[k][kk].kind == "Panel")
+          //     console.log(`  ${kk}: ${JSON.stringify(this.store.config[k][kk])}`)
+          // }
+
           socket.emit("set", "$config/" + k, this.store.config[k])
         }
         socket.emit("set", "$config/ready", true)
@@ -209,8 +219,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // send the data state to a client
     // internal-only
     _sendData(socket) {
-      // enumerate all keys with our prefix
-      const keys = Object.keys(this.store.sd)
       //this.log(`Sending initial data to ${socket.id} from store ${this.ctxName} with ${keys.length} keys`)
       socket.emit("set", "sd", this.store.sd)
     }
@@ -219,7 +227,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // it to other clients, and finally queue it for the flow editor to persist
     // internal-only
     _recvConfig(socket, topic, payload) { // topic has leading $config
-      this.log(`Saving config of ${topic} for ${socket.id}`)
+      this.log(`Saving config of ${topic} for ${socket.id} ${JSON.stringify(payload)}`)
       // insert the payload into the store's config portion
       this.store.set(topic, payload)
       // propagate config change to any other connected browser
@@ -231,33 +239,27 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       tt.shift() // remove leading $config
       let kind = tt[0] // 'dash', 'tabs', 'grids', or 'widgets'
       const config = kind == 'dash' ? this.store.config.dash : this.store.config[kind][tt[1]]
-      flowPersistence.saveMutation(this.id, kind, tt[1], config)
+      plugin._saveMutation(this.id, kind, tt[1], config)
     }
 
     // receive a data message from dashboard and forward to appropriate node
     _recvData(socket, topic, payload) {
       //console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
+      // handle array-widgets
+      const ix = topic.indexOf('|')
+      const array_topic = ix > 0 ? topic.substring(ix+1) : undefined
+      if (ix > 0) topic = topic.substring(0, ix)
+      // find node and send it the message
       if (topic in this.inputHandlers) {
-        //console.log("Input handler for " + topic)
-        this.inputHandlers[topic].call({}, undefined, payload)
-      } else {
-        const ix = topic.indexOf('-')
-        //console.log("ix=" + ix)
-        if (ix > 0) {
-          const id2 = topic.substring(0, ix)
-          //console.log("id2=" + id2)
-          if (id2 in this.inputHandlers) {
-            //console.log("Input handler for " + id2)
-            this.inputHandlers[id2].call({}, topic.substring(ix+1), payload, socket.id)
-          }
-        }
-      }
+        this.inputHandlers[topic].call({}, array_topic, payload, socket)
+      } else console.log("No input handler for", topic) // else silently swallow !?
     }
 
     // send an internally generated mutation to all connected dashboards
     // internal only
     _sendMutation(topic, value) { // topic has leading $config/
       // this.io may be null because store gets created before socket.io server...
+      //if (this.io) console.log(`Sending mutation ${topic}`)
       if (this.io) this.io.emit("set", topic, value)
     }
    
