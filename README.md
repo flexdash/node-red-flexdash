@@ -35,6 +35,10 @@ Quick-start (more in detail in the
 - point your browser at http://localhost:1880/flexdash
   (same hostname/port you use for the Node-RED editor)
 
+Pre-release (dev) versions are published on npm using a "dev" tag:
+- latest dev version: npm i @flexdash/node-red-flexdash-plugin@dev
+- specific dev version: npm i @flexdash/node-red-flexdash-plugin@0.4.47
+
 ## To do
 
 ### Near term enhancements
@@ -173,9 +177,11 @@ must work if these IDs are replaced by random numbers.
 
 #### fd_children IDs
 
-- widget nodes: FlexDash ID
-- array widget nodes: FlexDash ID without topic
-- config nodes: FlexDash ID
+- widget nodes: Node-RED ID
+- array widget nodes: Node-RED ID without topic
+- config nodes: Node-RED ID
+- subflow panel: Node-RED ID of panel instance
+- widget node in subflow panel: Node-RED ID of template node
 
 #### Widget fields
 
