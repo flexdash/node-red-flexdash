@@ -36,8 +36,10 @@ module.exports = function(RED) {
     }
   
     removeTab() {
-      this.fd.store.deleteTab(this.fd_id)
-      this.plugin._delNode(this.id)
+      if (this.fd) {
+        this.fd.store.deleteTab(this.fd_id)
+        this.plugin._delNode(this.id)
+      }
     }
   
   }

@@ -11,9 +11,16 @@
     defaults: {
       name: { value: "" },
       icon: { value: "mdi-view-dashboard" },
-      fd: { type:"flexdash dashboard", value:"", required:true }, // node id of dashboard
-      fd_children: { value: "" }, // comma-separated list of child node IDs
       title: { value: "" },
+      fd_children: { value: "" }, // comma-separated list of child node IDs
+      fd: { value:"" }, // node id of dashboard
+      weak_fd: {
+        type:"flexdash dashboard", value:"", required:false,
+        validate(v) {
+          const configNode = RED.nodes.node(v||this.fd)
+          return configNode && (configNode.valid == null || configNode.valid)
+        }
+      },
     },
 
     label() {
@@ -23,11 +30,25 @@
     labelStyle() { return this.name ? "node_label_italic" : "" },
 
     oneditprepare() {
-      const label = this.label || this._def.label // !@#$%^&* on create...
-      $('#node-config-title').text(label.bind(this)())
+      try {
+        const label = this.label || this._def.label // !@#$%^&* on create...
+        $('#node-config-title').text(label.bind(this)())
+
+        // set weak_fd to value of fd, see oneditsave for explanation
+        if (this.fd) $(`#node-config-input-weak_fd [value=${this.fd}]`).attr('selected',"")
+        $(`#node-config-input-weak_fd`).attr('nrid', this.id)
+      } catch(e) { console.log("FlexDash tab prepare error", e); throw e }
     },
 
     oneditsave() {
+      try {
+        // switch the flexdash dashboard ID to a different field so we don't depend on it on export;
+        // this is a hideous hack... createExportableNodeSet exports config nodes referenced in 
+        // params that have a type field. So we move the weak_fd ID to fd and voila, no dependency!
+        const weak_fd = $('#node-config-input-weak_fd')
+        $('#node-config-input-fd').val(weak_fd.val())
+        weak_fd.val("")
+      } catch(e) { console.log("FlexDash tab save error", e); throw e }
     },
   })
 </script>
@@ -54,13 +75,14 @@
     </small>
   </div>
   <div class="form-row">
-    <label for="node-config-input-fd">Dashboard</label>
-    <input type="text" id="node-config-input-fd">
+    <label for="node-config-input-weak_fd">Dashboard</label>
+    <input type="text" id="node-config-input-weak_fd">
     <small class="fd-indent">Dashboard to which this tab belongs.</small>
   </div>
   
   <!-- hidden fields -->
   <input type="hidden" id="node-config-input-fd_children">
+  <input type="hidden" id="node-config-input-fd">
 
 </script>
 

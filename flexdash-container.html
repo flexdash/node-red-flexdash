@@ -26,12 +26,11 @@
       title: { value: "" },
 
       // params for grids
-      tab: { value: "" },
-      weak_tab: {
+      tab: {
         type:"flexdash tab", value:"", required:false,
         validate(v) {
           if (!is_a(this, "Grid")) return true
-          const configNode = RED.nodes.node(v||this.tab)
+          const configNode = RED.nodes.node(v)
           return configNode && (configNode.valid == null || configNode.valid)
         }
       },
@@ -64,10 +63,6 @@
         //console.log("Oneditprepare container", this.id)
         $('#node-config-input-name').attr('nrid', this.id)
         $('#fd-node-id').html(this.id)
-
-        // set weak_tab to value of tab, see oneditsave for explanation
-        if (this.tab) $(`#node-config-input-weak_tab [value=${this.tab}]`).attr('selected',"")
-        $(`#node-config-input-weak_tab`).attr('nrid', this.id)
 
         // handle grid/tab toggle buttons
         function select_grid_tab(kind) {
@@ -111,14 +106,6 @@
           console.log("clearing parent field")
         }
 
-        // switch the flexdash tab ID to a different field so we don't depend on it on export;
-        // this is a hideous hack... createExportableNodeSet exports config nodes referenced in 
-        // params that have a type field. So we move the weak_tab ID to tab and voila, no dependency!
-        const weak_tab = $('#node-config-input-weak_tab')
-        $('#node-config-input-tab').val(kind.endsWith("Panel") ? "" : weak_tab.val())
-        weak_tab.val("")
-        //console.log("Oneditsave container", this.id)
-
         // console.log("FlexDash container save:", Object.assign({}, this))
       } catch(e) { console.log("FlexDash container save error", e); throw e }
     },
@@ -161,8 +148,8 @@
   <!-- Fields specific to grids -->
   <div id="stdgrid-only" style="display: none">
     <div class="form-row">
-      <label for="node-config-input-weak_tab">Tab</label>
-      <input type="text" id="node-config-input-weak_tab">
+      <label for="node-config-input-tab">Tab</label>
+      <input type="text" id="node-config-input-tab">
       <small class="fd-indent">Tab in which the grid is shown.</small>
     </div>
     <div class="form-row">
@@ -207,7 +194,6 @@
   <!-- hidden fields -->
   <input type="hidden" id="node-config-input-kind">
   <input type="hidden" id="node-config-input-fd_children">
-  <input type="hidden" id="node-config-input-tab">
 
 </script>
 
