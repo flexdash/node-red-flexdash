@@ -30,9 +30,6 @@
 
     oneditprepare() {
       try {
-        const label = this.label || this._def.label // !@#$%^&* on create...
-        $('#node-config-title').text(label.bind(this)())
-
         // set weak_fd to value of fd, see oneditsave for explanation
         if (this.fd) $(`#node-config-input-weak_fd [value=${this.fd}]`).attr('selected',"")
         $(`#node-config-input-weak_fd`).attr('nrid', this.id)
@@ -53,7 +50,6 @@
 </script>
 
 <script type="text/html" data-template-name="flexdash tab">
-  <h3 id="node-config-title"></h3>
   <div class="form-row">
     <label for="node-config-input-name"><i class="icon-tag"></i> Name</label>
     <input type="text" id="node-config-input-name" placeholder="Name">

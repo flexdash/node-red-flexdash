@@ -38,9 +38,6 @@
 
     oneditprepare() {
       try {
-        const label = this.label || this._def.label // !@#$%^&* on create...
-        $('#node-title').text(label.bind(this)())
-
         $('#node-input-slot').typedInput({
           types: [ { value: 'slot', options: ['a','b'] } ]
         })
@@ -65,7 +62,6 @@
 </script>
 
 <script type="text/html" data-template-name="flexdash iframe">
-  <h3 id="node-title"></h3>
   <div class="form-row">
     <label for="node-input-name"><i class="icon-tag"></i> Name</label>
     <input type="text" id="node-input-name" placeholder="Name">
