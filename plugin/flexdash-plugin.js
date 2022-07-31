@@ -148,7 +148,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   RED.events.on("flows:started", info => {
     try {
       RED.log.debug(`\n***** flows:started ${info.type} diff: ${JSON.stringify(info.diff||{})}`)
-      RED.log.debug("New nodes: " + Object.keys(new_nodes).join(' '))
+      // RED.log.debug("New nodes: " + Object.keys(new_nodes).join(' '))
 
       // Find all FlexDash node configs so we can create DisabledWidget widgets when we encounter them
       all_node_configs = Object.fromEntries(info.config.flows
@@ -165,8 +165,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       for (const id in subflow_widgets) if (id in all_node_configs) new_sw[id] = subflow_widgets[id]
       subflow_widgets = new_sw
 
-      console.log(`subflow_widgets: ${JSON.stringify(subflow_widgets)}`)
-      console.log(`subflow_panels: ${JSON.stringify(subflow_panels)}`)
+      // console.log(`subflow_widgets: ${JSON.stringify(subflow_widgets)}`)
+      // console.log(`subflow_panels: ${JSON.stringify(subflow_panels)}`)
 
       // generate FlexDash config for all deployed config nodes
       for (const id in fd_containers) {
