@@ -52,7 +52,7 @@ class ViteDevServer {
       this.log = dev_node.log.bind(dev_node)
       this.warn = dev_node.warn.bind(dev_node)
       this.log(`starting dev server`)
-      this.path = !fd || fd.path == '/' ? "flexdash-src" : fd.path + "-src"
+      this.path = !fd || fd.path == '/' ? "flexdash-dev" : fd.path + "-dev"
       this.log("source dir:" + this.sourceDir)
       this.log("URL path  :" + this.path)
 
@@ -229,7 +229,7 @@ class ViteDevServer {
         const url = proxyUrl + req.baseUrl + req.path
         const m = req.get('Host').match(/^[^:]+:(\d+)/)
         const port = m ? parseInt(m[1], 10) : (req.protocol == "https" ? 443 : 80)
-        this.mungeResponse(url, res, "1880/flexdash-src/", `${port}/flexdash-src/`)
+        this.mungeResponse(url, res, "1880/flexdash-dev/", `${port}/flexdash-dev/`)
       } else {
         this.viteProxy(req, res, next)
       }
