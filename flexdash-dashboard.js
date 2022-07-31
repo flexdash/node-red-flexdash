@@ -20,7 +20,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   let cw_version
   try {
     cw_version = require(path.join(__dirname, '..', 'node-red-fd-corewidgets', 'package.json')).version
-  }
+  } catch(e) { }
 
   // Flow of configuration change messages and calls
   //
