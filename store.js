@@ -169,6 +169,7 @@ class Store {
   }
 
   stopQueueing() {
+    console.log("stop queuing")
     for (const t in this.m_queue) this.sendMutation(t)
     this.m_queue = {}
     this.do_queue = false

@@ -207,7 +207,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         this.log(`Sending empty config to ${socket.id} from store ${this.ctxName}`)
         socket.emit("set", "$config", {}) // the dashboard deals with init'ing a minimal config
       } else {
-        //this.log(`Sending config to ${socket.id} from store ${this.ctxName} including ${keys.join(', ')}`)
+        this.log(`Sending config to ${socket.id} from store ${this.ctxName} including ${keys.join(', ')}`)
         for (let k of keys) {
           // console.log(`CONFIG: ${k}`)
           // for (const kk in this.store.config[k]) {
