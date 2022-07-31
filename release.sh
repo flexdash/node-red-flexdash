@@ -2,16 +2,22 @@
 
 # read commandline options
 RELEASE=0
-while getopts ":hr" opt; do
+FDV=
+while getopts ":hrf:" opt; do
   case $opt in
     h)
       echo "Usage: $0 [-h] [-r]"
       echo " -h show this help message and exit"
       echo " -r release the version"
+      echo " -f <version> flexdash version to bundle"
       exit 0
       ;;
     r)
       RELEASE=1
+      ;;
+    f)
+      FDV="$OPTARG"
+      shift
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -25,7 +31,8 @@ v=$(npm version --no-git-tag-version patch)
 sed -i -e "/flexdash-plugin/s/=[0-9.]*/=${v#v}/" package.json
 vmm=${v%.*}
 vmm=${vmm#v}
-./bundle.sh $vmm
+echo "Bundling FlexDash ${FDV:-$vmm}"
+./bundle.sh ${FDV:-$vmm}
 git commit -a -m "version $v"
 git push
 ( cd plugin; npm publish --tag dev )
