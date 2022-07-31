@@ -199,7 +199,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           if (c.z) info += ` z=${c.z}`
           for (const k of ['parent', 'tab', 'fd', 'fd_container']) if (c[k]) info += ` ${k}=${c[k]}`
           //if (child_fdids.length > 0) info += `\n   ${child_fdids.join(' ')}`
-          for (const ch_id of cc_nrids) {
+/          for (const ch_id of cc_nrids) {
             let ch = all_node_configs[ch_id]
             if (ch) {
               info += `\n   ${ch_id}   ${ch?.type} "${ch?.name||ch?.title}"`
@@ -209,9 +209,9 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
               info += `\n   ${ch_id}   subflow panel "${ch?.name||ch?.title}"`
             } else {
               info += `\n   ${ch_id}   missing node config`
-            }
+/            }
           }
-          //info += ' ' + Object.keys(c).join(',')
+/          //info += ' ' + Object.keys(c).join(',')
           console.log(info)
         }
   
@@ -314,7 +314,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       if (!(c_nrid in array_topics)) return c_fdid
       // node is widget-array, add widgets for existing topics (see flat() at end of function)
       return array_topics[c_nrid].map(t => genArrayFDId(c_fdid, t))
-    }).flat()
+    }).flat().filter(x=>x)
   }
 
   // update grid/panel children in the store, used when a widget is added/removed dynamically,
