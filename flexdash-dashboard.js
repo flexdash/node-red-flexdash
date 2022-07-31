@@ -10,12 +10,17 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   const glob = require('glob')
   const path = require('path')
   const paths = { // paths to access FlexDash UI files
-    prodRoot: path.join(__dirname, '/flexdash'), // production bundle
-    prodIndexHtml: path.join(__dirname, '/flexdash/index.html'),
+    prodRoot: path.join(__dirname, 'flexdash'), // production bundle
+    prodIndexHtml: path.join(__dirname, 'flexdash', 'index.html'),
   }
   const plugin = RED.plugins.get('flexdash')
-  const version = require(path.join(__dirname, '/package.json')).version
+  const version = require(path.join(__dirname, 'package.json')).version
 
+  // hack... the corewidgets repo doesn't have any static js file where this could be placed
+  let cw_version
+  try {
+    cw_version = require(path.join(__dirname, '..', 'node-red-fd-corewidgets', 'package.json')).version
+  }
 
   // Flow of configuration change messages and calls
   //
@@ -340,6 +345,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     if (err) RED.log.info(err)
     else if (data) RED.log.info(`FlexDash UI version ${data}`)
   })
+  if (cw_version) RED.log.info("Node-RED FD Core Widgets version " + cw_version)
 
 } catch(e) { console.log(`Error in ${__filename}: ${e.stack}`) }
 }
