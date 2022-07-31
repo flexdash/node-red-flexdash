@@ -22,6 +22,7 @@
       name:       { value: "FlexDash", required: true }, // dashboard title
       fd_children: { value: "" }, // comma-separated list of child node IDs
     },
+    hasUsers: false, // prevent unused config node warning
 
     label() {
       const port = this.redServer ? window.location.port : this.port.toString()
