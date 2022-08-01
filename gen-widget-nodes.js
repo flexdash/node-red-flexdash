@@ -69,7 +69,7 @@ class FDWidgetCodeGen {
     Object.assign(this.info, {
       name: this.widget.name,
       name_text: camel2text(this.widget.name),
-      name_kebab: camel2kebab(this.widget.name),
+      type_kebab: "fd-" + camel2kebab(this.widget.name),
       help: this.widget.help,
     })  
 

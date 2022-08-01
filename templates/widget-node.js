@@ -39,5 +39,5 @@ module.exports = function (RED) {
     }
   }
 
-  RED.nodes.registerType("##name_kebab##", ##name##)
+  RED.nodes.registerType("##type_kebab##", ##name##)
 }

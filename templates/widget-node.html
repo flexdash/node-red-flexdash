@@ -16,10 +16,10 @@
   // update the text for the help sidebar
   var helpHtml = flexdash.load_help_html(widgetInfo, paletteLabel)
 
-  flexdash.insert_general_edit("##name_kebab##", "fd-tab-general")
+  flexdash.insert_general_edit("##type_kebab##", "fd-tab-general")
 
 
-  RED.nodes.registerType(widgetInfo.name_kebab, {
+  RED.nodes.registerType(widgetInfo.type_kebab, {
     // properties of the NR node used by NR itself
     category: 'flexdash',
     color: "#F0E4B8",
@@ -71,7 +71,7 @@
   })
 </script>
 
-<script type="text/html" data-template-name="##name_kebab##">
+<script type="text/html" data-template-name="##type_kebab##">
   <div class="form-row">
     <ul id="fd-tabs" style="min-width: 600px; margin-bottom: 20px;"></ul>
   </div>
@@ -87,6 +87,6 @@
   -->
 </script>
 
-<script type="text/markdown" data-help-name="##name_kebab##">
-  <p id="##name_kebab##-help-text"><i>Ooops, this should have filled-in dynamically...</i></p>
+<script type="text/markdown" data-help-name="##type_kebab##">
+  <p id="##type_kebab##-help-text"><i>Ooops, this should have filled-in dynamically...</i></p>
 </script>

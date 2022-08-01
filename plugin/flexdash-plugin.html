@@ -422,8 +422,8 @@ onadd: function() {
       <p>The ${paletteLabel} node displays a ${widgetInfo.name_text} widget in the FlexDash dashboard.</p>
       ${widgetInfo.help_body}
     `.trim()
-    $(`script[data-help-name="${widgetInfo.name_kebab}"]`).html(helpHtml) // hidden help text
-    $(`#${widgetInfo.name_kebab}-help-text`).replaceWith(helpHtml) // shown help text
+    $(`script[data-help-name="${widgetInfo.type_kebab}"]`).html(helpHtml) // hidden help text
+    $(`#${widgetInfo.type_kebab}-help-text`).replaceWith(helpHtml) // shown help text
   }
 
   // insert the html for the general node parameters into the data template HTML string
