@@ -194,7 +194,7 @@ class ViteDevServer {
     // middleware, not great, but at least it works
     let wsSubscribed = false
     this.fd.rootApp.use(this.path, (req, res, next) => {
-      this.log(`PROXY ${req.baseUrl} ${req.path} ${req.url} (${req.originalUrl})`)
+      //this.log(`PROXY ${req.baseUrl} ${req.path} ${req.url} (${req.originalUrl})`)
       if (!this.viteProxy) return next() // we're dead, wish we could unmount...
 
       // we can't ask http-proxy-middleware to deal with websockets because it has no way to remove
