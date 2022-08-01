@@ -71,13 +71,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       const container = RED.nodes.getNode(config.fd_container)
       const fd = container?.fd
       if (!fd) {
-        node.warn(`Node is not part of any dashboard`)
+        node.warn(`Widget node is not part of any dashboard (widget node [-> panel] -> grid -> tab -> dashboard chain broken)`)
         return null
       }
       if (node._alias) {
         // _alias: the node's template, z: the subflow instance ID, container: panel instance
         if (container.config.kind != "SubflowPanel") {
-          node.warn(`Node must be in a SubflowPanel because it is in a subflow`)
+          node.warn(`Widget node must belong to a SubflowPanel because it is in a subflow`)
           return null
         }
         // register that this node is an instantiation in a subflow
@@ -112,7 +112,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       node.on("close", () => destroyWidget(node))
       return new WidgetAPI(node, plugin)
     } catch (e) {
-      RED.log.warn(`FlexDashGlobal initWidget: failed to initialize widget for node '${node.id}': ${e.stack}`)
+      RED.log.warn(`FlexDash initWidget: failed to initialize widget for node '${node.id}': ${e.stack}`)
       return null
     }
   }
@@ -134,7 +134,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         fd.store.deleteWidget(w_id)
       }
     } catch (e) {
-      RED.log.warn(`FlexDashGlobal destroyWidget: '${node.id}': ${e.stack}`)
+      RED.log.warn(`FlexDash destroyWidget: '${node.id}': ${e.stack}`)
     }
   }
 
