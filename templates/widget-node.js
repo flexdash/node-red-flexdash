@@ -31,7 +31,7 @@ module.exports = function (RED) {
     // handle widget input messages, we receive the payload sent by the widget
     if (##output##) {
       widget.onInput((topic, payload, socket) => {
-        // propagate the payload into the flow and attach the node's ID
+        // propagate the payload into the flow and attach the FD socket ID
         let msg = { payload: payload, _flexdash_socket: socket }
         if (topic != undefined) msg.topic = topic
         this.send(msg)
