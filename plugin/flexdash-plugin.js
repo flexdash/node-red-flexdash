@@ -219,7 +219,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         const fd_config = new_nodes[config.id]
         switch (node.type) {
           case 'flexdash dashboard':
-            node.fd.store.updateDash({ tabs: child_fdids })
+            node.store.updateDash({ tabs: child_fdids })
             break
           case 'flexdash tab':
             if (fd_config) node.fd.store.addTab({ ...fd_config, grids: child_fdids })

@@ -9,6 +9,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   const FS = require('fs')
   const glob = require('glob')
   const path = require('path')
+  const url = require("url")
   const paths = { // paths to access FlexDash UI files
     prodRoot: path.join(__dirname, 'flexdash'), // production bundle
     prodIndexHtml: path.join(__dirname, 'flexdash', 'index.html'),
@@ -42,6 +43,43 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   // design things so that doesn't happen. How these effects flow is unclear at this point...
 
 
+  // ===== Websocket upgrade handlers
+
+  // Express has the problem that it is not possible to unmount anything. This makes it tricky to
+  // restart a Socket.io server instance, because the latter registers an upgrade handler for the
+  // websocket. If we delete a socket.io instance and create a new one, the old one really never
+  // goes away including its upgrade handler. If we then start a new instance, its upgrade handler
+  // goes into the handler chain *after* the original one and if the two instances' paths are the
+  // same, the old one will get all the upgrade requests and reject them.
+  // The solution is to handle upgrades ourselves in a handler that gets mounted before any
+  // by socket.io.
+
+  const sio_servers = {} // map of socket.io servers by path
+
+  function sioUpgradeHandler(req, socket, head) {
+    const path = url.parse(req.url).pathname
+    RED.log.info(`Upgrade request for ${path} got ${Object.keys(sio_servers).join(',')}`)
+    if (path in sio_servers) {
+      const sio = sio_servers[path]
+      if (sio) {
+        sio.engine.handleUpgrade(req, socket, head)
+        req.url = 'xxxxx' // prevent socket.io from handling this request
+      } else {
+        // we used to have a server, but it was closed, so we close the socket to ensure nothing happens
+        socket.destroy()
+      }
+    }
+  }
+  RED.server.on('upgrade', sioUpgradeHandler)
+
+  function sioRegister(path, sio) {
+    sio_servers[path] = sio
+  }
+  function sioUnregister(path) {
+    sio_servers[path] = null // null means closed, i.e., reject requests
+  }
+
+
   // ===== FlexDash Dashboard configuration node
   class FlexDashDashboard {
     constructor(config) {
@@ -71,8 +109,10 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       } catch (e) { console.error(e.stack); throw e }
 
       this.on("close", () => {
-        this.plugin._delNode(this.id)
-        io.close()
+        try {
+          this.plugin._delNode(this.id)
+          this._stopWeb()
+        } catch (e) { console.error(e.stack) }
       })
 
       // hook handlers to save FlexDash configuration and send the config back out on start-up
@@ -147,17 +187,17 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // /blah/flexdash/ -> serve flexdash/index.html with sio=/blah/flexdash/io spliced in
       // /blah/flexdash/io -> socket.io mount point
       // /blah/flexdash/* -> express static server mount point for ./flexdash/*, i.e. UI bundle
-      let server, app, ioPath
+      let server, rootApp, ioPath
       if (config.redServer) {
         server = RED.server
-        app = RED.httpNode
+        rootApp = RED.httpNode
         // path shenanigans 'cause socket.io gets "mounted" at root while the file serving is
         // relative to httpNodeRoot
         ioPath = RED.settings.httpNodeRoot + path + "/io/"
         ioPath = ioPath.replace(/\/\/+/g, "/")
       } else {
-        app = Express()
-        server = createServer(app)
+        rootApp = Express()
+        server = createServer(rootApp)
         ioPath = path + "/io/"
         server.listen(config.port)
       }
@@ -168,9 +208,15 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
       // start/mount servers
       const io = new Server(server, options)
+      if (config.redServer) sioRegister(ioPath, io)
       // handler to serve-up the FlexDash client index.html
-      app.get(path, (req, res) => {
-        if (!req.path.endsWith('/')) return res.redirect(path+'/')
+      const app = Express()
+      app.locals.name = "FlexDash"
+      rootApp.use(path, app)
+      rootApp._router.stack[rootApp._router.stack.length-1].node_id = this.id // ID for removal later
+      app.get('/', (req, res) => {
+        const path = url.parse(req.originalUrl).pathname
+        if (!path.endsWith('/')) return res.redirect(path+'/')
         FS.readFile(paths.prodIndexHtml, 'utf8', (err, data) => {
           if (err) {
             this.warn(`Cannot read ${paths.prodIndexHtml}: ${err}`)
@@ -185,17 +231,34 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           res.send(data.toString().replace('{}', flexdash_options))
         })
       })
-      app.use(path||'/', Express.static(paths.prodRoot, { extensions: ['html'] }))
+      app.use('/', Express.static(paths.prodRoot, { extensions: ['html'] }))
       // handler to serve up list of extra widgets, as well as extra widgets themselves
-      app.get(path+'/xtra.json', async (req, res) => this._xtra(req, res))
-      app.get(path+'/xtra/*', (req, res) => {
+      app.get('/xtra.json', async (req, res) => this._xtra(req, res))
+      app.get('/xtra/*', (req, res) => {
         this._xtra_lib(req.path.substring(path.length+6), req, res)
       })
 
-      this.log("port       : " + (config.redServer ? "Node-RED port" : ("on port " + port)))
+      this.log("port       : " + (config.redServer ? "Node-RED port" : ("on port " + config.port)))
       this.log("FlexDash ready!")
       
-      return { app, path, io, ioPath }
+      return { app, rootApp, path, io, ioPath }
+    }
+
+    _stopWeb() {
+      this.io.disconnectSockets()
+      if (this.config.redServer) {
+        // hacky stuff required 'cause Express doesn't allow unmounting anything...
+        sioUnregister(this.ioPath)
+        //this.io.close(() => console.log("SIO closed")) // kills http server!?\!
+        RED.httpNode._router.stack.forEach((route, i, routes) => {
+          if (route.node_id == this.id) {
+            RED.log.info("Removing route: " + route.regexp)
+            routes.splice(i, 1)
+          }
+        })
+      } else {
+        this.io.close(() => console.log("SIO closed")) // kills http server!
+      }
     }
 
     // send the configuration to a client, the server param is the configuration node

@@ -157,7 +157,7 @@ class ViteDevServer {
     if (!fs.existsSync(this.viteBin)) return `no vite in ${this.sourceDir}`
     try { fs.accessSync(this.sourceDir, fs.constants.W_OK) }
     catch(e) { return `cannot write to ${this.sourceDir}` }
-    if (!this.fd?.app) return "FlexDash config node not deployed"
+    if (!this.fd?.rootApp) return "FlexDash config node not deployed"
     return "OK"
   }
 
@@ -193,8 +193,8 @@ class ViteDevServer {
     // express does not support unmounting of handlers, so we have to fake it by interposing a
     // middleware, not great, but at least it works
     let wsSubscribed = false
-    this.fd.app.use(this.path, (req, res, next) => {
-      //this.log(`PROXY ${req.baseUrl} ${req.path} ${req.url} (${req.originalUrl})`)
+    this.fd.rootApp.use(this.path, (req, res, next) => {
+      this.log(`PROXY ${req.baseUrl} ${req.path} ${req.url} (${req.originalUrl})`)
       if (!this.viteProxy) return next() // we're dead, wish we could unmount...
 
       // we can't ask http-proxy-middleware to deal with websockets because it has no way to remove
