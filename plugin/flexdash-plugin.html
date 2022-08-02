@@ -418,9 +418,10 @@ onadd: function() {
   // load the help text for a widget side-bar from the auto-generated info
   flexdash.load_help_html = function(widgetInfo, paletteLabel) {
     const helpHtml = `
-      <h3>${widgetInfo.help_title}</h3>
-      <p>The ${paletteLabel} node displays a ${widgetInfo.name_text} widget in the FlexDash dashboard.</p>
-      ${widgetInfo.help_body}
+### ${widgetInfo.help_title}
+The ${paletteLabel} node displays a ${widgetInfo.name_text} widget in the FlexDash dashboard.
+
+${widgetInfo.help_body}
     `.trim()
     $(`script[data-help-name="${widgetInfo.type_kebab}"]`).html(helpHtml) // hidden help text
     $(`#${widgetInfo.type_kebab}-help-text`).replaceWith(helpHtml) // shown help text
