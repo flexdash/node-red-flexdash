@@ -117,14 +117,11 @@ class ViteDevServer {
       data = data.replace(/\u001b\[\d+m/g, "") // remove ANSI color codes
       console.log(data.replace(/[^\n]*\n/gs, "FD dev: $&").trimEnd())
       let m
-      if (m = data.match(/^\s+> Local: *http:\/\/localhost:(\d+)\//m)) {
+      if (m = data.match(/^\s+➜ *Local: *http:\/\/localhost:(\d+)\//m)) {
         this.vitePort = parseInt(m[1], 10)
-        this.log(`vite started on port ${this.vitePort}`)
-      }
-      if (m = data.match(/^\s+ready in (\d+)ms/m)) {
-        this.log(`vite ready in ${m[1]}ms`)
         this.startProxying()
         this.viteReady = true
+        this.log(`vite ready on port ${this.vitePort}`)
         this.showStatus("OK")
       }
     })
@@ -223,13 +220,14 @@ class ViteDevServer {
         }).replace(/"(w[^"]*)"/, '$1')
         this.mungeResponse(url, res, '{}', fd_opts)
 
-      // proxy vite client source (/@vite.client) to munge vite's port
-      } else if (req.path == '/@vite/client') {
-        // extract port from host header of incoming request
-        const url = proxyUrl + req.baseUrl + req.path
-        const m = req.get('Host').match(/^[^:]+:(\d+)/)
-        const port = m ? parseInt(m[1], 10) : (req.protocol == "https" ? 443 : 80)
-        this.mungeResponse(url, res, "1880/flexdash-dev/", `${port}/flexdash-dev/`)
+      // the following is no longer needed with vite 3.x
+      // // proxy vite client source (/@vite.client) to munge vite's port
+      // } else if (req.path == '/@vite/client') {
+      //   // extract port from host header of incoming request
+      //   const url = proxyUrl + req.baseUrl + req.path
+      //   const m = req.get('Host').match(/^[^:]+:(\d+)/)
+      //   const port = m ? parseInt(m[1], 10) : (req.protocol == "https" ? 443 : 80)
+      //   this.mungeResponse(url, res, "1880/flexdash-dev/", `${port}/flexdash-dev/`)
       } else {
         this.viteProxy(req, res, next)
       }
@@ -242,7 +240,7 @@ class ViteDevServer {
   // generate vite config, we need to tweak paths and make sure it uses the correct port
   async genViteConfig(url_path, sourceDir) {
     const infile = path.join(this.sourceDir, "vite.config.js")
-    const outfile = path.join(this.sourceDir, `.vite.config-${this.name}.js`)
+    const outfile = path.join(this.sourceDir, `.vite.config-dev.js`)
     let config = await fs.promises.readFile(infile, "utf8")
     // prep what we want
     const opts = {
@@ -250,12 +248,12 @@ class ViteDevServer {
       base: url_path + '/', // URL path to get to dev dashboard...
       logLevel: 'info',
       server: {
-        hmr: { clientPort: 1880 }, // causes browser to be told to open ws to NR port
+        //hmr: { clientPort: 1880 }, // causes browser to be told to open ws to NR port
         fs: { allow: [ sourceDir, process.cwd(), this.userDir ] },
       }
     }
     // change base and add stuff in
-    const optsJson = JSON.stringify(opts).slice(1, -1) + ','
+    const optsJson = JSON.stringify(opts, null, 2).slice(1, -1) + ','
     config = config.replace(/^\s*base: .*/m, optsJson)
     await fs.promises.writeFile(outfile, config)
     return outfile
