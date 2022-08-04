@@ -14,44 +14,46 @@ onadd: function() {
   // ===== handle mutations coming in from the FlexDash side of things
 
   RED.comms.subscribe('flexdash-mutation', (topic, object) => {
-    const { seq } = object
-    //console.log("FlexDash-mutation seq=", seq)
-    if (seq > mutation_seq) {
-      mutation_seq = seq
-      fetch('_flexdash/mutations')
-        .then(res => {
-          if (res.status == 404) {
-            RED.notify("FlexDash has not been deployed yet", { type: "error" })
-            // RED.notify(
-            //   node._("common.notification.error",
-            //     { message: node._("common.notification.errors.not-deployed") }),
-            //   "error")
-            return null
-          } else if (!res.ok) {
-            //console.log("Ooops, failed to fetch mutations:", res.statusText)
-            RED.notify(
-              `Unexpected error from FlexDash plugin: ${res.statusMessage}`,
-              { type: "error" }
-            )
-            // RED.notify(
-            //   node._("common.notification.error", {
-            //       message: node._("common.notification.errors.unexpected",
-            //         { status: res.status, message: res.statusMessage })
-            //   }), "error")
-            return null
-          } else { // success
-            return res.json()
-          }
-        }).then(m => {
-          if (m) processMutations(m, 2)
-        }).catch(err => {
-          //console.log("Failed to fetch mutations:", err)
-          RED.notify(`No response from Node-RED: ${err.message}`, { type: "error" })
-          // RED.notify(node._("common.notification.error", {
-          //   message: node._("common.notification.errors.no-response")
-          // }), "error")
-        })
-    }
+    try { // caller swallows exceptions
+      const { seq } = object
+      //console.log("FlexDash-mutation seq=", seq)
+      if (seq > mutation_seq) {
+        mutation_seq = seq
+        fetch('_flexdash/mutations')
+          .then(res => {
+            if (res.status == 404) {
+              RED.notify("FlexDash has not been deployed yet", { type: "error" })
+              // RED.notify(
+              //   node._("common.notification.error",
+              //     { message: node._("common.notification.errors.not-deployed") }),
+              //   "error")
+              return null
+            } else if (!res.ok) {
+              //console.log("Ooops, failed to fetch mutations:", res.statusText)
+              RED.notify(
+                `Unexpected error from FlexDash plugin: ${res.statusMessage}`,
+                { type: "error" }
+              )
+              // RED.notify(
+              //   node._("common.notification.error", {
+              //       message: node._("common.notification.errors.unexpected",
+              //         { status: res.status, message: res.statusMessage })
+              //   }), "error")
+              return null
+            } else { // success
+              return res.json()
+            }
+          }).then(m => {
+            if (m) processMutations(m, 2)
+          }).catch(err => {
+            //console.log("Failed to fetch mutations:", err)
+            RED.notify(`No response from Node-RED: ${err.message}`, { type: "error" })
+            // RED.notify(node._("common.notification.error", {
+            //   message: node._("common.notification.errors.no-response")
+            // }), "error")
+          })
+      }
+    } catch (e) { console.log(`FD: failed to process mutations: ${e}\n${e.stack}`) }
   })
 
   function processMutations(mutations, retries) {              // TODO: handle array/object types
@@ -72,7 +74,7 @@ onadd: function() {
         }
         continue
       }
-      console.log(`Applying mutation to node ${nrid} ${node.type}`)
+      console.log(`Applying mutation to node ${nrid} ${node.type} "${node.name}"`)
       //console.log(`Node for ${nrid} has: ${Object.keys(node).join(' ')}`)
 
       // prep history event and perform changes
@@ -84,6 +86,8 @@ onadd: function() {
 
       // if we get fd_children in, verify that all are existing nodes
       if ('fd_children' in m) {
+        if (m['fd_children'] != node['fd_children'])
+          console.log(`  ${nrid}: fd_children=${m['fd_children']}`)
         for (const ch of m['fd_children'].split(',')) {
           if (ch && !RED.nodes.node(ch)) {
             console.log(`Failed to find child node ${ch} for ${nrid} (${m[k]})`)
@@ -309,10 +313,13 @@ onadd: function() {
         }
 
         try { // caller swallows exceptions
-          //console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
+          if ('fd_children' in node || 'fd_container' in node || node.type.startsWith('subflow:')) {
+            console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
+          }
           if (ev == 'change') {
+            // FIXME: this assumption is incorrect!!!
             // assume all nodes have been added to the registry and we can prune dead children
-            if (this.need_pruning) this.prune_all_children()
+            //if (this.need_pruning) this.prune_all_children()
           }
           if (ev == 'add' && node.type.startsWith('flexdash ') && 'fd_children' in node) {
             this.need_pruning = true

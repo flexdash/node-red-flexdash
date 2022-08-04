@@ -212,6 +212,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
             }
           }
           //info += ' ' + Object.keys(c).join(',')
+          //info += `\n  ${child_fdids.join(',')}`
           console.log(info)
         }
   
