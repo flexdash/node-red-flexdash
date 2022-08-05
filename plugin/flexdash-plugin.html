@@ -164,6 +164,9 @@ onadd: function() {
     }
   }
 
+  // remove child nodes that no longer exist
+  // FIXME: it's not clear at all when this can be called safely because the flow editor has no
+  // event or even notion of "everything is now loaded"
   function prune_children(parent) {
     const c0 = parent.fd_children
     let c1 = "", pruned = []
@@ -176,8 +179,10 @@ onadd: function() {
         pruned.push(c_id)
       }
     }
-    //if (pruned.length) console.log("pruned children of", parent.id, ":", pruned.join(','), " keeping ", c1)
-    parent.fd_children = c1
+    if (pruned.length) {
+      console.log("FD: would prune children of", parent.id, ":", pruned.join(','), " keeping ", c1)
+    }
+    //parent.fd_children = c1  // disabled for now
   }
 
   // ===== functions to monkey-patch subflow nodes to display a FlexDash grid selector
@@ -319,7 +324,7 @@ onadd: function() {
           if (ev == 'change') {
             // FIXME: this assumption is incorrect!!!
             // assume all nodes have been added to the registry and we can prune dead children
-            //if (this.need_pruning) this.prune_all_children()
+            if (this.need_pruning) this.prune_all_children()
           }
           if (ev == 'add' && node.type.startsWith('flexdash ') && 'fd_children' in node) {
             this.need_pruning = true
