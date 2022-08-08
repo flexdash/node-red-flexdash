@@ -43,4 +43,7 @@ if [[ $RELEASE == 1 ]]; then
   npm dist-tag add @flexdash/node-red-flexdash@$v latest
 fi
 echo ""
-echo "***** Published $v *****"
+echo "***** Published $v with FlexDash $(cat flexdash/VERSION) *****"
+
+
+
