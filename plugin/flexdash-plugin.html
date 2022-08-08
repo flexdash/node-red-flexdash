@@ -14,7 +14,6 @@ onadd: function() {
   // ===== handle mutations coming in from the FlexDash side of things
 
   RED.comms.subscribe('flexdash-mutation', (topic, object) => {
-    try { // caller swallows exceptions
       const { seq } = object
       //console.log("FlexDash-mutation seq=", seq)
       if (seq > mutation_seq) {
@@ -53,84 +52,85 @@ onadd: function() {
             // }), "error")
           })
       }
-    } catch (e) { console.log(`FD: failed to process mutations: ${e}\n${e.stack}`) }
   })
 
   function processMutations(mutations, retries) {              // TODO: handle array/object types
     //console.log("FlexDash mutations:", mutations)
-    for (const nrid in mutations) {
-      const m = mutations[nrid]
-      const node = RED.nodes.node(nrid)
-      if (!node) {
-        // Due to the Node-RED flow editor "feature" that no event is generated when all nodes
-        // have been loaded we need to retry a few times. See:
-        // https://discourse.nodered.org/t/new-editor-event-when-all-nodes-have-been-loaded/60314
-        if (retries) {
-          console.log("Retrying mutation for node", nrid, "in 2s")
-          const mm = {}; mm[nrid] = m
-          setTimeout(() => { processMutations(mm, retries-1) }, 2000)
-        } else {
-          console.log(`Failed to find node ${nrid} to apply FD mutation`)
+    try { 
+      for (const nrid in mutations) {
+        const m = mutations[nrid]
+        const node = RED.nodes.node(nrid)
+        if (!node) {
+          // Due to the Node-RED flow editor "feature" that no event is generated when all nodes
+          // have been loaded we need to retry a few times. See:
+          // https://discourse.nodered.org/t/new-editor-event-when-all-nodes-have-been-loaded/60314
+          if (retries) {
+            console.log("Retrying mutation for node", nrid, "in 2s")
+            const mm = {}; mm[nrid] = m
+            setTimeout(() => { processMutations(mm, retries-1) }, 2000)
+          } else {
+            console.log(`Failed to find node ${nrid} to apply FD mutation`)
+          }
+          continue
         }
-        continue
-      }
-      console.log(`Applying mutation to node ${nrid} ${node.type} "${node.name}"`)
-      //console.log(`Node for ${nrid} has: ${Object.keys(node).join(' ')}`)
+        console.log(`Applying mutation to node ${nrid} ${node.type} "${node.name}"`)
+        //console.log(`Node for ${nrid} has: ${Object.keys(node).join(' ')}`)
 
-      // prep history event and perform changes
-      const undo = {}
-      const historyEvent = { t: 'edit', node: node, changes: { },
-        dirty: node.dirty, changed: node.changed, // undo stuff?
-        callback: ev => Object.merge(node, undo), // undo function?
-      }
-
-      // if we get fd_children in, verify that all are existing nodes
-      if ('fd_children' in m) {
-        if (m['fd_children'] != node['fd_children'])
-          console.log(`  ${nrid}: fd_children=${m['fd_children']}`)
-        for (const ch of m['fd_children'].split(',')) {
-          if (ch && !RED.nodes.node(ch)) {
-            console.log(`Failed to find child node ${ch} for ${nrid} (${m[k]})`)
-          }
+        // prep history event and perform changes
+        const undo = {}
+        const historyEvent = { t: 'edit', node: node, changes: { },
+          dirty: node.dirty, changed: node.changed, // undo stuff?
+          callback: ev => Object.merge(node, undo), // undo function?
         }
-      }
 
-      //console.log("Mutation", JSON.stringify(m[nrid]))
-      for (const k in node._def.defaults) {
-        // handle updated fields that are part of the node's defaults
-        if (k in m) {
-          if (m[k] != node[k]) {
-            undo[k] = node[k]
-            node[k] = m[k]
-            historyEvent.changes[k] = m[k]
-          }
-        // handle updated fields that are in static
-        } else if ('static' in m && k in m.static) {
-          if (m.static[k] != node[k]) {
-            undo[k] = node[k]
-            node[k] = m.static[k]
-            historyEvent.changes[k] = m.static[k]
-          }
-        // handle rows/cols specially 'cause in widgets they're fd_cols/fd_rows
-        } else if (['fd_cols', 'fd_rows'].includes(k) && k.substring(3) in m) {
-          const k3 = k.substring(3)
-          if (m[k3] != node[k]){
-            undo[k] = node[k]
-            node[k] = m[k3]
-            historyEvent.changes[k] = m[k3]
+        // if we get fd_children in, verify that all are existing nodes
+        if ('fd_children' in m) {
+          if (m['fd_children'] != node['fd_children'])
+            console.log(`  ${nrid}: fd_children=${m['fd_children']}`)
+          for (const ch of m['fd_children'].split(',')) {
+            if (ch && !RED.nodes.node(ch)) {
+              console.log(`Failed to find child node ${ch} for ${nrid} (${m['name']})`)
+            }
           }
         }
+
+        //console.log("Mutation", JSON.stringify(m[nrid]))
+        for (const k in node._def.defaults) {
+          // handle updated fields that are part of the node's defaults
+          if (k in m) {
+            if (m[k] != node[k]) {
+              undo[k] = node[k]
+              node[k] = m[k]
+              historyEvent.changes[k] = m[k]
+            }
+          // handle updated fields that are in static
+          } else if ('static' in m && k in m.static) {
+            if (m.static[k] != node[k]) {
+              undo[k] = node[k]
+              node[k] = m.static[k]
+              historyEvent.changes[k] = m.static[k]
+            }
+          // handle rows/cols specially 'cause in widgets they're fd_cols/fd_rows
+          } else if (['fd_cols', 'fd_rows'].includes(k) && k.substring(3) in m) {
+            const k3 = k.substring(3)
+            if (m[k3] != node[k]){
+              undo[k] = node[k]
+              node[k] = m[k3]
+              historyEvent.changes[k] = m[k3]
+            }
+          }
+        }
+        //console.log("Changes:", JSON.stringify(historyEvent.changes))
+        if (Object.keys(undo).length > 0) {
+          node.changed = true
+          node.dirty = true
+          RED.nodes.dirty(true)
+          RED.history.push(historyEvent)
+        }
       }
-      //console.log("Changes:", JSON.stringify(historyEvent.changes))
-      if (Object.keys(undo).length > 0) {
-        node.changed = true
-        node.dirty = true
-        RED.nodes.dirty(true)
-        RED.history.push(historyEvent)
-      }
-    }
-    RED.view.redraw()
-    // RED.notify(...
+      RED.view.redraw()
+      // RED.notify(...
+    } catch (e) { console.log(`FD: failed to process mutations: ${e}\n${e.stack}`) }
   }
 
   // ===== clear flexdash global when switching to a different project
