@@ -177,8 +177,8 @@ class ViteDevServer {
       })
     })
     req.on('error', e => {
-      this.log(`Error proxying ${url}: ${e}`)
-      resp.end(500)
+      this.log(`${e} while proxying ${url}`)
+      resp.status(500).end(`Error while proxying to vite`)
     })
     req.end()
   }
