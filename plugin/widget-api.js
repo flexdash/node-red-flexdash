@@ -9,16 +9,6 @@ module.exports = class WidgetAPI {
     this.plugin = plugin // flexdash plugin
   }
   
-  // checkProp verifies that a prop being set dynamically actually exists by looking whether
-  // there's a static setting for it. There really isn't much harm in setting a non-existent
-  // prop so this check could be eliminated. It's here because it provides early feedback in
-  // the common case where it's a actually an error.
-  _checkProp(widget, prop) {
-    if (!(prop in widget.static)) {
-      //this.node.warn(`Widget of node ${this.node.id} has no prop '${prop}'`)
-    }
-  }
-
   // setProps updates the widget's dynamic props with the passed values (typ. msg.props)
   // For each dynamic prop we need to store the value in /node-red/<widget_id>/<param> and
   // ensure that the widget's dynamic/<param> field points there. Unless a param's value is
@@ -50,7 +40,12 @@ module.exports = class WidgetAPI {
 
       // construct flexdash path and check widget actually has prop
       const fdpath = `${w.dyn_root}/${path}`
-      this._checkProp(w, prop)
+      if (!(prop in w.static)) {
+        // widget doesn't have this prop, don't set it 'cause it may be a huge data structure
+        // causing havoc, Node-RED convention is to ignore unkonwn msg.xxx fields
+        console.log(`FD set: widget doesn't have prop ${prop}, has: ${Object.keys(w.static)}`)
+        return
+      }
 
       // set or unset prop                                           FIXME: save into dynamics
       if (value !== undefined) {
