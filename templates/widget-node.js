@@ -2,16 +2,30 @@
 
 module.exports = function (RED) {
 
+  const widgetProps = ##props##
+  const widgetDefaults = Object.fromEntries(Object.values(widgetProps).map(p => [p.name, p.default]))
+
   // Instantiate the Node-RED node, 'this' is the node being constructed
   // and config contains the values set by the user in the flow editor.
   function ##name##(config) {
     RED.nodes.createNode(this, config)
+
+    // Create missing node properties. This is to deal with the fact that if node properties are
+    // added in an upgrade then nodes in existing flows don't have them. Besides not having the
+    // expected defaults, this breaks the "widget-has-property" check when setting dynamic prop
+    // values.
+    for (const prop in widgetDefaults) {
+      if (!config.hasOwnProperty(prop)) {
+        config[prop] = widgetDefaults[prop]
+      }
+    }
+  
     // Initialize the widget by pushing the config to its props and get a handle
     // onto the FlexDash widget API.
     // The third arg is the kind of widget to create, if it doesn't exist
     const widget = RED.plugins.get('flexdash').initWidget(this, config, '##name##')
     if (!widget) return // missing config node, thus no FlexDash to hook up to, nothing to do here
-    
+
     // handle flow input messages, basically massage them a bit and update the FD widget
     this.on("input", msg => {
       // if message has a topic and a `_delete` property then delete array-widget topic
