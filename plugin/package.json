@@ -1,6 +1,6 @@
 {
   "name": "@flexdash/node-red-flexdash-plugin",
-  "version": "0.4.80",
+  "version": "0.4.81",
   "description": "Node-RED plugin for the FlexDash dashboard",
   "publishConfig": {
     "access": "public"
