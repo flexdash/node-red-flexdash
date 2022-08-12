@@ -146,7 +146,7 @@ onadd: function() {
     if (typeof parent == 'string') parent = RED.nodes.node(parent)
     if (!parent) return
     if (parent.fd_children.includes(child_id)) return // works given comma-separation
-    // new child, append
+    // new child, append                                   // FIXME: need to set parent dirty?
     parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
     //console.log("added child", child_id, "to", parent.id)
   }
@@ -156,17 +156,17 @@ onadd: function() {
     if (typeof parent == 'string') parent = RED.nodes.node(parent)
     if (!parent) return
     const i = parent.fd_children.indexOf(child_id)
-    if (i >= 0) {
-      prune_children(parent) // opportunistic
+    if (i >= 0) {                                           // FIXME: need to set parent dirty?
       parent.fd_children = parent.fd_children.substring(0, i-1) // leading comma...
                          + parent.fd_children.substring(i+child_id.length)
+      prune_children(parent) // opportunistic
       //console.log('removed child', child_id, 'from', parent.id)
     }
   }
 
   // remove child nodes that no longer exist
   // FIXME: it's not clear at all when this can be called safely because the flow editor has no
-  // event or even notion of "everything is now loaded"
+  // event or even notion of "everything is now loaded"; so this only prints info for now...
   function prune_children(parent) {
     const c0 = parent.fd_children
     let c1 = "", pruned = []
@@ -304,15 +304,13 @@ onadd: function() {
           if (!node_id) node_id = node.id
           const parent = RED.nodes.node(parent_id)
           if (parent) {
-            if (!parent.fd_children?.includes(node_id)) {
-              // node either added or moved to new parent, first remove from old parent
-              RED.nodes.eachConfig(n => {
-                if ('fd_children' in n) remove_child(n, node_id)  // FIXME: dirty? remove_child undefined
-              })
-              // add to new parent
-              if ('fd_children' in parent) {
-                add_child(parent, node_id)
-              }
+            // remove from old parent
+            RED.nodes.eachConfig(n => {
+              if (n != parent && 'fd_children' in n) remove_child(n, node_id)
+            })
+            // add to new parent
+            if ('fd_children' in parent && !parent.fd_children?.includes(node_id)) {
+              add_child(parent, node_id)
             }
           }
         }
