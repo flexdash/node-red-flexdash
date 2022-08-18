@@ -405,7 +405,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   RED.nodes.registerType("flexdash dashboard", FlexDashDashboard)
   RED.log.info("Node-RED FlexDash version " + version)
   FS.readFile(paths.prodRoot+'/VERSION', 'utf8', (err, data) => {
-    if (err) RED.log.info(err)
+    if (err) RED.log.info("Trying to print FD version: " + err)
     else if (data) RED.log.info(`FlexDash UI version ${data}`)
   })
   if (cw_version) RED.log.info("Node-RED FD Core Widgets version " + cw_version)
