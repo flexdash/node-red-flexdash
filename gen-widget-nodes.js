@@ -36,7 +36,7 @@ function camel2kebab(camel) {
 function generate(text, info) {
   return text.replace(/##([a-zA-Z0-9_]+)##/g, (m, p) => {
     if (!(p in info)) return m
-    if (typeof info[p] === 'object') return JSON.stringify(info[p])
+    if (typeof info[p] === 'object') return JSON.stringify(info[p], null, 2)
     else return info[p]
   })
 }
