@@ -17,6 +17,7 @@ module.exports = function (RED) {
     for (const prop in widgetDefaults) {
       if (!config.hasOwnProperty(prop)) {
         config[prop] = widgetDefaults[prop]
+        this.debug("Missing property: " + prop + " added with default: " + config[prop])
       }
     }
   
