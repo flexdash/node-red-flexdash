@@ -235,7 +235,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // handler to serve up list of extra widgets, as well as extra widgets themselves
       app.get('/xtra.json', async (req, res) => this._xtra(req, res))
       app.get('/xtra/*', (req, res) => {
-        this._xtra_lib(req.path.substring(path.length+6), req, res)
+        console.log("xtra: " + req.path)
+        this._xtra_lib(req.path.substring(6), req, res)
       })
 
       this.log("port       : " + (config.redServer ? "Node-RED port" : ("on port " + config.port)))
