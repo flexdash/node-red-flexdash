@@ -162,7 +162,7 @@ export class ColorPicker {
             // put the name of the color at the top
             const c = this.colorSnake(color)
             $(`<div>${c}</div>`).css({
-                maxWidth: "80px", margin: "0px -10px", // hack to deal with over-long names
+                margin: "0px -10px", // hack to deal with over-long names
             }).appendTo(colorBox)
             // add the variants below
             const cv = `${curVariant}`
