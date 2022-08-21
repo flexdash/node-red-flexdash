@@ -471,7 +471,7 @@ ${widgetInfo.help_body}
         const prop = (el.id || "").replace("node-input-", "") // name of corresponding prop
         if (prop in widgetInfo.props) {
           const it = widgetInfo.props[prop].input_type // str, num, bool, etc.
-          if (it == 'str' && (prop == 'color' || prop.endsWith("_color"))) {
+          if ((it == 'str' || it == 'any') && (prop == 'color' || prop.endsWith("_color"))) {
             // color property (same heuristic as in FD's prop_edit.vue)
             colorPicker($(el), colors, node[prop])
           } else {
