@@ -1,7 +1,11 @@
-<script type="text/javascript">
+<script type="module">
+
+import colors from './resources/@flexdash/node-red-flexdash-plugin/colors.js'
+import colorPicker from './resources/@flexdash/node-red-flexdash-plugin/color-picker.js'
 
 // Init FlexDash global
-try { flexdash } catch(e) { flexdash = {} }
+//try { flexdash } catch(e) { flexdash = {} }
+if (!('flexdash' in globalThis)) globalThis.flexdash = {}
 flexdash.last_container = null // last container selected, auto-select it when adding the next node
 
 
@@ -12,6 +16,8 @@ onadd: function() {
   var mutation_seq = 0
   
   // ===== handle mutations coming in from the FlexDash side of things
+  // These are changes to widgets the user made in FlexDash directly that have been sent to
+  // Node-RED, which forwards them into this here...
 
   RED.comms.subscribe('flexdash-mutation', (topic, object) => {
       const { seq } = object
@@ -170,7 +176,7 @@ onadd: function() {
   function prune_children(parent) {
     const c0 = parent.fd_children
     let c1 = "", pruned = []
-    for (c_id of parent.fd_children.replace(/,,+/g, ',').split(',')) {
+    for (let c_id of parent.fd_children.replace(/,,+/g, ',').split(',')) {
       if (!c_id) {
         continue
       } else if (RED.nodes.node(c_id)) {
@@ -205,7 +211,7 @@ onadd: function() {
   patch_subflow_edit_panel()
 
   function patch_subflow_instance_edit(subflowId) {
-    subflow = RED.nodes.getType("subflow:" + subflowId)
+    const subflow = RED.nodes.getType("subflow:" + subflowId)
     if (!subflow) return
     if (subflow.defaults.flexdash_grid) { console.log(`Subflow ${subflow.id} already patched`); return }// already patched
     console.log(`Patching subflow ${subflow.type}`)
@@ -231,7 +237,7 @@ onadd: function() {
   }
 
   function unpatch_subflow_instance_edit(subflowId) {
-    subflow = RED.nodes.getType("subflow:" + subflowId)
+    const subflow = RED.nodes.getType("subflow:" + subflowId)
     if (!subflow) return
     //console.log(`Unpatching subflow ${subflowId}`)
     delete subflow.defaults.flexdash_grid
@@ -425,6 +431,9 @@ onadd: function() {
     return new FDRegistry()
   })()
 
+
+  //===== Misc helper functions that are used by widgets to display the edit form
+
   // load the help text for a widget side-bar from the auto-generated info
   flexdash.load_help_html = function(widgetInfo, paletteLabel) {
     const helpHtml = `
@@ -462,12 +471,18 @@ ${widgetInfo.help_body}
         const prop = (el.id || "").replace("node-input-", "") // name of corresponding prop
         if (prop in widgetInfo.props) {
           const it = widgetInfo.props[prop].input_type // str, num, bool, etc.
-          const conf = it && it !== 'any' // construct config passed into typedInput()
-            ? { type:it, types:[it], typeField: el.id + '-type' }
-            : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
-          //console.log("typedInput", prop, conf, this)
-          $(el).typedInput(conf) // init the typedInput field
-          $(el).typedInput("value", node[prop]) // necessary due to dynamic loading...
+          if (it == 'str' && (prop == 'color' || prop.endsWith("_color"))) {
+            // color property (same heuristic as in FD's prop_edit.vue)
+            colorPicker($(el), colors, node[prop])
+          } else {
+            // other property types use a typedInput
+            const conf = it && it !== 'any' // construct config passed into typedInput()
+              ? { type:it, types:[it], typeField: el.id + '-type' }
+              : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
+            //console.log("typedInput", prop, conf, this)
+            $(el).typedInput(conf) // init the typedInput field
+            $(el).typedInput("value", node[prop]) // necessary due to dynamic loading...
+          }
         }
       })
     })
