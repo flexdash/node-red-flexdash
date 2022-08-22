@@ -68,6 +68,10 @@
       tabs.addTab({ id: "fd-tab-props", label: "Widget props" })
       tabs.activateTab(this.fd_container ? "fd-tab-props" : "fd-tab-general")
     },
+
+    oneditsave() { // save the widget props
+      flexdash.save_props_edit(this, widgetInfo, "fd-tab-props")
+    },
   })
 </script>
 

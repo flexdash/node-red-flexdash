@@ -465,6 +465,7 @@ ${widgetInfo.help_body}
     const url = `${widgetInfo.resources_path}/${widgetInfo.base_filename}-props.html`
     // load that url into DOM
     const allTypes = ['str','num','bool','json']
+    const typeOf = { string: 'str', number: 'num', boolean: 'bool', object: 'json' }
     $(`#${domId}`).load(url, () => {
       // after inserting into DOM, initialize the typed input fields
       $('.fd-typed-input').each((ix, el) => {
@@ -476,15 +477,39 @@ ${widgetInfo.help_body}
             colorPicker($(el), colors, node[prop])
           } else {
             // other property types use a typedInput
-            const conf = it && it !== 'any' // construct config passed into typedInput()
-              ? { type:it, types:[it], typeField: el.id + '-type' }
-              : { type:"str", types:allTypes, typeField: el.id + '-type' } // unconstrained
-            //console.log("typedInput", prop, conf, this)
+            const anyType = !it || it == 'any'
+            const types = anyType ? allTypes : [it]
+            const type = !anyType ? it : (typeOf[typeof node[prop]] || 'json')
+            const value = type == 'json' ? JSON.stringify(node[prop]) : node[prop]
+            const conf = { default:type, types, typeField: el.id + '-type' }
+            //console.log("typedInput", prop, conf, value, `(${typeof node[prop]})`)
             $(el).typedInput(conf) // init the typedInput field
-            $(el).typedInput("value", node[prop]) // necessary due to dynamic loading...
+            $(el).typedInput('value', value) // must be separate from previous call !@#$%^&*
           }
         }
       })
+    })
+  }
+
+  // save typedInput fields so we get the type right (really??? how stupid can typedInput be???)
+  // for all the typedInput fields we created we have to look at the DOM type input to get the type,
+  // thenm save away the value correctly typed, and remove the field from the DOM so it doesn't
+  // get saved overriding wha we just did. Nuts...
+  flexdash.save_props_edit = function(node, widgetInfo, domId) {
+    $(`#${domId}`).find('.fd-typed-input.red-ui-typedInput').each((ix, el) => {
+      try {
+        const value = $(el).typedInput("value")
+        const type = $(el).typedInput("type")
+        const name = el.id.replace("node-input-", "") // name of corresponding prop
+        switch (type) {
+          case 'num': node[name] = parseFloat(value); break
+          case 'bool': node[name] = value == 'true'; break
+          case 'json': node[name] = JSON.parse(value); break
+          default: node[name] = value; break
+        }
+        //console.log(`saving prop ${name} = ${value} (${type})`)
+        el.remove()
+      } catch(e) { console.log(`flexdash.save_props_edit: ${e}`) }
     })
   }
 
