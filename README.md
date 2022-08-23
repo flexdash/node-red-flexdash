@@ -40,8 +40,8 @@ Pre-release (dev) versions are published on npm using a "dev" tag:
 ### Near term enhancements
 
 - [ ] set-up demos for all widgets
-- [ ] replace typedInput by something better, support unsetting, support color picker, fix booleans
-- [ ] color picker for node-red using the material design palette
+- [X] replace typedInput by something better, support unsetting, support color picker, fix booleans
+- [X] color picker for node-red using the material design palette
 - [ ] support fd-custom node, i.e., compile vue SFC on-the-fly server-side
 
 ### Near term fixes
@@ -65,8 +65,8 @@ Pre-release (dev) versions are published on npm using a "dev" tag:
 - [ ] implement array_max in array-widgets
 - [X] Windows 10 support
 - [ ] Basic login mechanism
-- [ ] Wrap onInput callback into try/catch
-- [ ] Pass flexdash client id to onInput handler
+- [X] Wrap onInput callback into try/catch
+- [X] Pass flexdash client id to onInput handler
 - [ ] Edit mode disable/off/on setting, per-user if there's auth
 - [ ] Create an "any widget" node
 - [ ] Add logging verbosity switch to dashboard config node
