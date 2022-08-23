@@ -320,8 +320,12 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       if (ix > 0) topic = topic.substring(0, ix)
       // find node and send it the message
       if (topic in this.inputHandlers) {
-        this.inputHandlers[topic].call({}, array_topic, payload, socket.id)
-      } else console.log("No input handler for", topic) // else silently swallow !?
+        try {
+          this.inputHandlers[topic].call({}, array_topic, payload, socket.id)
+        } catch (e) {
+          this.warn(`Error handling input for ${topic}: ${e}`)
+        }
+      } else this.log("No input handler for", topic) // else silently swallow !?
     }
 
     // send an internally generated mutation to all connected dashboards
