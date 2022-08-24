@@ -106,6 +106,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // non-array widget
       } else {
         node._fd_kind = widget_kind
+        if (config.fd_output_topic) node._fd_output_topic = config.fd_output_topic
         addWidget(widget_kind, config, fd, node._fd_id)
       }
 

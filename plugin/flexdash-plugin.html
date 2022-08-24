@@ -449,11 +449,12 @@ ${widgetInfo.help_body}
   // insert the html for the general node parameters into the data template HTML string
   // this should be called when loading the node's script and not in oneditprepare so the
   // current values are properly loaded into the DOM elements.
-  flexdash.insert_general_edit = function(dataTemplateName, domId) {
+  flexdash.insert_general_edit = function(dataTemplateName, domId, hasOutput) {
     const el = $(`script[data-template-name="${dataTemplateName}"]`)
     let html = el.html()
     const re = new RegExp(` id="${domId}"[^>]*>`)
-    html = html.replace(re, `$&${flexdash.general_properties}`)
+    const out = hasOutput ? flexdash.output_properties : ''
+    html = html.replace(re, `$&${flexdash.general_properties}\n${out}`)
     el.html(html)
   }
 
@@ -489,6 +490,18 @@ ${widgetInfo.help_body}
         }
       })
     })
+
+    // add a hook to toggle the visibility of the output-topic field
+    function toggle_fd_array(is_array) {
+      const can = $('.can_output_topic')
+      const cannot = $('.cannot_output_topic')
+      if (is_array) { can.hide(); cannot.show() } // arrays cannot specify an output topic
+      else { can.show(); cannot.hide() } // non-array can
+    }
+    $('#node-input-fd_array').change(() => {
+      toggle_fd_array($('#node-input-fd_array').is(':checked'))
+    })
+    toggle_fd_array($('#node-input-fd_array').is(':checked'))
   }
 
   // save typedInput fields so we get the type right (really??? how stupid can typedInput be???)
@@ -563,6 +576,17 @@ ${widgetInfo.help_body}
       <label for="node-input-fd_array_max">Max widgets</label>
       <input type="number" id="node-input-fd_array_max" style="width: 6em">
       <br><small class="fd-indent">Prevent run-away arrays by limiting the max number of widgets generated.</small>
+    </div>
+  `.trim()
+
+  flexdash.output_properties = `
+    <div class="form-row">
+      <label for="node-input-fd_output_topic">Output topic</label>
+      <input type="text" id="node-input-fd_output_topic" class="can_output_topic">
+      <span class="cannot_output_topic"><tt>msg.topic</tt> is set to the topic of the array
+        element producing the message</span>
+      <br>
+      <small class="fd-indent can_output_topic">Optional string to output in <tt>msg.topic</tt></small>
     </div>
   `.trim()
 

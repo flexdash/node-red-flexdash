@@ -16,8 +16,11 @@
   // update the text for the help sidebar
   var helpHtml = flexdash.load_help_html(widgetInfo, paletteLabel)
 
-  flexdash.insert_general_edit("##type_kebab##", "fd-tab-general")
+  // prepare the general edit tab
+  flexdash.insert_general_edit("##type_kebab##", "fd-tab-general", ##output##)
 
+  // prepare an output topic property if the widget outputs messages
+  var ot_prop = ##output## ? { fd_output_topic: { value: null } } : {};
 
   RED.nodes.registerType(widgetInfo.type_kebab, {
     // properties of the NR node used by NR itself
@@ -38,6 +41,7 @@
       fd_rows: { value: 1, validate(v) { return v>0 && v<=100 } }, // widget height
       fd_array: { value: false }, // create array of this widget
       fd_array_max: { value: 10, validate(v) { return v>0 && v<1000} }, // max array size
+      ...ot_prop, // output topic property
       // name field of Node-RED node (standard)
       name: { value: '' },
   
@@ -65,11 +69,11 @@
         RED.tray.resize()
       }})
       tabs.addTab({ id: "fd-tab-general", label: "General" })
-      tabs.addTab({ id: "fd-tab-props", label: "Widget props" })
+      tabs.addTab({ id: "fd-tab-props", label: "Widget input props" })
       tabs.activateTab(this.fd_container ? "fd-tab-props" : "fd-tab-general")
     },
 
-    oneditsave() { // save the widget props
+    oneditsave() { // save the typedInput props so we get the types right
       flexdash.save_props_edit(this, widgetInfo, "fd-tab-props")
     },
   })
