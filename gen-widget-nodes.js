@@ -10,7 +10,7 @@ const propTMPL = `
     <label for="node-input-##name##">##name_text##</label>
     <input type="text" id="node-input-##name##" class="fd-typed-input" placeholder="##default_html##" />
     <input type="hidden" id="node-input-##name##-type" />
-    <br><small class="fd-indent">##tip##Change using <tt>msg[##name##]</tt>.</small>
+    <br><small class="fd-indent">##tip##Change using <tt>msg.##name##</tt>.</small>
 </div>
 `.trim()
 
@@ -146,6 +146,7 @@ class FDWidgetCodeGen {
 
     if ('value' in this.info.props) this.info.payload_prop = 'value'
     else if ('data' in this.info.props) this.info.payload_prop = 'data'
+    else if ('text' in this.info.props) this.info.payload_prop = 'text'
     else this.info.payload_prop = ''
   }
 
