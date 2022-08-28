@@ -481,8 +481,10 @@ ${widgetInfo.help_body}
             const anyType = !it || it == 'any'
             const types = anyType ? allTypes : [it]
             const type = !anyType ? it : (typeOf[typeof node[prop]] || 'json')
+            if (type == 'json' && node[prop] === undefined) node[prop] = null
             const value = type == 'json' ? JSON.stringify(node[prop]) : node[prop]
             const conf = { default:type, types, typeField: el.id + '-type' }
+            //console.log(`setting up prop ${prop}: "${value}" (${type} ${JSON.stringify(node[prop])})`)
             //console.log("typedInput", prop, conf, value, `(${typeof node[prop]})`)
             $(el).typedInput(conf) // init the typedInput field
             $(el).typedInput('value', value) // must be separate from previous call !@#$%^&*
@@ -520,7 +522,7 @@ ${widgetInfo.help_body}
           case 'json': node[name] = JSON.parse(value); break
           default: node[name] = value; break
         }
-        //console.log(`saving prop ${name} = ${value} (${type})`)
+        //console.log(`saving prop ${name} = ${JSON.stringify(node[name])} <- ${value} (${type})`)
         el.remove()
       } catch(e) { console.log(`flexdash.save_props_edit: ${e}`) }
     })
