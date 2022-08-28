@@ -34,7 +34,8 @@ export class ColorPicker {
 
     // return the hex value of the color or null if not found
     colorByName(name) {
-        // first natch the base color name, i.e. prefix
+        if (!name || typeof name !== 'string') return ""
+        // first match the base color name, i.e. prefix
         let variants
         for (let c in this.palette) {
             const cs = this.colorSnake(c)
