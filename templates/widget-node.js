@@ -36,8 +36,13 @@ module.exports = function (RED) {
       }
       // prepare update of widget props
       const props = Object.assign({}, msg) // shallow clone
-      // msg.payload is interpreted as setting the ##payload_prop## prop
-      if ('##payload_prop##' && 'payload' in msg) props['##payload_prop##'] = msg.payload
+      // // msg.payload is interpreted as setting the ##payload_prop## prop
+      // if ('##payload_prop##' && 'payload' in msg) props['##payload_prop##'] = msg.payload
+      // remap msg.payload to the prop expected by the widget
+      if ('##payload_prop##' && 'payload' in msg) {
+        props['##payload_prop##'] = msg.payload
+        delete props.payload
+      }
       // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _
       for (const p of ['topic', 'payload']) delete props[p]
       widget.setProps(msg.topic, props)

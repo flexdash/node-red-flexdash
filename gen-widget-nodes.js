@@ -105,10 +105,19 @@ class FDWidgetCodeGen {
     for (const prop in props) {
       if (prop === 'title') continue
       const p = {}
-      // prop name
-      p.name = prop
-      p.name_text = snake2text(camel2text(prop)) // could be either...
-      p.name_kebab = camel2kebab(prop).replace(/_/g, '-')
+
+      // handle 'msg.payload': FlexDash doesn't use payload, but we map msg.payload into one
+      // of a couple of hard-coded props. This should be configurable.
+      if (['value', 'data', 'text'].includes(prop)  && !this.info.payload_prop) {
+        p.name = 'payload'
+        p.name_text = 'Payload'
+        p.name_kebab = 'payload'
+        this.info.payload_prop = prop
+      } else {
+        p.name = prop
+        p.name_text = snake2text(camel2text(prop)) // could be either...
+        p.name_kebab = camel2kebab(prop).replace(/_/g, '-')
+      }
 
       // handle `props: { min: 100 }` and `props: { min: null }` cases
       if (props[prop] === null || typeof props[prop] !== 'object') {
@@ -141,13 +150,9 @@ class FDWidgetCodeGen {
       p.type = type
       p.input_type = type && typeMap[type] || "any" // for typedInput field
 
-      this.info.props[prop] = p
+      this.info.props[p.name] = p
     }
 
-    if ('value' in this.info.props) this.info.payload_prop = 'value'
-    else if ('data' in this.info.props) this.info.payload_prop = 'data'
-    else if ('text' in this.info.props) this.info.payload_prop = 'text'
-    else this.info.payload_prop = ''
   }
 
   async doit() {
