@@ -139,6 +139,33 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     }
   }
 
+  // initCtrl creates an interface for a FD ctrl node so it can receive messages
+  function initCtrl(node, container) {
+    try { // ensure we can produce a stack backtrace
+      RED.log.debug(`Initializing ctrl for node ${node.id}`)
+      
+      return {
+        // onInput registers the handler of a node so it gets it's corresponding widget's output
+        onInput(handler) {
+          if (typeof handler !== 'function') throw new Error("onInput handler must be a function")
+          RED.log.debug(`initCtrl onInput for node ${node.id}: ${container?.fd_id}`)
+          node.fd.inputHandlers[container?.fd_id] = handler
+        }
+      }
+    } catch (e) {
+      RED.log.warn(`FlexDash initCtrl: failed to initialize widget for node '${node.id}': ${e.stack}`)
+      return null
+    }
+  }
+
+  function destroyCtrl(node) {
+    try { // ensure we can produce a stack backtrace
+    } catch (e) {
+      RED.log.warn(`FlexDash destroyCtrl: '${node.id}': ${e.stack}`)
+    }
+  }
+
+
   // Generate the FlexDash config for config nodes (dash/tab/grid/panel) from the Node-RED config.
   // This happens at the time a deploy is complete because then:
   // (a) all active nodes are instantiated, so following fd_children works,
@@ -521,6 +548,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     },
     // public functions
     initWidget, destroyWidget,
+    initCtrl, destroyCtrl,
     // private stuff
     _genArrayFDId: genArrayFDId,
     _addWidgetTopic: addWidgetTopic,

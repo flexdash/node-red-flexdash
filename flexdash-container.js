@@ -83,6 +83,8 @@ module.exports = function(RED) {
         id: this.fd_id, kind: c.kind, title: c.title,
         min_cols: c.min_cols, max_cols: c.max_cols,
       }
+      // add show prop for pop-up grids so it can be set dynamically
+      if (c.kind == "PopupGrid") fd_config.show = false
       this.plugin._newNode(this.id, this, fd_config)
     }
 

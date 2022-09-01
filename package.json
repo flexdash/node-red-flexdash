@@ -20,6 +20,7 @@
       "flexdash container": "flexdash-container.js",
       "flexdash tab": "flexdash-tab.js",
       "flexdash iframe": "flexdash-iframe.js",
+      "flexdash ctrl": "flexdash-ctrl.js",
       "flexdash dev server": "flexdash-dev-server.js"
     }
   },

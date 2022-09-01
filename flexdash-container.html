@@ -71,8 +71,9 @@
           $(`.kind-button-group[kind=${kind}]`).addClass("selected")
           $('#node-config-input-kind').val(kind)
           // toggle the panel and set the value in the param to be saved
-          $("#stdgrid-only,#panels-only,#panel-only,#subflowpanel-only").hide()
+          $("#grids-only,#panels-only,#panel-only,#subflowpanel-only").hide()
           $(`#${kind.toLowerCase()}-only`).show()
+          if (kind.endsWith('Grid')) $(`#grids-only`).show()
           if (kind.endsWith('Panel')) $(`#panels-only`).show()
           // select the most recent container if we're switching to panel
           if (kind == "Panel" && flexdash.last_container) {
@@ -99,7 +100,7 @@
         // fix-up fields that depend on the kind
         const kind = $('#node-config-input-kind').val()        
 
-        if (kind == 'SubflowPanel' || kind == 'StdGrid') {
+        if (kind == 'SubflowPanel' || kind.endsWith('StdGrid')) {
           // clear the parent field so we don't depend on some random config node
           $('#node-config-input-parent [selected]').val("")
           $('#node-config-input-parent').removeClass("input-error")
@@ -130,23 +131,27 @@
     <span class="button-group" id="kind-span">
       <button type="button" class="red-ui-button toggle kind-button-group" kind="StdGrid"
         >grid</button
+        ><button type="button" class="red-ui-button toggle kind-button-group" kind="PopupGrid"
+        >pop-up grid</button
         ><button type="button" class="red-ui-button toggle kind-button-group" kind="Panel"
         >panel</button
         ><button type="button" class="red-ui-button toggle kind-button-group" kind="SubflowPanel"
         >subflow panel</button>
     </span>
-    <small class="fd-indent">A grid is the primary container for widgets and panels.
+    <small class="fd-indent">A <b>grid</b> is the primary container for widgets and panels.
       It displays a grid of widgets and panels, and reflows its content based on the width of
       the browser window.<br>
-      A panel can be used within a grid to create a sub-grid in which widgets can be arranged
-      at fixed positions without being impacted by the window width.<br>
-      A subflow panel is a panel that holds all widgets of a subflow, it can only be used with
+      A <b>pop-up grid</b> is an <b>experimental!</b> grid that is displayed as a full-window
+      pop-up overlay.<br>
+      A <b>panel</b> can be used within a grid to create a half-sized sub-grid in which widgets
+      can be arranged at fixed positions without being impacted by the window width.<br>
+      A <b>subflow panel</b> is a panel that holds all widgets of a subflow, it can only be used with
       nodes in a subflow.
     </small>
   </div>
   
   <!-- Fields specific to grids -->
-  <div id="stdgrid-only" style="display: none">
+  <div id="grids-only" style="display: none">
     <div class="form-row">
       <label for="node-config-input-tab">Tab</label>
       <input type="text" id="node-config-input-tab">
@@ -198,5 +203,11 @@
 </script>
 
 <script type="text/html" data-help-name="flexdash container">
-  <p>Represents a tab, grid, or panel in FlexDash</p>
+  <p>Represents a grid or panel in FlexDash.
+    Refer to the documentation for
+    <a href="https://flexdash.github.io/docs/using-flexdash/core-concepts/">core concepts</a>
+    around page layout as well as specifics of
+    <a href="https://flexdash.github.io/docs/using-flexdash/grid-panel-layout/">grid and
+    panel layout</a>.
+  </p>
 </script>

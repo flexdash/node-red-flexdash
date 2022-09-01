@@ -1,0 +1,61 @@
+<!-- FlexDash ctrl node for Node-RED
+     Control some innards of FlexDash, such as config nodes.
+     Copyright ©2022 by Thorsten von Eicken, see LICENSE
+-->
+
+<script type="text/javascript">
+
+  RED.nodes.registerType('flexdash ctrl', {
+    category: 'flexdash',
+    color: "#F0E4B8",
+    inputs: 1,
+    outputs: 1,
+    icon: "font-awesome/fa-gear", // icon in flow editor
+    paletteLabel: "FD ctrl",
+
+    defaults: {
+      name: { value: "" },
+      fd_container: {
+        type: "flexdash container", value: "", required: true, // grid/panel
+        validate: flexdash.validate_widget_container },
+      fd_output_topic: { value: null },
+    },
+
+    label() { return this.name || "FD ctrl" },
+    labelStyle() { return this.name ? "node_label_italic" : "" },
+
+    oneditprepare() { flexdash.select_last_container() },
+  })
+</script>
+
+<script type="text/html" data-template-name="flexdash ctrl">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+    <small class="fd-indent">Name of node in Node-RED. Not displayed in dashboard. 
+    </small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-fd_container">Container</label>
+    <input type="text" id="node-input-fd_container">
+    <br><small class="fd-indent">Dashboard Grid or Panel to control.</small>
+  </div>
+  <div class="form-row">
+    <label for="node-input-fd_output_topic">Output topic</label>
+    <input type="text" id="node-input-fd_output_topic">
+    <small class="fd-indent">Optional string to output in <tt>msg.topic</tt></small>
+  </div>
+</script>
+
+<script type="text/markdown" data-help-name="flexdash ctrl">
+  Node to control some innards of FlexDash, such as features of tabs, grids, and panels.
+
+  Currently supports:
+  - Controlling the properties of grids and panels by associating the ctrl with a grid or
+    panel config node and sending it messages with `msg.property`. Current supported properties:
+    - grids: `min_cols`, `max_cols`
+    - pop-up grids: same as grids plus `show`
+    - panels: `solid`
+  - Receiving close messages from a pop-up grid: the output message is
+    `{ payload: { show: false } }`.
+</script>
