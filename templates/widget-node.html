@@ -20,7 +20,7 @@
   flexdash.insert_general_edit("##type_kebab##", "fd-tab-general", ##output##)
 
   // prepare an output topic property if the widget outputs messages
-  var ot_prop = ##output## ? { fd_output_topic: { value: null } } : {};
+  var ot_prop = ##output## ? { fd_output_topic: { value: null } } : {}
 
   RED.nodes.registerType(widgetInfo.type_kebab, {
     // properties of the NR node used by NR itself
@@ -61,6 +61,8 @@
       flexdash.load_props_edit(this, widgetInfo, "fd-tab-props")
       // select last-used container
       flexdash.select_last_container()
+      // display the node ID in the general tab
+      $('#nr-node-id').text(this.id || "n/a")
 
       // manage tabs
       const tabs = RED.tabs.create({id: "fd-tabs", onchange: function(tab) {

@@ -517,7 +517,11 @@ ${widgetInfo.help_body}
         const type = $(el).typedInput("type")
         const name = el.id.replace("node-input-", "") // name of corresponding prop
         switch (type) {
-          case 'num': node[name] = parseFloat(value); break
+          case 'num':
+            node[name] = parseFloat(value)
+            if (Number.isNaN(node[name])) node[name] = null
+            console.log(`num: ${value} -> ${node[name]}`)
+            break
           case 'bool': node[name] = value == 'true'; break
           case 'json': node[name] = JSON.parse(value); break
           default: node[name] = value; break
@@ -578,6 +582,10 @@ ${widgetInfo.help_body}
       <label for="node-input-fd_array_max">Max widgets</label>
       <input type="number" id="node-input-fd_array_max" style="width: 6em">
       <br><small class="fd-indent">Prevent run-away arrays by limiting the max number of widgets generated.</small>
+    </div>
+    <hr />
+    <div class="form-row" style="display: flex; justify-content: right;">
+      <small>Node ID: <tt id="nr-node-id"></tt></small>
     </div>
   `.trim()
 
