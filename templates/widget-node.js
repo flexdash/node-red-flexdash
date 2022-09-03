@@ -9,6 +9,7 @@ module.exports = function (RED) {
   // and config contains the values set by the user in the flow editor.
   function ##name##(config) {
     RED.nodes.createNode(this, config)
+    if ("##name##" == "TimePlot") console.log(`TimePlot ${this.name}: config = ${JSON.stringify(config)}`)
 
     // Create missing node properties. This is to deal with the fact that if node properties are
     // added in an upgrade then nodes in existing flows don't have them. Besides not having the
@@ -36,11 +37,9 @@ module.exports = function (RED) {
       }
       // prepare update of widget props
       const props = Object.assign({}, msg) // shallow clone
-      // // msg.payload is interpreted as setting the ##payload_prop## prop
-      // if ('##payload_prop##' && 'payload' in msg) props['##payload_prop##'] = msg.payload
       // remap msg.payload to the prop expected by the widget
-      if ('##payload_prop##' && 'payload' in msg) {
-        props['##payload_prop##'] = msg.payload
+      if ('##payload_prop##' && 'payload' in props) {
+        props['##payload_prop##'] = props.payload
         delete props.payload
       }
       // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _

@@ -10,7 +10,7 @@ const propTMPL = `
     <label for="node-input-##name##">##name_text##</label>
     <input type="text" id="node-input-##name##" class="fd-typed-input" placeholder="##default_html##" />
     <input type="hidden" id="node-input-##name##-type" />
-    <br><small class="fd-indent">##tip##Change using <tt>msg.##name##</tt>.</small>
+    <br><small class="fd-indent">##tip##Change using <tt>msg.##msg_name##</tt>.</small>
 </div>
 `.trim()
 
@@ -106,17 +106,15 @@ class FDWidgetCodeGen {
       if (prop === 'title') continue
       const p = {}
 
+      p.name = p.msg_name = prop
+      p.name_text = snake2text(camel2text(prop)) // could be either...
+      p.name_kebab = camel2kebab(prop).replace(/_/g, '-')
       // handle 'msg.payload': FlexDash doesn't use payload, but we map msg.payload into one
-      // of a couple of hard-coded props. This should be configurable.
+      // of a couple of hard-coded props. This should really be configurable...
       if (['value', 'data', 'text'].includes(prop)  && !this.info.payload_prop) {
-        p.name = 'payload'
         p.name_text = 'Payload'
-        p.name_kebab = 'payload'
+        p.msg_name = 'payload' // name expected in incoming msg
         this.info.payload_prop = prop
-      } else {
-        p.name = prop
-        p.name_text = snake2text(camel2text(prop)) // could be either...
-        p.name_kebab = camel2kebab(prop).replace(/_/g, '-')
       }
 
       // handle `props: { min: 100 }` and `props: { min: null }` cases
