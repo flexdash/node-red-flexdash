@@ -66,7 +66,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         node.warn(`invalid cols: ${config.fd_cols}`)
         config.fd_cols = 1
       }
-      
+
       // get container and flexdash
       const container = RED.nodes.getNode(config.fd_container)
       const fd = container?.fd
@@ -482,7 +482,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // kind is dash/tabs/grids/widgets -- second level in path ($config/<kind>/<id>?)
     saveMutation(fd_nrid, kind, el_fdid, config) { // topic has leading $config/
       this.mutation_seq++
-      console.log(`FD mutation: fd=${fd_nrid} ${kind} ${el_fdid} ${JSON.stringify(config)}`)
+      //console.log(`FD mutation: fd=${fd_nrid} ${kind} ${el_fdid} ${JSON.stringify(config)}`)
       const cc = config
       config = Object.assign({}, config) // make a shallow copy
       if (kind == 'dash') {
@@ -519,6 +519,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         }
         delete config.dyn_root
         console.log(`FD mutation: ${nr_id} <- ${JSON.stringify(config)}`)
+        //console.log(`FD mutation: was ${JSON.stringify(cc)}`)
         this.mutations[nr_id] = config
       } else {
         throw new Error("Cannot persist " + kind)

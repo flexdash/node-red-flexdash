@@ -43,7 +43,7 @@ module.exports = class WidgetAPI {
       if (!(prop in w.static)) {
         // widget doesn't have this prop, don't set it 'cause it may be a huge data structure
         // causing havoc, Node-RED convention is to ignore unkonwn msg.xxx fields
-        this.node.debug(`FD set: widget doesn't have prop ${prop}, has: ${Object.keys(w.static)}`)
+        //this.node.debug(`FD set: widget doesn't have prop ${prop}, has: ${Object.keys(w.static)}`)
         return
       }
 
