@@ -22,7 +22,7 @@ TL;DR: **You most likely do not want to explicitly install this package**, you w
 install the [core widgets](https://github/com/flexdash/node-red-fd-corewidgets), which will
 bring in this package and more and will provide a usable whole.
 
-`npm -i @flexdash/node-red-fd-corewidgets`
+`npm i @flexdash/node-red-fd-corewidgets`
 
 If you really want to install node-red-flexdash, e.g., to get a specific version:
 
@@ -274,6 +274,36 @@ with the disabled nodes.
 
 Widgets in disabled flows end up with an ID starting with an 'x' to signal to FlexDash that
 these are to be skipped.
+
+## Dirty laundry
+
+Node-red-flexdash uses a bunch of hacks to work around problems in Node-RED.
+I'm listing them here in case I get asked which specific ones :-) :
+
+- the annoying node-red-flexdash-plugin separation is necessary due to
+  https://github.com/node-red/node-red/issues/3523
+- panels and grids use the same config node type because in a drop-down one can only have
+  config nodes of one type
+- tabs do some hacky hiding of the dependency to the dashboard so the latter is not part of
+  an export of a couple fo nodes
+- the whole dependency tracking of which widgets belong to a panel/grid, which grids belong to a
+  tab, etc. is a total nightmare due to there not being any signal that everything has been loaded,
+  which makes it virtually impossible to prune dead nodes.
+  https://discourse.nodered.org/t/new-editor-event-when-all-nodes-have-been-loaded/60314
+- the edit panel for a subflow instance node with a FlexDash SubFlowPanel is monkey patched so
+  one can select the grid/panel to display the node in (fd_container config node), this is
+  necessary because one cannot create an env variable to select a config node
+- the "general" tab in the node edit panel is hacked into the (hidden) DOM before a node is
+  created but something like this would be much cleaner if done in oneditprepare, but that's
+  too late to get the current values filled-in.
+- the fact that nodes can only depend on config nodes and that config nodes can't send/receive
+  messages (i.e., they can't appear in flows) means a "flexdash ctrl" node is necessary
+- the whole notion of dependency tracking between nodes (incl. config nodes) is a mess, more
+  in the flow editor than the run-time, but even there it's pretty murky when a node ID
+  definitely refers to something that no longer exists. Also, the flow editor tracks
+  "users" of a config node, that info is lost in the run-time (and has to be reconstructed by FD).
+
+  
 
 ## License
 
