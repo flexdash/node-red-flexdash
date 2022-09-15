@@ -91,13 +91,14 @@ class FDWidgetCodeGen {
     // parse props
     this.info.props = {
       title: {
-        name: 'title', name_text: 'Title', name_kebab: 'title', type: 'string', input_type: 'str',
+        name: 'title', name_text: 'Title', name_kebab: 'title', msg_name: 'title',
+        type: 'string', input_type: 'str',
         tip: 'Text to display in the widget header. ',
         default: this.info.name_text, default_html: `'${this.info.name_text}'`,
       },
       popup_info: {
         name: 'popup_info', name_text: 'Popup Info', name_kebab: 'popup-info',
-        type: 'string', input_type: 'str',
+        msg_name: 'popup_info', type: 'string', input_type: 'str',
         tip: 'Info text to display in (i) pop-up. ',
         default: null, default_html: null,
       }
