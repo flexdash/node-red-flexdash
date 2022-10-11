@@ -52,7 +52,7 @@ class ViteDevServer {
       this.log = dev_node.log.bind(dev_node)
       this.warn = dev_node.warn.bind(dev_node)
       this.log(`starting dev server`)
-      this.path = !fd || fd.path == '/' ? "flexdash-dev" : fd.path + "-dev"
+      this.path = !fd || !fd.path || fd.path == '/' ? "/flexdash-dev" : fd.path + "-dev"
       this.log("source dir:" + this.sourceDir)
       this.log("URL path  :" + this.path)
 
