@@ -359,7 +359,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     }
   }
 
-  // ************************************************** FIXME
   // generate a widget from a node config and insert it into the store
   // kind: DateTime,Stat,Gauge,...; config: node.config; fd: flexdash dashboard node,
   // w_fdid: FlexDash ID for widget, array_id: FD group id (node.id)
