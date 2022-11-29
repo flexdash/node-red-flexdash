@@ -268,10 +268,10 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // enumerate all keys with our prefix
       const keys = Object.keys(this.store.config)
       if (keys.length == 0) {
-        this.log(`Sending empty config to ${socket.id} from store ${this.ctxName}`)
+        this.log(`Sending empty config to ${socket.id}`)
         socket.emit("set", "$config", {}) // the dashboard deals with init'ing a minimal config
       } else {
-        this.log(`Sending config to ${socket.id} from store ${this.ctxName} including ${keys.join(', ')}`)
+        this.log(`Sending config to ${socket.id} including ${keys.join(', ')}`)
         for (let k of keys) {
           // console.log(`CONFIG: ${k}`)
           // for (const kk in this.store.config[k]) {
@@ -288,7 +288,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     // send the data state to a client
     // internal-only
     _sendData(socket) {
-      //this.log(`Sending initial data to ${socket.id} from store ${this.ctxName} with ${keys.length} keys`)
+      //this.log(`Sending initial data to ${socket.id} with ${keys.length} keys`)
       socket.emit("set", "sd", this.store.sd)
     }
 
