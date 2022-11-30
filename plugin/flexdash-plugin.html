@@ -453,8 +453,9 @@ ${widgetInfo.help_body}
     const el = $(`script[data-template-name="${dataTemplateName}"]`)
     let html = el.html()
     const re = new RegExp(` id="${domId}"[^>]*>`)
-    const out = hasOutput ? flexdash.output_properties : ''
-    html = html.replace(re, `$&${flexdash.general_properties}\n${out}`)
+    let insert = flexdash.general_properties
+    if (hasOutput) insert = insert.replace(/"insert-here".>/, `$&${flexdash.output_properties}`)
+    html = html.replace(re, `$&\n${insert}`)
     el.html(html)
   }
 
@@ -583,7 +584,7 @@ ${widgetInfo.help_body}
       <input type="number" id="node-input-fd_array_max" style="width: 6em">
       <br><small class="fd-indent">Prevent run-away arrays by limiting the max number of widgets generated.</small>
     </div>
-    <hr />
+    <hr class="insert-here"/>
     <div class="form-row" style="display: flex; justify-content: right;">
       <small>Node ID: <tt id="nr-node-id"></tt></small>
     </div>
@@ -598,7 +599,13 @@ ${widgetInfo.help_body}
       <br>
       <small class="fd-indent can_output_topic">Optional string to output in <tt>msg.topic</tt></small>
     </div>
-  `.trim()
+    <div class="form-row">
+      <label for="node-input-fd_loopback">Loopback</label>
+      <input type="checkbox" id="node-input-fd_loopback" class="fd-checkbox">
+      <small class="fd-indent">Loop <tt>msg.payload</tt> node output back to its input.</small>
+    </div>
+    <hr />
+  `
 
   } // end of onadd()
 }) // end of registerPlugin

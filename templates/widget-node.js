@@ -53,6 +53,14 @@ module.exports = function (RED) {
       widget.onInput((topic, payload, socket) => {
         // propagate the payload into the flow and attach the FD socket ID
         let msg = { payload: payload, _flexdash_socket: socket }
+        // if loopback is requested, feed the message back to ourselves, implementation-wise,
+        // set the payload property of the widget to the payload of the message
+        if (config.fd_loopback) {
+          // remap msg.payload to the prop expected by the widget
+          const pl = '##payload_prop##' || 'payload'
+          console.log(`loopback: ${pl} <= ${payload}`)
+          widget.set(topic, pl, payload) // do we need to make a shallow clone here?
+        }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional non-array topic
         this.send(msg)
