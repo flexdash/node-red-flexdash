@@ -14,6 +14,7 @@ while getopts ":hrf:" opt; do
       ;;
     r)
       RELEASE=1
+      echo "Release..."
       ;;
     f)
       FDV="$OPTARG"
@@ -37,6 +38,7 @@ git commit -a -m "version $v"
 git push
 ( cd plugin; npm publish --tag dev )
 npm publish --tag dev
+echo RELEASE=$RELEASE
 if [[ $RELEASE == 1 ]]; then
   echo "Release-tagging $v with 'latest'"
   npm dist-tag add @flexdash/node-red-flexdash-plugin@$v latest
