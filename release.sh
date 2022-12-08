@@ -14,11 +14,9 @@ while getopts ":hrf:" opt; do
       ;;
     r)
       RELEASE=1
-      echo "Release..."
       ;;
     f)
       FDV="$OPTARG"
-      shift
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -46,6 +44,3 @@ if [[ $RELEASE == 1 ]]; then
 fi
 echo ""
 echo "***** Published $v with FlexDash $(cat flexdash/VERSION) *****"
-
-
-

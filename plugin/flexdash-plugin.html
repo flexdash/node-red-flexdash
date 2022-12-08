@@ -509,8 +509,8 @@ ${widgetInfo.help_body}
 
   // save typedInput fields so we get the type right (really??? how stupid can typedInput be???)
   // for all the typedInput fields we created we have to look at the DOM type input to get the type,
-  // thenm save away the value correctly typed, and remove the field from the DOM so it doesn't
-  // get saved overriding wha we just did. Nuts...
+  // then save away the value correctly typed, and remove the field from the DOM so it doesn't
+  // get saved overriding what we just did. Nuts...
   flexdash.save_props_edit = function(node, widgetInfo, domId) {
     $(`#${domId}`).find('.fd-typed-input.red-ui-typedInput').each((ix, el) => {
       try {

@@ -9,7 +9,6 @@ module.exports = function (RED) {
   // and config contains the values set by the user in the flow editor.
   function ##name##(config) {
     RED.nodes.createNode(this, config)
-    if ("##name##" == "TimePlot") console.log(`TimePlot ${this.name}: config = ${JSON.stringify(config)}`)
 
     // Create missing node properties. This is to deal with the fact that if node properties are
     // added in an upgrade then nodes in existing flows don't have them. Besides not having the
