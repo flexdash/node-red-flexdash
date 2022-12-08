@@ -91,6 +91,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         this.inputHandlers = {} // input from widgets; key: node.id, value: function(payload)
         this.config = config
         this.plugin = RED.plugins.get('flexdash')
+        this.regs = {} // component registry for custom widgets
 
         // Instantiate a store, this is where our local version of the config and the state
         // are cached so they can be sent to newly connecting dashboards.
@@ -156,6 +157,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           this.log(`FlexDash disconnect ${socket.id} due to ${reason}`)
         })
       })
+    }
+
+    // addWidget regsiters a custom widget script code so it can be served to
+    // the browser. Returns the URL for the script.
+    addWidget(name, content) {
+      this.regs[name] = content
+      return `${this.path}/custom/${name}`
     }
 
     // ===== internal private methods
@@ -237,6 +245,16 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       app.get('/xtra/*', (req, res) => {
         console.log("xtra: " + req.path)
         this._xtra_lib(req.path.substring(6), req, res)
+      })
+      // handler to serve up custom widget script code
+      app.use('/custom/:name', (req, res) => {
+        console.log(`name=${req.params.name}`)
+        if (this.regs[req.params.name]) {
+          res.set('Content-Type', 'application/javascript')
+          res.send(this.regs[req.params.name])
+        } else {
+          res.status(404).send(`No such widget: ${req.params.name}`)
+        }
       })
 
       this.log("port       : " + (config.redServer ? "Node-RED port" : ("on port " + config.port)))
@@ -325,7 +343,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         } catch (e) {
           this.warn(`Error handling input for ${topic}: ${e}`)
         }
-      } else this.log("No input handler for", topic) // else silently swallow !?
+      } else this.log(`No input handler for ${topic}`) // else silently swallow !?
     }
 
     // send an internally generated mutation to all connected dashboards

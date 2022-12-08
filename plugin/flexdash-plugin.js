@@ -1,9 +1,10 @@
-// FlexDash-config node for Node-RED
+// FlexDash plugin for Node-RED - core functions and data structures to support flexdash
 // Copyright ©2021-2022 by Thorsten von Eicken, see LICENSE
 
 let path = require('path')
+const sfc_compiler = require('./sfc-compiler')
 
-// The plugin exported here provides a small number of globals that nodes can call without having a
+// The plugin exported here provides globals that nodes can call without having a
 // handle onto any flexdash object.
 module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
 
@@ -535,7 +536,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     }
   }
 
-
   // ===== Exports
 
   const flow_persistence = new FlowPersistence()
@@ -559,6 +559,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       subflow_panels[subflow_instance_id] = panel_id
     },
     _saveMutation: flow_persistence.saveMutation.bind(flow_persistence),
+    _sfc_compiler: sfc_compiler,
   }
 
   RED.plugins.registerPlugin("flexdash", plugin)

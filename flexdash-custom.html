@@ -1,0 +1,180 @@
+<!-- FlexDash custom node for Node-RED
+     Copyright ©2022 by Thorsten von Eicken, see LICENSE
+-->
+
+<script type="module">
+  // prepare the general edit tab
+  // FIXME: we pretend this node has an output for now, need to figure out how to tweak this...
+  flexdash.insert_general_edit("flexdash custom", "fd-tab-general", true)
+
+  // prepare output-related properties if the widget outputs messages
+  // FIXME: we pretend this has an output, see above
+  let out_prop = {}
+  if (true) out_prop = {
+    fd_output_topic: { value: null },
+    fd_loopback: { value: false },
+  }
+
+  // Simple button widget to populate new empty flexdash-custom editors.
+  // We have to obfuscate <...> tags 'cause Node-RED will stumble over them.
+  const sfc_template = `
+[template>
+  <v-btn variant="elevated" class="ma-auto" @click="clicked()">
+    <span class="label">{{ label }}</span>
+  </v-btn>
+[/template>
+
+[style scoped>
+  .label { color: red; }
+[/style>
+
+[script scoped>
+export default {
+  // name: 'SimpleButton', // the name of the widget (ignored in this context)
+
+  // Props are the inputs to the widget.
+  // They can be set dynamically using Node-RED messages using \`msg.<prop>\`.
+  // In a "custom widget" like this one they cannot be set via the Node-RED flow editor:
+  // use the default values in the lines below instead.
+  props: {
+    label: { default: "clickme" }, // text to show inside button
+    output: { default: "I was clicked" }, // value to output when clicked
+  },
+
+  // simple methods within the component
+  methods: {
+    clicked() { // handle the clicking of the button, i.e., the handler for the '@click'
+      this.$emit('send', this.output) // emit an event (Vue concept), a 'send' event goes to NR
+    },
+  },
+}
+[/script>
+`.trimStart().replace(/^\[/gm,"<")
+
+  RED.nodes.registerType("flexdash custom", {
+    // properties of the NR node used by NR itself
+    category: 'flexdash',
+    color: "#F0E4B8",
+    inputs: 1,
+    outputs: 1, // FIXME: make this dynamic
+    icon: "font-awesome/fa-pen", // icon in flow editor
+    paletteLabel: "FD custom",
+
+    // node config properties that the user can edit in the flow editor
+    defaults: {
+      // required fields for FlexDash Widget nodes
+      fd_container: {
+        type: "flexdash container", value: "", required: true, // grid/panel
+        validate: flexdash.validate_widget_container },
+      fd_cols: { value: 1, validate(v) { return v>0 && v<=20 } }, // widget width
+      fd_rows: { value: 1, validate(v) { return v>0 && v<=100 } }, // widget height
+      fd_array: { value: false }, // create array of this widget
+      fd_array_max: { value: 10, validate(v) { return v>0 && v<1000} }, // max array size
+      ...out_prop, // output-related property
+      // name field of Node-RED node (standard)
+      name: { value: 'CustomWidget' },
+
+      // fields for the custom node itself
+      sfc_source: { value: "", required: true }, // validate: flexdash.validate_sfc_source },
+    },
+
+    // Node-RED node label
+    label() {
+      const lbl = this.name || this.paletteLabel
+      return this.fd_array ? lbl+'[ ]' : lbl // indicate whether this is an array-widget 
+    },
+    labelStyle() { return this.name ? "node_label_italic" : "" },
+
+    oneditprepare() {
+      try{
+        // fetch the html to edit the widget props and insert into DOM
+        //flexdash.load_props_edit(this, widgetInfo, "fd-tab-props")
+        // select last-used container
+        flexdash.select_last_container()
+        // display the node ID in the general tab
+        $('#nr-node-id').text(this.id || "n/a")
+
+        // set-up source code editor
+        this.sfc_editor = RED.editor.createEditor({
+          id: 'node-input-sfc_source',
+          mode: 'ace/mode/text',
+          value: this.sfc_source || sfc_template,
+        })
+        $('.red-ui-editor-text-container').css('flex-grow', 1)
+
+        // add a hook to toggle the visibility of the output-topic field
+        // duplicated from flexdash-custom.html, FIXME: make available somehow...
+        function toggle_fd_array(is_array) {
+          const can = $('.can_output_topic')
+          const cannot = $('.cannot_output_topic')
+          if (is_array) { can.hide(); cannot.show() } // arrays cannot specify an output topic
+          else { can.show(); cannot.hide() } // non-array can
+        }
+        $('#node-input-fd_array').change(() => {
+          toggle_fd_array($('#node-input-fd_array').is(':checked'))
+        })
+        toggle_fd_array($('#node-input-fd_array').is(':checked'))
+
+        // manage tabs
+        const tabs = RED.tabs.create({
+          id: "fd-tabs", 
+          onchange: (tab) => {
+            $("#fd-tabs-content").children().hide()
+            $("#" + tab.id).show()
+            let editor = $("#" + tab.id).find('.monaco-editor').first()
+            if(editor.length) {
+              //auto focus editor on tab switch
+              this.sfc_editor.focus()
+            }
+            RED.tray.resize()
+        }})
+
+        tabs.addTab({ id: "fd-tab-general", label: "General" })
+        tabs.addTab({ id: "fd-tab-source", label: "Widget code" })
+        tabs.activateTab(this.fd_container ? "fd-tab-source" : "fd-tab-general")
+      } catch(e) { console.log("fd-custom oneditprepare:", e.stack) }
+    },
+
+    oneditsave() { // save the typedInput props so we get the types right
+      try {
+        flexdash.save_props_edit(this, {} /*widgetInfo*/, "fd-tab-props")
+        const sfc_source = this.sfc_editor.getValue()
+        $('#node-input-sfc_source').val(sfc_source)
+        this.dirty = true
+        this.sfc_editor.destroy()
+        delete this.sfc_editor
+      } catch(e) { console.log("fd-custom oneditsave:", e.stack) }
+    },
+
+    oneditcancel() {
+      this.sfc_editor.destroy()
+      delete this.sfc_editor
+    },
+
+    oneditresize: function(size) {
+      this.sfc_editor.resize()
+    },
+
+  })
+</script>
+
+<script type="text/html" data-template-name="flexdash custom">
+  <div class="form-row">
+    <ul id="fd-tabs" style="min-width: 600px; margin-bottom: 20px;"></ul>
+  </div>
+  <div id="fd-tabs-content"
+       style="min-height: calc(100% - 25px); display:flex; flex-direction:column">
+    <!-- general properties tab -->
+    <div id="fd-tab-general" style="display:none"><!-- dynamically loaded --></div>
+    <!-- widget source code -->
+    <div id="fd-tab-source"
+         style="display:none; display:flex; flex-direction: column; flex-grow:1">
+      <div style="display:flex; flex-direction:column; flex-grow:1;"
+           class="node-text-editor" id="node-input-sfc_source" />
+    </div>
+  </div>
+</script>
+
+<script type="text/markdown" data-help-name="flexdash custom">
+  <p id="flexdash-custom-help-text"><i>Write a custom widget...</i></p>
+</script>
