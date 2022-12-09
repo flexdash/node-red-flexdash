@@ -9,11 +9,14 @@ function fixImport(script) {
   script = script.replace(
     /^\s*import\s+(.*?)\s+from\s+["']([a-zA-Z]+)["']\s*;?\s*$/gms,
     (match, assigns, module) => {
-      if (!['vue', 'vuetify', 'Vue', 'Vuetify', 'uplot'].includes(module)) return match
-      if (module.startsWith('v')) module = module[0].toUpperCase() + module.slice(1)
-      assigns = assigns.replace(/\sas\s/g, ': ')
-      //console.log(`IMPORT: ${match}\n    -> const ${assigns} = window.${module};`)
-      return `const ${assigns} = window.${module};`
+      if (['vue', 'vuetify', 'Vue', 'Vuetify', 'uplot'].includes(module)) {
+        if (module.startsWith('v')) module = module[0].toUpperCase() + module.slice(1)
+        assigns = assigns.replace(/\sas\s/g, ': ')
+        //console.log(`IMPORT: ${match}\n    -> const ${assigns} = window.${module};`)
+        return `const ${assigns} = window.${module};`
+      } else {
+        return match
+      }
     })
   return script
 }

@@ -248,7 +248,6 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       })
       // handler to serve up custom widget script code
       app.use('/custom/:name', (req, res) => {
-        console.log(`name=${req.params.name}`)
         if (this.regs[req.params.name]) {
           res.set('Content-Type', 'application/javascript')
           res.send(this.regs[req.params.name])
