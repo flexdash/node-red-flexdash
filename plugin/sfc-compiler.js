@@ -76,5 +76,5 @@ module.exports = function (nr_id, sfc_source) {
   script += '\nexport default script'
 
   // return concat of render function and script&style
-  return { script, styles, errors: null }
+  return { script, styles, hash: scopeId, errors: null }
 }

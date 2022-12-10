@@ -30,8 +30,6 @@
 
 [script scoped>
 export default {
-  // name: 'SimpleButton', // the name of the widget (ignored in this context)
-
   // Props are the inputs to the widget.
   // They can be set dynamically using Node-RED messages using \`msg.<prop>\`.
   // In a "custom widget" like this one they cannot be set via the Node-RED flow editor:
@@ -40,6 +38,8 @@ export default {
     label: { default: "clickme" }, // text to show inside button
     output: { default: "I was clicked" }, // value to output when clicked
   },
+
+  emits: ['send'], // declare to Vue that this component emits a 'send' event
 
   // simple methods within the component
   methods: {

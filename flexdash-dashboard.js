@@ -159,7 +159,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       })
     }
 
-    // addWidget regsiters a custom widget script code so it can be served to
+    // addWidget registers a custom widget script code so it can be served to
     // the browser. Returns the URL for the script.
     addWidget(name, content) {
       this.regs[name] = content

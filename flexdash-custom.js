@@ -31,12 +31,12 @@ module.exports = function (RED) {
     //console.log("FlexDash Custom node:", config)
 
     this.plugin = RED.plugins.get('flexdash')
-    let script, styles, errors
+    let script, styles, hash, errors
 
     // compile the SFC source code into javascript
     function compile(source) {
       console.log(`Compiling ${source.substring(0, 100)}...`);
-      ({ script, styles, errors } = node.plugin._sfc_compiler(node.id, source))
+      ({ script, styles, hash, errors } = node.plugin._sfc_compiler(node.id, source))
       if (errors && errors.length > 0) {
         let msg = `Error compiling widget:\n`
         for (const err of errors) {
@@ -66,10 +66,8 @@ module.exports = function (RED) {
     const widget = RED.plugins.get('flexdash').initWidget(this, w_config, "CustomWidget")
     if (!widget) return // missing config node, thus no FlexDash to hook up to, nothing to do here
 
-    let name = `node_${this.id}`
-    let url = this._fd.addWidget(`node_${this.id}`, script) + `?t=${Date.now()}`
-    widget.set(null, 'url', url)  // FIXME: this doesn't work for array widgets
-    widget.set(null, 'name', name)  // FIXME: this doesn't work for array widgets
+    let url = this._fd.addWidget(this.id, script)
+    widget.set(null, 'url', [url,hash])  // FIXME: this doesn't work for array widgets
 
     // handle flow input messages
     this.on("input", msg => {
@@ -87,8 +85,8 @@ module.exports = function (RED) {
           if (typeof msg._source == 'string') {
             compile(msg._source)
             if (errors === null) {
-              url = this._fd.addWidget(`node_${this.id}`, script) + `?t=${Date.now()}`
-              widget.set(null, 'url', url)  // FIXME: this doesn't work for array widgets
+              url = this._fd.addWidget(this.id, script)
+              widget.set(null, 'url', [url,hash])  // FIXME: this doesn't work for array widgets
               widget.set(null, 'styles', styles)  // FIXME: this doesn't work for array widgets
             }
           }
@@ -112,6 +110,7 @@ module.exports = function (RED) {
         }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional non-array topic
+        this.log(`sending: ${JSON.stringify(msg)}`)
         this.send(msg)
       })
     }
