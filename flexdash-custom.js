@@ -27,47 +27,54 @@ module.exports = function (RED) {
   // and config contains the values set by the user in the flow editor.
   function flexdashCustom(config) {
     RED.nodes.createNode(this, config)
-    const node = this
-    //console.log("FlexDash Custom node:", config)
-
     this.plugin = RED.plugins.get('flexdash')
-    let script, styles, hash, errors
-
-    // compile the SFC source code into javascript
-    function compile(source) {
-      console.log(`Compiling ${source.substring(0, 100)}...`);
-      ({ script, styles, hash, errors } = node.plugin._sfc_compiler(node.id, source))
-      if (errors && errors.length > 0) {
-        let msg = `Error compiling widget:\n`
-        for (const err of errors) {
-          if (err.loc?.start) {
-            msg += `  ${err.loc.start.line}:${err.loc.start.column} ${err.message}\n`
-          } else {
-            msg += `  ${err.message}\n`
-          }
-        }
-        node.error(msg)
-        return
-      }
-      script = fixImport(script)
-      // console.log(`===== script:\n${script}`)
-      // console.log(`===== styles:\n${styles.replace(/\n/g,' ')}`)
-      // console.log('=====')
-    }
-
-    // compile the SFC source code
-    if (config.sfc_source && config.sfc_source.length > 2) compile(config.sfc_source)
+    //console.log("FlexDash Custom node:", config)
 
     // Initialize the widget and get a handle onto the FlexDash widget API.
     // The props are set to empty 'cause the custom-widget doesn't offer a way to set any :-)
-    const w_config = { ...config, styles, props:{}, url:null, name: null }
+    const w_config = { ...config, props:{}, url:null, styles: null, errors: null }
     delete w_config.sfc_source
-    this.log(`config: ${JSON.stringify(w_config)}`)
+    // this.log(`config: ${JSON.stringify(w_config)}`)
     const widget = RED.plugins.get('flexdash').initWidget(this, w_config, "CustomWidget")
     if (!widget) return // missing config node, thus no FlexDash to hook up to, nothing to do here
+    
+    // set a property on the widget or on all widgets of the array
+    function setAll(path, value) {
+      widget.set(null, path, value)  // FIXME: this doesn't work for array widgets
+    }
+    
+    // compile the SFC source code into javascript and styles
+    const compile = (source) => {
+      if (typeof source != 'string' || source.length == 0) {
+        setAll('errors', ['SFC source code missing/empty'])
+        return
+      }
+      
+      //console.log(`Compiling ${source.substring(0, 100)}...`);
+      let { script, styles, hash, errors } = this.plugin._sfc_compiler(this.id, source)
 
-    let url = this._fd.addWidget(this.id, script)
-    widget.set(null, 'url', [url,hash])  // FIXME: this doesn't work for array widgets
+      if (Array.isArray(errors) && errors.length > 0) {
+        errors = errors.map(err => {
+          if (err.loc?.start)
+            return `line ${err.loc.start.line} col ${err.loc.start.column}: ${err.message}`
+          else return `${err.message}`
+        })
+        this.error(`Error compiling widget:\n` + errors.join('\n'))
+        setAll('url', null)
+        setAll('styles', null)
+        setAll('errors', errors)
+      } else {
+        script = fixImport(script)
+        // console.log(`===== script:\n${script}`)
+        // console.log(`===== styles:\n${styles.replace(/\n/g,' ')}\n=====`)
+        let url = this._fd.addWidget(this.id, script)
+        setAll('url', [url,hash])
+        setAll('styles', styles)
+        setAll('errors', null)
+      }
+    }
+    
+    compile(config.sfc_source)
 
     // handle flow input messages
     this.on("input", msg => {
@@ -81,15 +88,7 @@ module.exports = function (RED) {
       for (const k in msg) {
         if (k == 'topic') continue // skip: reserved for array stuff
         if (k == '_source') {
-          // FIXME: this doesn't work for array widgets, need to update all in array
-          if (typeof msg._source == 'string') {
-            compile(msg._source)
-            if (errors === null) {
-              url = this._fd.addWidget(this.id, script)
-              widget.set(null, 'url', [url,hash])  // FIXME: this doesn't work for array widgets
-              widget.set(null, 'styles', styles)  // FIXME: this doesn't work for array widgets
-            }
-          }
+          compile(msg._source)
         } else if (!k.startsWith('_')) {
           widget.set(msg.topic, `props/${k}`, msg[k]) // prop for custom widget
         }
