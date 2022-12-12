@@ -40,7 +40,7 @@ module.exports = function (RED) {
     
     // set a property on the widget or on all widgets of the array
     function setAll(path, value) {
-      widget.set(null, path, value)  // FIXME: this doesn't work for array widgets
+      widget.set(path, value)  // FIXME: this doesn't work for array widgets
     }
     
     // compile the SFC source code into javascript and styles
@@ -90,7 +90,7 @@ module.exports = function (RED) {
         if (k == '_source') {
           compile(msg._source)
         } else if (!k.startsWith('_')) {
-          widget.set(msg.topic, `props/${k}`, msg[k]) // prop for custom widget
+          widget.set(`props/${k}`, msg[k], {topic: msg.topic}) // prop for custom widget
         }
       }
     })
@@ -105,7 +105,7 @@ module.exports = function (RED) {
         // set the payload property of the widget to the payload of the message
         if (config.fd_loopback) {
           console.log(`loopback: payload <= ${payload}`)
-          widget.set(topic, 'payload', payload) // do we need to make a shallow clone here?
+          widget.set('payload', payload, {topic}) // do we need to make a shallow clone here?
         }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional non-array topic

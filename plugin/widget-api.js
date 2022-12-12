@@ -10,33 +10,28 @@ module.exports = class WidgetAPI {
   }
   
   // setProps updates the widget's dynamic props with the passed values (typ. msg.props)
-  // For each dynamic prop we need to store the value in /node-red/<widget_id>/<param> and
-  // ensure that the widget's dynamic/<param> field points there. Unless a param's value is
+  // For each dynamic prop we need to store the value in /node-red/<widget_id>/<prop> and
+  // ensure that the widget's dynamic/<prop> field points there. Unless a prop's value is
   // null, in which case we remove the pointer so the static value is used.
+  // options may contain topic and socket.
   // topic is used to index into an array (ArrayGrid), unused if not part of an array.
-  setProps(topic, props) {
+  // socket is used to set the value only for a specific socket (i.e. client).
+  setProps(props, options={}) {
     for (const prop in props) {
       if (prop.startsWith('_')) continue // skip internal props
-      this.set(topic, prop, props[prop])
+      this.set(prop, props[prop], options)
     }
   }
 
   // set update a widget prop given a path (prop/any/path/below/it)
-  set(topic, path, value=undefined) {
+  // options may contain topic and socket.
+  // topic is used to index into an array (ArrayGrid), unused if not part of an array.
+  // socket is used to set the value only for a specific socket (i.e. client).
+  set(path, value, options={}) {
     try {
+      const { topic, socket } = options
       const prop = path.split('/')[0]
-      let widget_id = this.node._fd_id
-      //console.log(`FD set ${topic}/${path} = ${value}  ${this.node._fd_kind||""}`)
-
-      // for arrays, we need to determine the actual widget...
-      if (this.node._fd_array_max) {
-        if (typeof topic != 'number' && typeof topic != 'string') {
-          throw new Error(`msg.topic must be a number or string, not ${typeof topic}`)
-        }
-        this.plugin._addWidgetTopic(this.node, topic) // only adds if it doesn't exist yet
-        widget_id = this.plugin._genArrayFDId(widget_id, topic)
-      }
-      const w = this.node._fd.store.widgetByID(widget_id)
+      const w = this._getWidget(topic)
 
       // construct flexdash path and check widget actually has prop
       const fdpath = `${w.dyn_root}/${path}`
@@ -47,18 +42,16 @@ module.exports = class WidgetAPI {
         return
       }
 
-      // set or unset prop                                           FIXME: save into dynamics
+      // set or unset prop
       if (value !== undefined) {
-        this.setAbsPath(fdpath, value)
-        // ensure that the widget's dynamic/<prop> field is true
-        if (w.dynamic[prop] !== true) {
-          this.node._fd.store.updateWidgetProp(widget_id, 'dynamic', prop, true)
-        }
+        this.setAbsPath(fdpath, value, socket)
+        this._makeDynamic(w, prop, socket)
       } else {
-        this.deleteAbsPath(path)
-        if (path == prop && prop in w.dynamic) {
-          this.node._fd.store.updateWidgetProp(widget_id, 'dynamic', prop, undefined)
+        this.deleteAbsPath(fdpath, socket)
+        if (path == prop) this._makeStatic(w, prop, socket)
         }
+    } catch (e) {
+      this.node.warn(`Failed to update widget prop path '${path}':\n${e.stack}`)
       }
     } catch (e) {
       this.node.warn(`Failed to update widget prop path '${path}':\n${e.stack}`)
@@ -66,7 +59,10 @@ module.exports = class WidgetAPI {
   }
 
   // delete data from a widget prop given a path (prop/any/path/below/it)
-  delete(topic, path) { this.set(topic, path, undefined) }
+  // options may contain topic and socket.
+  // topic is used to index into an array (ArrayGrid), unused if not part of an array.
+  // socket is used to set the value only for a specific socket (i.e. client).
+  delete(path, options={}) { this.set(path, undefined, options) }
 
   // for array-widgets, delete a specific topic, removing the corresponding widget
   deleteTopic(topic) {
@@ -85,15 +81,49 @@ module.exports = class WidgetAPI {
   }
 
   // setAbsPath sets the value at an absolute path in the FlexDash data tree
-  setAbsPath(path, value) {
-    this.node._fd.store.set(path, value)
-    this.node._fd.io.emit("set", path, value)
+  setAbsPath(path, value, socket) {
+    if (!socket) this.node._fd.store.set(path, value)
+    this.node._fd._send("set", path, value, socket)
   }
 
   // deleteAbsPath removes the value at an absolute path in the FlexDash data tree
-  deleteAbsPath(path) {
-    this.node._fd.store.set(path, undefined)
-    this.node._fd.io.emit("unset", path)
+  deleteAbsPath(path, socket) {
+    if (!socket) this.node._fd.store.set(path, undefined)
+    this.node._fd._send("unset", path, null, socket) // given JSON, undefined==null
+  }
+
+  // ===== internal methods =====
+
+  // given a topic, return the widget config object
+  // internal-only
+  _getWidget(topic) {
+    let widget_id = this.node._fd_id
+    //console.log(`FD set ${topic}/${path} = ${value}  ${this.node._fd_kind||""}`)
+  
+    // for arrays, we need to determine the actual widget...
+    if (this.node._fd_array_max) {
+      if (typeof topic != 'number' && typeof topic != 'string') {
+        throw new Error(`msg.topic must be a number or string, not ${typeof topic}`)
+      }
+      this.plugin._addWidgetTopic(this.node, topic) // only adds if it doesn't exist yet
+      widget_id = this.plugin._genArrayFDId(widget_id, topic)
+    }
+    return this.node._fd.store.widgetByID(widget_id)
+  }
+
+  // ensure that the widget's dynamic/<prop> field is true
+  _makeDynamic(w, prop, socket) {
+    if (w.dynamic[prop] !== true) {
+      if (socket) this.setAbsPath(`$config/widgets/${w.id}/dynamic/${prop}`, true, socket)
+      else this.node._fd.store.updateWidgetProp(w.id, 'dynamic', prop, true)
+    }
+  }
+  
+  _makeStatic(w, prop, socket) {
+    if (prop in w.dynamic) {
+      if (socket) this.deleteAbsPath(`$config/widgets/${w.id}/dynamic/${prop}`, socket)
+      else this.node._fd.store.updateWidgetProp(w.id, 'dynamic', prop, undefined)
+    }
   }
 
 }

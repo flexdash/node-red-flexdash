@@ -4,12 +4,14 @@
 module.exports = function(RED) { try { // use try-catch to get stack backtrace of any error
   const { createServer } = require('http')
   const { Server } = require("socket.io")
-  const { Store, StoreError } = require("./store.js")
   const Express = require('express')
+  const CookieSession = require('cookie-session')
   const FS = require('fs')
   const glob = require('glob')
   const path = require('path')
   const url = require("url")
+  const crypto = require('crypto')
+  const { Store, StoreError } = require("./store.js")
   const paths = { // paths to access FlexDash UI files
     prodRoot: path.join(__dirname, 'flexdash'), // production bundle
     prodIndexHtml: path.join(__dirname, 'flexdash', 'index.html'),
@@ -79,10 +81,10 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     sio_servers[path] = null // null means closed, i.e., reject requests
   }
 
-
   // ===== FlexDash Dashboard configuration node
   class FlexDashDashboard {
     constructor(config) {
+
       try { // use try-catch to get stack backtrace of any error
         RED.nodes.createNode(this, config)
         //this.log("FlexDash config: " + JSON.stringify(config))
@@ -92,6 +94,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         this.config = config
         this.plugin = RED.plugins.get('flexdash')
         this.regs = {} // component registry for custom widgets
+        this.clients = {} // map of connected client IDs to { socket, browser }
 
         // Instantiate a store, this is where our local version of the config and the state
         // are cached so they can be sent to newly connecting dashboards.
@@ -119,11 +122,27 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // hook handlers to save FlexDash configuration and send the config back out on start-up
       this.io.on("connection", (socket) => {
         const hs = socket.handshake
-        this.log(`FlexDash connection ${socket.id} url=${hs.url} x-domain:${hs.xdomain}`)
+        const connID = hs.headers && hs.headers['x-client-id']
+        const browserID = socket.request?.session?.id
+        //const browserID = socket.request.session
+        this.log(`FlexDash connection ${socket.id} conn=${connID} session=${browserID} url=${hs.url} x-domain:${hs.xdomain}`)
+        if (typeof connID !== 'string' || connID.length != 16) {
+          this.warn(`Missing or invalid client (connection) ID: ${connID}`)
+          socket.disconnect()
+          return
+        }
+        if (typeof browserID !== 'string' || browserID.length != 24) {
+          this.warn(`Missing or invalid session (browser) ID: ${browserID}`)
+          socket.disconnect()
+          return
+        }
 
-        // send initial state
-        if (config.saveConfig) this._sendConfig(socket)
-        this._sendData(socket)
+        if (!(connID in this.clients)) {
+          // new client, send initial state
+          if (config.saveConfig) this._sendConfig(socket)
+          this._sendData(socket)
+        }
+        this.clients[connID] = { socket: socket.id, browser: browserID }
 
         socket.on("msg", (topic, payload) => {
           if (typeof topic !== 'string') {
@@ -145,7 +164,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           // handle incoming messages to forward to nodes
           if (topic.startsWith("nr/")) {
             try {
-              this._recvData(socket, topic.substring(3), payload)
+              this._recvData(connID, topic.substring(3), payload)
             } catch (err) {
               this.error(`Error handling data message:\n${err.stack}`)
             }
@@ -154,7 +173,8 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
         // handle disconnection
         socket.on("disconnect", reason => {
-          this.log(`FlexDash disconnect ${socket.id} due to ${reason}`)
+          this.log(`FlexDash disconnect ${socket.id} conn=${connID} due to ${reason}`)
+          if (this.clients[connID] == socket.id) delete this.clients[connID]
         })
       })
     }
@@ -222,6 +242,46 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       app.locals.name = "FlexDash"
       rootApp.use(path, app)
       rootApp._router.stack[rootApp._router.stack.length-1].node_id = this.id // ID for removal later
+
+      // cookie middleware
+      this.cookieSession = CookieSession({
+        name: 'flexdash' + encodeURIComponent(ioPath.replace(/\//g, '-').replace(/-$/, '')),
+        secret: crypto.randomBytes(32).toString('hex'),
+        //secret:  "it's me dude",
+        maxAge: 7 * 24 * 3600 * 1000, // inactivity timeout
+        path,
+        //secure: 'auto',
+        // need sameSite=none to develop using https
+        //sameSite: 'none', // may be a problem with 3rd party cookie blocking
+        sameSite: 'strict', // strict needed for HTTP to work
+      })
+      // insert cookie middleware in express, extend validity periodically
+      app.use(this.cookieSession)
+      app.use((req, res, next) => {
+        console.log("HTTP:", req.session)
+        req.session.now = Math.floor(Date.now()/3600e3) // extend validity
+        if (!req.session.id) req.session.id = crypto.randomBytes(16).toString('base64')
+        next()
+      })
+      // insert cookie "middleware" in socket.io
+      // we can't use a socket.io middleware (io.use) because it can't set response headers
+      // so we have to use the engine's headers event and fake out a response object to
+      // capture any header set by the cookie-session. fun stuff...
+      io.engine.on('headers', (headers, request) => {
+        // fake response object to capture cookie header
+        const res = {
+          getHeader() {},
+          setHeader(k, v) { headers[k] = v }, // capture header and set it in the engine
+          writeHead() {}, // calling this triggers cookie-session to call setHeader
+        }
+        this.cookieSession(request, res, ()=>{}) // sets request.session
+        console.log("IO:", request.session)
+        request.session.now = Math.floor(Date.now()/3600e3) // extend validity
+        if (!request.session.id) request.session.id = crypto.randomBytes(16).toString('base64')
+        res.writeHead() // trigger setting of header (if necessary)
+      })
+
+      // path-based handlers
       app.get('/', (req, res) => {
         const path = url.parse(req.originalUrl).pathname
         if (!path.endsWith('/')) return res.redirect(path+'/')
@@ -329,7 +389,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     }
 
     // receive a data message from dashboard and forward to appropriate node
-    _recvData(socket, topic, payload) {
+    _recvData(connID, topic, payload) {
       //console.log("inputHandlers:", Object.keys(this.inputHandlers).join(' '))
       // handle array-widgets
       const ix = topic.indexOf('|')
@@ -338,7 +398,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // find node and send it the message
       if (topic in this.inputHandlers) {
         try {
-          this.inputHandlers[topic].call({}, array_topic, payload, socket.id)
+          this.inputHandlers[topic].call({}, array_topic, payload, connID)
         } catch (e) {
           this.warn(`Error handling input for ${topic}: ${e}`)
         }
@@ -351,6 +411,18 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // this.io may be null because store gets created before socket.io server...
       //if (this.io) console.log(`Sending mutation ${topic}`)
       if (this.io) this.io.emit("set", topic, value)
+    }
+
+    // send a message to one or all clients
+    _send(kind, topic, payload, connID) {
+      if (!this.io) return // no socket.io server
+      if (connID) {
+        if (connID in this.clients) {
+          this.io.to(this.clients[connID].socket).emit(kind, topic, payload)
+        } else {
+          this.log(`Conn ${connID} is disconnected`)
+        }
+      } else this.io.emit(kind, topic, payload)
     }
    
     // ===== support dynamic loading of external modules

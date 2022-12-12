@@ -43,7 +43,7 @@ module.exports = function (RED) {
       }
       // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _
       for (const p of ['topic', 'payload']) delete props[p]
-      widget.setProps(msg.topic, props)
+      widget.setProps(props, { topic: msg.topic, socket: msg._flexdash_socket})
     })
 
     // handle messages from the widget, we receive the potential array element topic, the payload
@@ -58,7 +58,8 @@ module.exports = function (RED) {
           // remap msg.payload to the prop expected by the widget
           const pl = '##payload_prop##' || 'payload'
           console.log(`loopback: ${pl} <= ${payload}`)
-          widget.set(topic, pl, payload) // do we need to make a shallow clone here?
+          // WARNING: loopback is broadcast, this could have "interesting" effects
+          widget.set(pl, payload, {topic}) // do we need to make a shallow clone here?
         }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional non-array topic
