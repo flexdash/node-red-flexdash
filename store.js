@@ -79,15 +79,7 @@ class Store {
     return this
   }
 
-  // insert "dynamic" data into the store
-  // Interprets the path as a hierarchy of object "levels" separated by slashes and
-  // mutates the data at the final path element.
-  // If the path does not exist it is created using objects, i.e., arrays must be inserted
-  // explicitly and cannot be created just by traversing a path.
-  // If the type of the second to last path element (i.e. the last "directory" element) is
-  // an array then a value can be appended by writing to one past the last index.
-  set(path, value) {
-    const log = false
+  prepUpdate(path) {
     let pp = path.split("/") // split levels of hierarchy
     pp = pp.filter(p => p.length > 0) // remove empty components, e.g. leading slash
     if (pp.length == 0) throw new StoreError("Cannot replace entire hierarchy")
@@ -101,6 +93,19 @@ class Store {
     const p = pp.pop() // separate off last level
     const dir = walkTree(root, pp)
     // now dir[p] is the field to update
+    return { dir, p }
+  }
+
+  // insert "dynamic" data into the store
+  // Interprets the path as a hierarchy of object "levels" separated by slashes and
+  // mutates the data at the final path element.
+  // If the path does not exist it is created using objects, i.e., arrays must be inserted
+  // explicitly and cannot be created just by traversing a path.
+  // If the type of the second to last path element (i.e. the last "directory" element) is
+  // an array then a value can be appended by writing to one past the last index.
+  set(path, value) {
+    const log = false
+    const { dir, p } = this.prepUpdate(path) // dir[p] is the field to update
 
     // perform the update
     if (Array.isArray(dir)) {
@@ -132,8 +137,26 @@ class Store {
         delete dir[p]
       }
     } else {
-      throw new StoreError(`${pp.join('/')} is neither Array nor Object`)
+      throw new StoreError(`${path.replace(/\/[^/]*/,'')} is neither Array nor Object`)
     }
+  }
+
+  push(path, value) {
+    const { dir, p } = this.prepUpdate(path) // dir[p] is the field to update
+    if (Array.isArray(dir)||typeof(dir) === 'object') {
+      if (!Array.isArray(dir[p])) throw new StoreError(`Cannot push onto '${path}'`)
+      if (log) console.log(`Pushed ${path} with:`, JSON.stringify(value))
+      dir[p].push(value)
+    } else throw new StoreError(`${path.replace(/\/[^/]*/,'')} is neither Array nor Object`)
+  }
+
+  pop(path, value) {
+    const { dir, p } = this.prepUpdate(path) // dir[p] is the field to update
+    if (Array.isArray(dir)||typeof(dir) === 'object') {
+      if (!Array.isArray(dir[p])) throw new StoreError(`Cannot pop from '${path}'`)
+      if (log) console.log(`Popped ${path} with:`, JSON.stringify(value))
+      dir[p].pop(value)
+    } else throw new StoreError(`${path.replace(/\/[^/]*/,'')} is neither Array nor Object`)
   }
 
   // qMutation in the central function through which all local mutations to the config must be

@@ -49,14 +49,34 @@ module.exports = class WidgetAPI {
       } else {
         this.deleteAbsPath(fdpath, socket)
         if (path == prop) this._makeStatic(w, prop, socket)
-        }
-    } catch (e) {
-      this.node.warn(`Failed to update widget prop path '${path}':\n${e.stack}`)
       }
     } catch (e) {
       this.node.warn(`Failed to update widget prop path '${path}':\n${e.stack}`)
     }
   }
+
+  _push_pop(op, path, value, options) {
+    try {
+      const { topic, socket } = options
+      const prop = path.split('/')[0]
+      const w = this._getWidget(topic)
+
+      // construct flexdash path and check widget actually has prop
+      const fdpath = `${w.dyn_root}/${path}`
+      if (!(prop in w.static)) return
+
+      // slightly different semantics if we're storing locally vs. unicasting to a socket
+      // to store locally we ensure we have an array, unicast we just fire-off the push
+      this._makeDynamic(w, prop, socket)
+      if (!socket) this.node._fd.store[op](path, value)
+      this.node._fd._send(op, fdpath, value, socket)
+    } catch (e) {
+      this.node.warn(`Failed to ${op} to widget prop path '${path}':\n${e}`)
+    }
+  }
+
+  push(path, value, options={}) { this._push_pop("push", path, value, options) }
+  pop(path, options={}) { this._push_pop("pop", path, undefined, options) }
 
   // delete data from a widget prop given a path (prop/any/path/below/it)
   // options may contain topic and socket.
