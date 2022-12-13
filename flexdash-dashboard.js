@@ -258,7 +258,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
       // insert cookie middleware in express, extend validity periodically
       app.use(this.cookieSession)
       app.use((req, res, next) => {
-        console.log("HTTP:", req.session)
+        //console.log("HTTP:", req.session)
         req.session.now = Math.floor(Date.now()/3600e3) // extend validity
         if (!req.session.id) req.session.id = crypto.randomBytes(16).toString('base64')
         next()
@@ -275,7 +275,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           writeHead() {}, // calling this triggers cookie-session to call setHeader
         }
         this.cookieSession(request, res, ()=>{}) // sets request.session
-        console.log("IO:", request.session)
+        //console.log("IO:", request.session)
         request.session.now = Math.floor(Date.now()/3600e3) // extend validity
         if (!request.session.id) request.session.id = crypto.randomBytes(16).toString('base64')
         res.writeHead() // trigger setting of header (if necessary)

@@ -100,7 +100,7 @@ module.exports = function (RED) {
     if (true) { // config.output) {
       widget.onInput((topic, payload, socket) => {
         // propagate the payload into the flow and attach the FD socket ID
-        let msg = { payload: payload, _flexdash_socket: socket }
+        let msg = { payload: payload, _fd_socket: socket }
         // if loopback is requested, feed the message back to ourselves, implementation-wise,
         // set the payload property of the widget to the payload of the message
         if (config.fd_loopback) {

@@ -43,7 +43,7 @@ module.exports = function (RED) {
       }
       // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _
       for (const p of ['topic', 'payload']) delete props[p]
-      widget.setProps(props, { topic: msg.topic, socket: msg._flexdash_socket})
+      widget.setProps(props, { topic: msg.topic, socket: msg._fd_socket})
     })
 
     // handle messages from the widget, we receive the potential array element topic, the payload
@@ -51,7 +51,7 @@ module.exports = function (RED) {
     if (##output##) {
       widget.onInput((topic, payload, socket) => {
         // propagate the payload into the flow and attach the FD socket ID
-        let msg = { payload: payload, _flexdash_socket: socket }
+        let msg = { payload: payload, _fd_socket: socket }
         // if loopback is requested, feed the message back to ourselves, implementation-wise,
         // set the payload property of the widget to the payload of the message
         if (config.fd_loopback) {

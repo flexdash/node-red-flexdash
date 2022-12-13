@@ -9,7 +9,7 @@ module.exports = function(RED) {
     this.config_node = RED.nodes.getNode(n.server)
 
     this.on("input", (msg) => {
-      const fdid = msg._flexdash_id
+      const fdid = msg._fd_socket
       if (fdid) {
         this.config_node.io.in(fdid).emit("msg", msg.topic, msg.payload)
       } else {

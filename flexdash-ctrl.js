@@ -56,7 +56,7 @@ module.exports = function(RED) {
       const ctrl = RED.plugins.get('flexdash').initCtrl(this, container)
       ctrl.onInput((topic, payload, socket) => {
         // propagate the payload into the flow and attach the FD socket ID
-        let msg = { payload: payload, _flexdash_socket: socket }
+        let msg = { payload: payload, _fd_socket: socket }
         if (topic != undefined) msg.topic = topic // FD topic has priority (unused?)
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional configured topic
         this.send(msg)

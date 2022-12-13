@@ -26,7 +26,7 @@ module.exports = function(RED) {
         const msg = {
           topic       : topic || "",
           payload     : payload || null,
-          _flexdash_id: socket.id,
+          _fd_socket  : socket.id,
         }
         this.send(msg)
       })
