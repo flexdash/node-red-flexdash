@@ -21,6 +21,8 @@ module.exports = function(RED) {
           // convert rows & cols to numbers
           config.min_cols = parseInt(config.min_cols, 10)
           config.max_cols = parseInt(config.max_cols, 10)
+          // deal with pre-unicast nodes
+          if (!['disallow','allow','require'].includes(config.unicast)) config.unicast = 'disallow'
           // register ID mapping
           this.fd_id = 'g' + this.id
           // construct grid data to put into the store
@@ -74,6 +76,16 @@ module.exports = function(RED) {
           }
         } catch (e) { console.error(e, e.stack); throw e }
       })
+    }
+
+    // return handle onto enclosing grid (or this if it's a grid)
+    getGrid() { 
+      if (this.config.kind?.endsWith('Grid')) return this
+      if (this.config.parent) {
+        const p = RED.nodes.getNode(this.config.parent)
+        return p?.getGrid()
+      }
+      return null
     }
 
     // construct the grid data to put into the store

@@ -91,6 +91,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
         this.name = config.name || "FlexDash"
         this.inputHandlers = {} // input from widgets; key: node.id, value: function(payload)
+        this.ctrlHandlers = [] // flexdash ctrl nodes: {node,handler}
         this.config = config
         this.plugin = RED.plugins.get('flexdash')
         this.regs = {} // component registry for custom widgets
@@ -137,12 +138,18 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           return
         }
 
-        if (!(connID in this.clients)) {
+        if (connID in this.clients) { 
+          // reconnecting client, cancel idle timer
+          if (this.clients[connID].idle) clearTimeout(this.clients[connID].idle)
+          this.clients[connID].idle = null
+        } else {
           // new client, send initial state
           if (config.saveConfig) this._sendConfig(socket)
           this._sendData(socket)
+          // manufacture an event to signal that a new client has connected
+          this._recvEvent(connID, "dashboard", { type: 'new client', browser: browserID })
         }
-        this.clients[connID] = { socket: socket.id, browser: browserID }
+        this.clients[connID] = { socket: socket.id, browser: browserID, idle: null }
 
         socket.on("msg", (topic, payload) => {
           if (typeof topic !== 'string') {
@@ -171,10 +178,24 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           }
         })
 
+        socket.on("event", (target, payload) => {
+          this._recvEvent(connID, target, payload)
+        })
+
         // handle disconnection
         socket.on("disconnect", reason => {
           this.log(`FlexDash disconnect ${socket.id} conn=${connID} due to ${reason}`)
-          if (this.clients[connID] == socket.id) delete this.clients[connID]
+          if (this.clients[connID].socket == socket.id) {
+            // timeout, set timer to send a client-idle event
+            console.log("set timeout")
+            setTimeout(() => {
+              console.log("Socket timeout", socket.id, connID)
+              if (this.clients[connID].socket == socket.id) {
+                delete this.clients[connID]
+                this._recvEvent(connID, "dashboard", { type: 'idle client' })
+              }
+            }, 10000)
+          }
         })
       })
     }
@@ -403,6 +424,32 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
           this.warn(`Error handling input for ${topic}: ${e}`)
         }
       } else this.log(`No input handler for ${topic}`) // else silently swallow !?
+    }
+
+    // receive an event from dashboard signifying a state change (e.g. change tab)
+    _recvEvent(connID, target, payload) {
+      // augemnt the message with node-red specific info
+      if (payload.id) {
+        const nr_id = payload.id.substring(1) // remove leading t/g
+        const node = RED.nodes.getNode(nr_id)
+        if (node) {
+          payload.node_id = nr_id
+          payload.name = node.name || node.config?.name
+          payload.title = node.title || node.config?.title
+        } else {
+          this.warn(`No node found for ${payload.id}`)
+        }
+        delete payload.id
+      }
+      console.log(`Event ${connID} ${target} ${JSON.stringify(payload)}`)
+      // send message to all ctrl nodes
+      for (const h of this.ctrlHandlers) {
+        try {
+          h.handler?.call({}, null, payload, connID) // null topic for now
+        } catch (e) {
+          this.warn(`Error handling ctrl event for ${topic}: ${e}`)
+        }
+      }
     }
 
     // send an internally generated mutation to all connected dashboards

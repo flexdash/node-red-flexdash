@@ -42,6 +42,24 @@ module.exports = class WidgetAPI {
         return
       }
 
+      // check unicast/broadcast permissions set in the enclosing grid
+      const grid = this.node._fd_container?.getGrid()
+      if (grid) {
+        const unicast = grid.config.unicast
+        if (unicast == 'disallow' && socket) {
+          this.node.warn(`incoming message discarded: _fd_socket is disallowed for grid ${grid.name||grid.id}`)
+          return
+        }
+        if (unicast == 'require' && !socket) {
+          this.node.warn(`incoming message discarded: _fd_socket is required for grid ${grid.name||grid.id}`)
+          return
+        }
+      } else {
+        this.node.warn(`Internal: widget ${w.id} not in a grid?`)
+        console.log(this.node)
+        console.log(this.node._fd_container)
+      }
+
       // set or unset prop
       if (value !== undefined) {
         this.setAbsPath(fdpath, value, socket)
@@ -98,6 +116,11 @@ module.exports = class WidgetAPI {
   onInput(handler) {
     if (typeof handler !== 'function') throw new Error("onInput handler must be a function")
     this.node._fd.inputHandlers[this.node._fd_id] = handler
+  }
+
+  destroyNode() {
+    // deregister input handler
+    delete this.node._fd.inputHandlers[this.node._fd_id]
   }
 
   // setAbsPath sets the value at an absolute path in the FlexDash data tree

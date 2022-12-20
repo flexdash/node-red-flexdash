@@ -47,6 +47,12 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     return fd_id + "|" + topic.toString()
   }
 
+  function forAllContainers(cb) {
+    for (const id in fd_containers) {
+      cb(fd_containers[id])
+    }
+  }
+
   // initWidget creates a widget for this node, and then initializing its static params with the
   // NR node's config which is almost a clone of the config into the widget's "static" field.
   // The widget_kind refers to the Vue widget component name in FlexDash, e.g., PushButton,
@@ -141,16 +147,17 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
   }
 
   // initCtrl creates an interface for a FD ctrl node so it can receive messages
-  function initCtrl(node, container) {
+  function initCtrl(node) {
     try { // ensure we can produce a stack backtrace
       RED.log.debug(`Initializing ctrl for node ${node.id}`)
       
       return {
-        // onInput registers the handler of a node so it gets it's corresponding widget's output
+        // onInput registers the handler of a node
         onInput(handler) {
           if (typeof handler !== 'function') throw new Error("onInput handler must be a function")
-          RED.log.debug(`initCtrl onInput for node ${node.id}: ${container?.fd_id}`)
-          node.fd.inputHandlers[container?.fd_id] = handler
+          const ix = node.fd.ctrlHandlers.findIndex(h => h.node === node)
+          if (ix >= 0) node.fd.ctrlHandlers[ix] = {node, handler}
+          else node.fd.ctrlHandlers.push({node, handler})
         }
       }
     } catch (e) {
@@ -161,11 +168,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
 
   function destroyCtrl(node) {
     try { // ensure we can produce a stack backtrace
+      // remove handler for this node
+      const ix = node.fd.ctrlHandlers.findIndex(h => h.node === node)
+      if (ix >= 0) node.fd.ctrlHandlers.splice(ix, 1)
     } catch (e) {
       RED.log.warn(`FlexDash destroyCtrl: '${node.id}': ${e.stack}`)
     }
   }
-
 
   // Generate the FlexDash config for config nodes (dash/tab/grid/panel) from the Node-RED config.
   // This happens at the time a deploy is complete because then:
@@ -558,6 +567,7 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
     _register_subflow_panel(subflow_instance_id, panel_id) {
       subflow_panels[subflow_instance_id] = panel_id
     },
+    _forAllContainers: forAllContainers,
     _saveMutation: flow_persistence.saveMutation.bind(flow_persistence),
     _sfc_compiler: sfc_compiler,
   }

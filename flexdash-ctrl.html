@@ -15,16 +15,44 @@
 
     defaults: {
       name: { value: "" },
-      fd_container: {
-        type: "flexdash container", value: "", required: true, // grid/panel
-        validate: flexdash.validate_widget_container },
+      fd: { value:"" }, // node id of dashboard
+      weak_fd: { // weak ref to dashboard, cuts export dependency
+        type: "flexdash dashboard", value: "", required: false,
+        validate(v) {
+          const configNode = RED.nodes.node(v||this.fd)
+          return configNode && (configNode.valid == null || configNode.valid)
+        }
+      },
       fd_output_topic: { value: null },
     },
 
     label() { return this.name || "FD ctrl" },
     labelStyle() { return this.name ? "node_label_italic" : "" },
 
-    oneditprepare() { flexdash.select_last_container() },
+    oneditprepare() {
+      try {
+        // set weak_fd to value of fd, see oneditsave for explanation
+        if (this.fd) $(`#node-input-weak_fd [value=${this.fd}]`).attr('selected',"")
+        $(`#node-input-weak_fd`).attr('nrid', this.id)
+
+        // help button in top tray bar - thanks Kevin!
+        $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
+          '<i class="fa fa-book"></i> help</button>')
+          .on('click', () => { RED.sidebar.help.show(this.type) })
+          .insertBefore($('#node-dialog-cancel'))
+      } catch(e) { console.log("FlexDash ctrl prepare error", e); throw e }
+    },
+
+    oneditsave() {
+      try {
+        // switch the flexdash dashboard ID to a different field so we don't depend on it on export;
+        // this is a hideous hack... createExportableNodeSet exports config nodes referenced in 
+        // params that have a type field. So we move the weak_fd ID to fd and voila, no dependency!
+        const weak_fd = $('#node-input-weak_fd')
+        $('#node-input-fd').val(weak_fd.val())
+        weak_fd.val("")
+      } catch(e) { console.log("FlexDash ctrl save error", e); throw e }
+    },
   })
 </script>
 
@@ -36,26 +64,64 @@
     </small>
   </div>
   <div class="form-row">
-    <label for="node-input-fd_container">Container</label>
-    <input type="text" id="node-input-fd_container">
-    <br><small class="fd-indent">Dashboard Grid or Panel to control.</small>
+    <label for="node-input-weak_fd">Dashboard</label>
+    <input type="text" id="node-input-weak_fd">
+    <br><small class="fd-indent">Dashboard to control.</small>
   </div>
   <div class="form-row">
     <label for="node-input-fd_output_topic">Output topic</label>
     <input type="text" id="node-input-fd_output_topic">
     <small class="fd-indent">Optional string to output in <tt>msg.topic</tt></small>
   </div>
+
+  <input type="hidden" id="node-input-fd">
 </script>
 
 <script type="text/markdown" data-help-name="flexdash ctrl">
-  Node to control some innards of FlexDash, such as features of tabs, grids, and panels.
+Node to observe and control some internal FlexDash state, such as currently shown tab as well
+as features of tabs, grids, and panels.
 
-  Currently supports:
-  - Controlling the properties of grids and panels by associating the ctrl with a grid or
-    panel config node and sending it messages with `msg.property`. Current supported properties:
-    - grids: `min_cols`, `max_cols`
-    - pop-up grids: same as grids plus `show`
-    - panels: `solid`
-  - Receiving close messages from a pop-up grid: the output message is
-    `{ payload: { show: false } }`.
+Output messages are generated for a number of events with the following payload:
+- `type`: the type of event.
+- `cause`: `user`/`message` for events that can be caused by user action vs. a message.
+- `name`: the name of the node representing the FlexDash element associated with the event.
+- `node_id`: the ID of the node representing the FlexDash element associated with the event.
+- `title`: the title of the FlexDash element associated with the event.
+- `icon`: the icon name (incl. mdi- prefix) of the FlexDash element associated with the event (for tabs only).
+
+Also, `msg._fd_socket` identifies the browser tab.
+
+The events types are:
+- `new client`: a new browser tab has connected, `msg.browser` is an ID assigned to the
+  the browser using a cookie, it is the same for all tabs of the browser.
+- `idle client`: a browser tab has disconnected and not reconnected in a few seconds
+  (it may reconnect an unbounded time later).
+- `change tab`: the tab shown to the user has changed. `msg.cause` is `user`, `message`,
+  `hide`, or `expose`. The last two refer to the browser window becoming invisible and
+  visible again due to the user changing browser tab, minimizing the window, etc.
+  In the case of `cause==hide` the fields identifying the tab will be
+  null/missing.
+- `close grid`: the pop-up grid has been closed or the regular grid has been rolled-up.
+- `open grid`: the pop-up grid has been popped-up or the regular grid has been rolled-down.
+
+Input messages must have a `msg.action` field and must target a component using one of
+`msg.tab`, `msg.grid`, or `msg.panel`.
+The target value is used to find a matching node ID, node name, node title, or (for tabs) icon;
+all in that order.
+(Using the node ID is recommended and all FlexDash config nodes show their ID in the flow
+editor edit panel.)
+The `msg._fd_socket` is supported for open/close (but not edit) to target individual clients.
+
+The set of actions is:
+- `open`: open the tab or grid targeted by `msg.topic`.
+- `close`: close the grid targeted by `msg.topic`.
+- `edit`: edit the targeted component, setting one or multiple properties to the corresponding
+  values in `msg`. Supports tabs, grids, and panels.
+
+Note that open/close affect only the current state of browsers, nothing is persisted.
+Edit actions modify the state in Node-RED memory and thus affect
+future clients (these changes are lost when the affected config nodes are redeployed or
+when Node-RED is restarted).
+
+
 </script>

@@ -9,10 +9,9 @@ module.exports = function(RED) {
     constructor(config) {
       RED.nodes.createNode(this, config)
 
-      const container = RED.nodes.getNode(config.fd_container)
-      this.fd = container?.fd
+      this.fd = RED.nodes.getNode(config.fd)
       if (!this.fd) {
-        node.warn(`Ctrl node is not part of any dashboard (ctrl node -> grid -> tab -> dashboard chain broken)`)
+        this.warn(`Ctrl node is not associated with any dashboard ${JSON.stringify(config)}`)
         return null
       }
 
@@ -23,40 +22,111 @@ module.exports = function(RED) {
       })
       
       this.on("input", msg => {
-        let target = RED.nodes.getNode(this.config.fd_container)
-        if (target) {
-          const fd_id = target.fd_id
-          if (fd_id && fd_id[0] == 'g') {
-            // updating a grid
-            const g = this.fd.store.gridByID(fd_id)
-            const update = {}
-            for (const prop in msg) {
-              if (prop in g) update[prop] = msg[prop]
-            }
-            this.log(`updating grid ${fd_id} with ${JSON.stringify(update)}`)
-            if (update) this.fd.store.updateGrid(fd_id, update)
-          // supporting widgets below needs some functions added to the store to update props
-          // shouldn't need to update static/dynamic stuff 'cause one can do that directly on the widget?
-          // } else if (fd_id && fd_id[0] == 'w') {
-          //   // updating a panel
-          //   const w = this.fd.store.WidgetByID(fd_id)
-          //   const update = {}
-          //   for (const prop in msg) {
-          //     if (prop in g) update[prop] = msg[prop]
-          //   }
-          //   if (update.length > 0) this.fd.store.UpdateWidget(g, update)
-          } else {
+        if (!msg.action || typeof msg.action != 'string') {
+          this.error(`invalid msg.action, must be string identifying action to perform`)
+          return
+        }
 
+        let kind, filter, getter, setter
+        if (msg.tab) {
+            kind = 'tab',
+            filter = node => node.type == "flexdash tab"
+            getter = this.fd.store.tabByID
+            setter = this.fd.store.updateTab
+        } else if (msg.grid) {
+            kind = 'grid'
+            filter = node => node.type == "flexdash container" && node.config?.kind?.endsWith('Grid')
+            getter = this.fd.store.gridByID
+            setter = this.fd.store.updateGrid
+        } else if (msg.panel) {
+            kind = 'panel'
+            filter = node => node.type == "flexdash container" && node.config?.kind?.endsWith('Panel')
+            getter = this.fd.store.widgetByID
+            setter = this.fd.store.updateWidget
+        } else {
+          this.error(`invalid msg, must contain tab, grid or panel`)
+          return
+        }
+
+        if (typeof msg[kind] != 'string') {
+          this.error(`invalid msg.${kind}, must be string identifying target FlexDash element`)
+          return
+        }
+
+        // see whether we can identify the target of the message: check against node.id,
+        // node.name, node.title, node.icon in that order
+        let target = RED.nodes.getNode(msg[kind]) // shot in the dark: is it a node ID?
+        if (target) {
+          if (!target.fd || !filter(target)) {
+            this.error(`node "${msg[kind]}" is not a FlexDash ${kind}`)
+            return
           }
         } else {
-          this.error(`config node ${this.config.fd_container} not found`)
+          // iterate through FlexDash config nodes and see whether something matches uniquely
+          for (const field of ['name', 'title', 'icon']) {
+            let error = false
+            RED.plugins.get('flexdash')._forAllContainers(node => {
+              if (filter(node) && node.config && node.config[field] == msg[kind]) {
+                if (target) {
+                  this.error(`the ${field} of multiple FlexDash ${kind}s matches "${msg[kind]}", message ignored`)
+                  error = true
+                } else {
+                  target = node
+                }
+              }
+            })
+            if (error) return
+            if (target) break
+          }
+          if (!target) {
+            // a warning is probably good here, but it's not necessarily an error
+            this.warn(`no FlexDash ${kind} with id/name/title/icon "${msg[kind]}" found`)
+            return
+          }
+        }
+
+        // perform 
+        switch (msg.action) {
+        // open/close are ctrl messages that change the browsing state without affecting the config
+        case "open":
+        case "close":
+          if (kind == 'tab' && msg.action == 'open' || kind == 'grid') {
+            const payload = { action: msg.action, type: kind, id: target.fd_id }
+            this.fd._send("ctrl", null, payload, msg._fd_socket)
+          } else {
+            this.error(`cannot ${msg.action} a ${kind}`)
+          }
+          break
+        // edit changes the config and as a side-effect changes the browser state
+        case "edit":
+          const el = getter(target.fd_id) // get the FlexDash object we're editing
+          // perform the update
+          const update = {}
+          const exclude = ['id', 'kind', 'static', 'dynamic', 'dyn_root', 'output']
+          for (const prop in msg) {
+            if (prop in el && !exclude.includes(prop)) update[prop] = msg[prop]
+          }
+          this.log(`updating ${kind} ${target.fd_id} with ${JSON.stringify(update)}`)
+          if (update) {
+            if (msg._fd_socket) {
+              // implementing this is messy, would have to refactor the code in the store that
+              // constructs the correct store path so that it can be used without causing a mutation
+              // until someone has a pertinent use-case for this, punt...
+              this.error(`msg._fd_socket not supported for action ${msg.action}`)
+            } else {
+              setter(fd_id, update)
+            }
+          }
+          break
+        default:
+          this.error(`unknown action "${msg.action}"`)
         }
       })
 
-      const ctrl = RED.plugins.get('flexdash').initCtrl(this, container)
+      const ctrl = RED.plugins.get('flexdash').initCtrl(this)
       ctrl.onInput((topic, payload, socket) => {
         // propagate the payload into the flow and attach the FD socket ID
-        let msg = { payload: payload, _fd_socket: socket }
+        let msg = { payload, _fd_socket: socket }
         if (topic != undefined) msg.topic = topic // FD topic has priority (unused?)
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional configured topic
         this.send(msg)

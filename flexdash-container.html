@@ -34,8 +34,13 @@
           return configNode && (configNode.valid == null || configNode.valid)
         }
       },
-      min_cols: { value: 1, validate: function(v) { return (v>0 && v<=20) } },
-      max_cols: { value: 20, validate: function(v) { return (v>0 && v<=20) } },
+      min_cols: { value: 1, validate(v) { return (v>0 && v<=20) } },
+      max_cols: { value: 20, validate(v) { return (v>0 && v<=20) } },
+      unicast: {
+        value: 'disallow',
+        // can't validate due to pre-existing nodes, stupid NR that doesn't have migrations
+        //validate(v) { return ['disallow','allow','require'].includes(v) }
+      },
 
       // params for panels
       parent: {
@@ -51,8 +56,8 @@
         }
       },
       solid: { value: false },
-      cols: { value: 1, validate: function(v) { return v>0 && v<=20 } },
-      rows: { value: 1, validate: function(v) { return v>0 && v<=100 } },
+      cols: { value: 1, validate(v) { return v>0 && v<=20 } },
+      rows: { value: 1, validate(v) { return v>0 && v<=100 } },
     },
 
     label() { return this.name || this.kind },
@@ -89,6 +94,22 @@
           select_grid_tab($(this).attr("kind"))
         })
 
+        // handle buttons for _fd_socket choices
+        function select_unicast(val) {
+          $(".socket-button-group").removeClass("selected")
+          $(`.socket-button-group[v=${val}]`).addClass("selected")
+          $('#node-config-input-unicast').val(val)
+        }
+        $(".socket-button-group").on("click", function() {
+          select_unicast($(this).attr("v"))
+        })
+        select_unicast(this.unicast||"disallow")
+
+        // help button in top tray bar - thanks Kevin!
+        $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
+          '<i class="fa fa-book"></i> help</button>')
+          .on('click', () => { RED.sidebar.help.show(this.type) })
+          .insertBefore($('#node-config-dialog-cancel'))
         // console.log("FlexDash container prepare", this)
       } catch(e) { console.log("FlexDash container prepare error", e); throw e }
     },
@@ -104,12 +125,12 @@
           // clear the parent field so we don't depend on some random config node
           $('#node-config-input-parent [selected]').val("")
           $('#node-config-input-parent').removeClass("input-error")
-          console.log("clearing parent field")
         }
 
         // console.log("FlexDash container save:", Object.assign({}, this))
       } catch(e) { console.log("FlexDash container save error", e); throw e }
     },
+
   })
 </script>
 
@@ -124,6 +145,7 @@
     <label for="node-config-input-title">Title</label>
     <input type="text" id="node-config-input-title" placeholder="Title">
     <small class="fd-indent">Name shown above panel or grid in dashboard. Hidden if left empty.
+      Change dynamically by sending <tt>msg.set_title</tt> to FlexDash ctrl node.
     </small>
   </div>
   <div class="form-row">
@@ -138,11 +160,11 @@
         ><button type="button" class="red-ui-button toggle kind-button-group" kind="SubflowPanel"
         >subflow panel</button>
     </span>
+    <br>
     <small class="fd-indent">A <b>grid</b> is the primary container for widgets and panels.
       It displays a grid of widgets and panels, and reflows its content based on the width of
       the browser window.<br>
-      A <b>pop-up grid</b> is an <b>experimental!</b> grid that is displayed as a full-window
-      pop-up overlay.<br>
+      A <b>pop-up grid</b> is displayed as a full-window pop-up overlay.<br>
       A <b>panel</b> can be used within a grid to create a half-sized sub-grid in which widgets
       can be arranged at fixed positions without being impacted by the window width.<br>
       A <b>subflow panel</b> is a panel that holds all widgets of a subflow, it can only be used with
@@ -163,10 +185,26 @@
       <label for="node-config-input-max_cols">Max columns</label>
       <input type="number" id="node-config-input-max_cols" style="width: 6em"><br>
       <small class="fd-indent">Minimum and maximum number of grid columns shown in the grid.
-        This can be used to constrain the reflow based on window width.</small>
+        This can be used to constrain the reflow based on window width. The values can be changed
+        dynamically by sending <tt>msg.min_cols</tt> and/or <tt>msg.max_cols</tt> to a
+        FlexDash ctrl node.</small>
     </div>  
     <div class="form-row">
-      <label>Node ID</label><span id="fd-node-id"></span>
+      <label for="node-config-input-tab"><tt>_fd_socket</tt></label>
+      <span class="button-group">
+        <button type="button" class="red-ui-button toggle selected socket-button-group" v="disallow"
+          >disallow</button
+          ><button type="button" class="red-ui-button toggle socket-button-group" v="allow"
+          >allow</button
+          ><button type="button" class="red-ui-button toggle socket-button-group" v="require"
+          >require</button>
+      </span>
+      <br>
+      <small class="fd-indent">Select how widgets in the grid should handle incoming messages
+        that have <tt>msg._fd_socket</tt> set.        
+    </div>
+    <div class="form-row">
+      <label>Node ID</label> <span id="fd-node-id"></span>
     </div>  
   </div>
   
@@ -199,6 +237,7 @@
   <!-- hidden fields -->
   <input type="hidden" id="node-config-input-kind">
   <input type="hidden" id="node-config-input-fd_children">
+  <input type="hidden" id="node-config-input-unicast">
 
 </script>
 
