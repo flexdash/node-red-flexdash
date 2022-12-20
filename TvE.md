@@ -9,8 +9,8 @@ Debug/test release
 ```
 npm version patch && git push && git push --tags && npm run build
 ```
-- after the build succeeds, in node-red-flexdash run ./release.sh -f [FD version]
-- after the release completes, in node-red-corewidgets bump the version number _carefully_
+- after the build succeeds, in **node-red-flexdash** run ./release.sh -f [FD version]
+- after the release completes, in **node-red-corewidgets** bump the version number _carefully_
   then npm publish to the @dev channel:
 ```
 npm version patch && npm publish --tag dev
