@@ -82,6 +82,12 @@
         if (development) $("#development").show(); else $("#development").hide()
         $('#dev-btn').attr('class', development ? 'fa fa-caret-down' : 'fa fa-caret-up')
       })
+
+      // help button in top tray bar - thanks Kevin!
+      $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
+        '<i class="fa fa-book"></i> help</button>')
+        .on('click', () => { RED.sidebar.help.show(this.type) })
+        .insertBefore($('#node-config-dialog-cancel'))
     },
 
     oneditsave() {
@@ -90,7 +96,7 @@
 </script>
 
 <style>
-  .red-ui-editor .fd-indent { margin-left: 106px; display: inline-block;}
+  .red-ui-editor .fd-indent { margin-left: 106px; display: inline-block; max-width: 600px; }
   .red-ui-editor .fd-icon { width: 16px; margin-right: 6px; }
   .red-ui-editor .fd-tabs-row { margin-bottom: 0px;}
   .red-ui-editor input.fd-checkbox { vertical-align: baseline !important;}

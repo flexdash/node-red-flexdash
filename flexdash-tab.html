@@ -13,7 +13,7 @@
       title: { value: "" },
       fd_children: { value: "" }, // comma-separated list of child node IDs
       fd: { value:"" }, // node id of dashboard
-      weak_fd: {
+      weak_fd: { // weak ref to dashboard, cuts export dependency
         type:"flexdash dashboard", value:"", required:false,
         validate(v) {
           const configNode = RED.nodes.node(v||this.fd)
@@ -30,9 +30,16 @@
 
     oneditprepare() {
       try {
+        $('#fd-node-id').html(this.id)
         // set weak_fd to value of fd, see oneditsave for explanation
         if (this.fd) $(`#node-config-input-weak_fd [value=${this.fd}]`).attr('selected',"")
         $(`#node-config-input-weak_fd`).attr('nrid', this.id)
+        
+        // help button in top tray bar - thanks Kevin!
+        $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
+          '<i class="fa fa-book"></i> help</button>')
+          .on('click', () => { RED.sidebar.help.show(this.type) })
+          .insertBefore($('#node-config-dialog-cancel'))
       } catch(e) { console.log("FlexDash tab prepare error", e); throw e }
     },
 
@@ -74,7 +81,10 @@
     <input type="text" id="node-config-input-weak_fd">
     <small class="fd-indent">Dashboard to which this tab belongs.</small>
   </div>
-  
+  <div class="form-row">
+    <label>Node ID</label> <span id="fd-node-id"></span>
+  </div>  
+
   <!-- hidden fields -->
   <input type="hidden" id="node-config-input-fd_children">
   <input type="hidden" id="node-config-input-fd">

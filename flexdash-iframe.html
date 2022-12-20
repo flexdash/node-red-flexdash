@@ -45,6 +45,12 @@
         // set weak_fd to value of fd, see oneditsave for explanation
         if (this.fd) $(`#node-input-weak_fd [value=${this.fd}]`).attr('selected',"")
         $(`#node-input-weak_fd`).attr('nrid', this.id)
+        
+        // help button in top tray bar - thanks Kevin!
+        $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
+          '<i class="fa fa-book"></i> help</button>')
+          .on('click', () => { RED.sidebar.help.show(this.type) })
+          .insertBefore($('#node-config-dialog-cancel'))
       } catch(e) { console.log("FlexDash iframe prepare error", e); throw e }
     },
 

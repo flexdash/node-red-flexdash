@@ -132,6 +132,12 @@ export default {
         tabs.addTab({ id: "fd-tab-general", label: "General" })
         tabs.addTab({ id: "fd-tab-source", label: "Widget code" })
         tabs.activateTab(this.fd_container ? "fd-tab-source" : "fd-tab-general")
+        
+        // help button in top tray bar - thanks Kevin!
+        $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
+          '<i class="fa fa-book"></i> help</button>')
+          .on('click', () => { RED.sidebar.help.show(this.type) })
+          .insertBefore($('#node-config-dialog-cancel'))
       } catch(e) { console.log("fd-custom oneditprepare:", e.stack) }
     },
 
