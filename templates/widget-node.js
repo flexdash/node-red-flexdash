@@ -42,7 +42,7 @@ module.exports = function (RED) {
         delete props.payload
       }
       // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _
-      for (const p of ['topic', 'payload']) delete props[p]
+      for (const p of ['topic']) delete props[p]
       widget.setProps(props, { topic: msg.topic, socket: msg._fd_socket})
     })
 
