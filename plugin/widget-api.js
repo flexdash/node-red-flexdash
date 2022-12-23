@@ -73,7 +73,29 @@ module.exports = class WidgetAPI {
     }
   }
 
-  _push_pop(op, path, value, options) {
+  get(path, options={}) {
+    try {
+      const { topic, socket } = options
+      if (socket) {
+        this.node.error(`WidgetAPI.get() not supported for unicast (_fd_socket!=null)`)
+        return undefined
+      }
+      const prop = path.split('/')[0]
+      const w = this._getWidget(topic)
+
+      // construct flexdash path and check widget actually has prop
+      const fdpath = `${w.dyn_root}/${path}`
+      if (!(prop in w.static)) return undefined
+
+      if (prop in w.dynamic) return w.dynamic[prop]
+      else return w.static[prop]
+
+    } catch(e) {
+      this.node.warn(`Failed to get widget prop path '${path}':\n${e.stack}`)
+    }
+  }
+
+  _push_shift(op, path, value, options) {
     try {
       const { topic, socket } = options
       const prop = path.split('/')[0]
@@ -93,8 +115,8 @@ module.exports = class WidgetAPI {
     }
   }
 
-  push(path, value, options={}) { this._push_pop("push", path, value, options) }
-  pop(path, options={}) { this._push_pop("pop", path, undefined, options) }
+  push(path, value, options={}) { this._push_shift("push", path, value, options) }
+  shift(path, options={}) { this._push_shift("shift", path, undefined, options) }
 
   // delete data from a widget prop given a path (prop/any/path/below/it)
   // options may contain topic and socket.

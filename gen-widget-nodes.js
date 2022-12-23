@@ -43,7 +43,7 @@ function generate(text, info) {
 
 class FDWidgetCodeGen {
   
-  constructor(vue_file, module_dir, module_name) {
+  constructor(vue_file, module_dir, custom_dir, module_name) {
     this.info = {
       vue_file: vue_file,
       base_filename: path.basename(vue_file, '.vue'),
@@ -52,6 +52,7 @@ class FDWidgetCodeGen {
       resources_dir: path.join(module_dir, 'resources'), // filesystem directory
       resources_path: `resources/${module_name}`, // URL path
     }
+    this.custom_dir = custom_dir
   }  
 
   async parseSource() {
@@ -159,20 +160,46 @@ class FDWidgetCodeGen {
     await this.parseSource()
     this.parseWidget()
 
+    // custom handlers
+    const custom_file = path.join(this.custom_dir, this.info.base_filename + '.js')
+    if (fs.existsSync(custom_file)) {
+      this.info.custom_handlers = await fs.promises.readFile(custom_file, 'utf8')
+    } else {
+      this.info.custom_handlers = ""
+    }
+
     // create resources subdir
     const resources_dir = this.info.resources_dir
     try { await fs.promises.mkdir(resources_dir) } catch (e) {}
     
-    // generate -props.html and -info.js
+    // generate -props.html
     const base_name = this.info.base_filename
     const props_file = path.join(resources_dir, base_name + '-props.html')
-    const props_html = Object.keys(this.info.props).map(p =>
+    const custom_props_file = path.join(this.custom_dir, base_name + '-props.html')
+    let props_html = Object.keys(this.info.props).map(p =>
       generate(propTMPL, this.info.props[p])
-    ).join('\n')
+      ).join('\n')
+    if (fs.existsSync(custom_props_file)) {
+      const html = await fs.promises.readFile(custom_props_file, 'utf8')
+      props_html += "\n" + html
+    }
     //console.log(`\n\n***** Generating ${props_file} *****\n${props_html}`)
     await fs.promises.writeFile(props_file, props_html)
+
+    // generate -info.js
     const info_file = path.join(resources_dir, base_name + '-info.js')
-    const info_js = `export default ${JSON.stringify(this.info, null, 2)}`
+    const info_obj = { ...this.info, custom_handlers: undefined }
+    const custom_info_file = path.join(path.resolve(this.custom_dir), base_name + '-info.js')
+    if (fs.existsSync(custom_info_file)) {
+      // merge the custom info, also into the props, i.e. don't just replace them...
+      const custom_info = require(custom_info_file)
+      console.log(`custom info:`, custom_info)
+      const props = custom_info.props || {}
+      delete custom_info.props
+      Object.assign(info_obj, custom_info)
+      Object.assign(info_obj.props, props)
+    }
+    const info_js = `export default ${JSON.stringify(info_obj, null, 2)}`
     //console.log(`\n\n***** Generating ${info_file} *****\n${info_js}`)
     await fs.promises.writeFile(info_file, info_js)
 
@@ -200,11 +227,13 @@ class FDWidgetCodeGen {
 
 if (require.main === module) {
   const module_dir = "."
+  const custom_dir = "custom"
   const package = JSON.parse(fs.readFileSync(path.join(module_dir, 'package.json')))
   const pkg_json = []
   for (vue of fs.readdirSync(path.join(module_dir, 'widgets'))) {
     if (vue.endsWith('.vue')) {
-      const cg = new FDWidgetCodeGen(path.join(module_dir, 'widgets', vue), module_dir, package.name)
+      const widget_path = path.join(module_dir, 'widgets', vue)
+      const cg = new FDWidgetCodeGen(widget_path, module_dir, custom_dir, package.name)
       cg.doit().then(() => { }).catch(e => { console.log(e.stack); process.exit(1) })
       const bn = path.basename(vue, '.vue')
       pkg_json.push(`      "flexdash ${bn}": "${bn}.js"`)

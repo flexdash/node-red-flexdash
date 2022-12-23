@@ -27,6 +27,9 @@ module.exports = function (RED) {
     const widget = RED.plugins.get('flexdash').initWidget(this, config, '##name##')
     if (!widget) return // missing config node, thus no FlexDash to hook up to, nothing to do here
 
+    let onNodeRedCustom, onFlexDashCustom
+    ##custom_handlers##
+
     // handle flow input messages, basically massage them a bit and update the FD widget
     this.on("input", msg => {
       // if message has a topic and a `_delete` property then delete array-widget topic
@@ -36,30 +39,41 @@ module.exports = function (RED) {
       }
       // prepare update of widget props
       const props = Object.assign({}, msg) // shallow clone
-      // remap msg.payload to the prop expected by the widget
-      if ('##payload_prop##' && 'payload' in props) {
-        props['##payload_prop##'] = props.payload
-        delete props.payload
+      const options = { topic: msg.topic, socket: msg._fd_socket}
+      delete props.topic
+      // custom handler or built-in
+      if (onNodeRedCustom) {
+        const ok = onNodeRedCustom(props, options)
+        if (!ok) return
+      } else {
+        // remap msg.payload to the prop expected by the widget
+        if ('##payload_prop##' && 'payload' in props) {
+          props['##payload_prop##'] = props.payload
+          delete props.payload
+        }
       }
-      // delete fields that we don't want to pass to the widget, setProps ignores ones with leading _
-      for (const p of ['topic']) delete props[p]
-      widget.setProps(props, { topic: msg.topic, socket: msg._fd_socket})
+      if (props != {}) widget.setProps(props, options)
     })
 
     // handle messages from the widget, we receive the potential array element topic, the payload
     // sent by the widget, and the socket ID
     if (##output##) {
       widget.onInput((topic, payload, socket) => {
-        // propagate the payload into the flow and attach the FD socket ID
-        let msg = { payload: payload, _fd_socket: socket }
-        // if loopback is requested, feed the message back to ourselves, implementation-wise,
-        // set the payload property of the widget to the payload of the message
-        if (config.fd_loopback) {
-          // remap msg.payload to the prop expected by the widget
-          const pl = '##payload_prop##' || 'payload'
-          console.log(`loopback: ${pl} <= ${payload}`)
-          // WARNING: loopback is broadcast, this could have "interesting" effects
-          widget.set(pl, payload, {topic}) // do we need to make a shallow clone here?
+        let msg
+        if (onFlexDashCustom) {
+          msg = onFlexDashCustom(topic, payload, socket)
+        } else {
+          // propagate the payload into the flow and attach the FD socket ID
+          msg = { payload: payload, _fd_socket: socket }
+          // if loopback is requested, feed the message back to ourselves, implementation-wise,
+          // set the payload property of the widget to the payload of the message
+          if (config.fd_loopback) {
+            // remap msg.payload to the prop expected by the widget
+            const pl = '##payload_prop##' || 'payload'
+            console.log(`loopback: ${pl} <= ${payload}`)
+            // WARNING: loopback is broadcast, this could have "interesting" effects
+            widget.set(pl, payload, {topic}) // do we need to make a shallow clone here?
+          }
         }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional non-array topic

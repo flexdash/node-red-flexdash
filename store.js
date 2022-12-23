@@ -144,18 +144,19 @@ class Store {
   push(path, value) {
     const { dir, p } = this.prepUpdate(path) // dir[p] is the field to update
     if (Array.isArray(dir)||typeof(dir) === 'object') {
-      if (!Array.isArray(dir[p])) throw new StoreError(`Cannot push onto '${path}'`)
-      if (log) console.log(`Pushed ${path} with:`, JSON.stringify(value))
+      if (dir[p] === undefined) dir[p] = [] // allow new arrays to be created
+      if (!Array.isArray(dir[p])) throw new StoreError(`Cannot push onto '${path}':${typeof dir[p]}`)
+      //console.log(`Pushed ${path} with:`, JSON.stringify(value))
       dir[p].push(value)
     } else throw new StoreError(`${path.replace(/\/[^/]*/,'')} is neither Array nor Object`)
   }
 
-  pop(path, value) {
+  shift(path, value) {
     const { dir, p } = this.prepUpdate(path) // dir[p] is the field to update
     if (Array.isArray(dir)||typeof(dir) === 'object') {
-      if (!Array.isArray(dir[p])) throw new StoreError(`Cannot pop from '${path}'`)
-      if (log) console.log(`Popped ${path} with:`, JSON.stringify(value))
-      dir[p].pop(value)
+      if (!Array.isArray(dir[p])) throw new StoreError(`Cannot shift '${path}'`)
+      //console.log(`Shifted ${path} with:`, JSON.stringify(value))
+      return dir[p].shift(value)
     } else throw new StoreError(`${path.replace(/\/[^/]*/,'')} is neither Array nor Object`)
   }
 
