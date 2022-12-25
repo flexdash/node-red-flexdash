@@ -37,9 +37,9 @@
       min_cols: { value: 1, validate(v) { return (v>0 && v<=20) } },
       max_cols: { value: 20, validate(v) { return (v>0 && v<=20) } },
       unicast: {
-        value: 'disallow',
+        value: 'ignore',
         // can't validate due to pre-existing nodes, stupid NR that doesn't have migrations
-        //validate(v) { return ['disallow','allow','require'].includes(v) }
+        //validate(v) { return ['ignore','disallow','allow','require'].includes(v) }
       },
 
       // params for panels
@@ -192,8 +192,8 @@
     <div class="form-row">
       <label for="node-config-input-tab"><tt>_fd_socket</tt></label>
       <span class="button-group">
-        <button type="button" class="red-ui-button toggle selected socket-button-group" v="disallow"
-          >disallow</button
+        <button type="button" class="red-ui-button toggle selected socket-button-group" v="ignore"
+          >ignore</button
           ><button type="button" class="red-ui-button toggle socket-button-group" v="allow"
           >allow</button
           ><button type="button" class="red-ui-button toggle socket-button-group" v="require"

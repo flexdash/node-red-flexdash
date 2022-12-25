@@ -29,7 +29,7 @@ module.exports = class WidgetAPI {
   // socket is used to set the value only for a specific socket (i.e. client).
   set(path, value, options={}) {
     try {
-      const { topic, socket } = options
+      let { topic, socket } = options
       const prop = path.split('/')[0]
       const w = this._getWidget(topic)
 
@@ -46,11 +46,12 @@ module.exports = class WidgetAPI {
       const grid = this.node._fd_container?.getGrid()
       if (grid) {
         const unicast = grid.config.unicast
-        if (unicast == 'disallow' && socket) {
+        if (unicast == 'ignore' && socket) {
+          socket = null
+        } else if (unicast == 'disallow' && socket) {
           this.node.warn(`incoming message discarded: _fd_socket is disallowed for grid ${grid.name||grid.id}`)
           return
-        }
-        if (unicast == 'require' && !socket) {
+        } else if (unicast == 'require' && !socket) {
           this.node.warn(`incoming message discarded: _fd_socket is required for grid ${grid.name||grid.id}`)
           return
         }
@@ -83,11 +84,11 @@ module.exports = class WidgetAPI {
       const prop = path.split('/')[0]
       const w = this._getWidget(topic)
 
-      // construct flexdash path and check widget actually has prop
-      const fdpath = `${w.dyn_root}/${path}`
+      // check widget actually has prop
       if (!(prop in w.static)) return undefined
 
-      if (prop in w.dynamic) return w.dynamic[prop]
+      const fdpath = `${w.dyn_root}/${path}`
+      if (w.dynamic[prop]) return this.node._fd.store.get(fdpath)
       else return w.static[prop]
 
     } catch(e) {
@@ -108,7 +109,7 @@ module.exports = class WidgetAPI {
       // slightly different semantics if we're storing locally vs. unicasting to a socket
       // to store locally we ensure we have an array, unicast we just fire-off the push
       this._makeDynamic(w, prop, socket)
-      if (!socket) this.node._fd.store[op](path, value)
+      if (!socket) this.node._fd.store[op](fdpath, value)
       this.node._fd._send(op, fdpath, value, socket)
     } catch (e) {
       this.node.warn(`Failed to ${op} to widget prop path '${path}':\n${e}`)

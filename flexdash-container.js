@@ -22,7 +22,7 @@ module.exports = function(RED) {
           config.min_cols = parseInt(config.min_cols, 10)
           config.max_cols = parseInt(config.max_cols, 10)
           // deal with pre-unicast nodes
-          if (!['disallow','allow','require'].includes(config.unicast)) config.unicast = 'disallow'
+          if (!['ignore','disallow','allow','require'].includes(config.unicast)) config.unicast = 'ignore'
           // register ID mapping
           this.fd_id = 'g' + this.id
           // construct grid data to put into the store
