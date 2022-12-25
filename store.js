@@ -141,10 +141,15 @@ class Store {
     }
   }
 
+  get(path) { // FIXME: using prepUpdate causes missing dirs to be created...
+    const { dir, p } = this.prepUpdate(path) // dir[p] is the field to get
+    return dir[p]
+  }
+
   push(path, value) {
     const { dir, p } = this.prepUpdate(path) // dir[p] is the field to update
     if (Array.isArray(dir)||typeof(dir) === 'object') {
-      if (dir[p] === undefined) dir[p] = [] // allow new arrays to be created
+      if (dir[p] === undefined || dir[p] === null) dir[p] = [] // allow new arrays to be created
       if (!Array.isArray(dir[p])) throw new StoreError(`Cannot push onto '${path}':${typeof dir[p]}`)
       //console.log(`Pushed ${path} with:`, JSON.stringify(value))
       dir[p].push(value)
