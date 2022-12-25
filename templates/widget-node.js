@@ -43,8 +43,7 @@ module.exports = function (RED) {
       delete props.topic
       // custom handler or built-in
       if (onNodeRedCustom) {
-        const ok = onNodeRedCustom(props, options)
-        if (!ok) return
+        onNodeRedCustom(props, options)
       } else {
         // remap msg.payload to the prop expected by the widget
         if ('##payload_prop##' && 'payload' in props) {

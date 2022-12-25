@@ -45,9 +45,9 @@ module.exports = function (nr_id, sfc_source) {
     })
     templateOptions.compilerOptions.bindingMetadata = scriptDescr.bindings
     //console.log('===== script:\n', scriptDescr)
-    script += scriptDescr.content.replace(/export\s*default/, 'const script =')
+    script += scriptDescr.content.replace(/export\s*default/, 'const component =')
   } else {
-    script += 'const script = {}'
+    script += 'const component = {}'
   }
 
   // compile the template part into a render function
@@ -56,7 +56,7 @@ module.exports = function (nr_id, sfc_source) {
     const template = compileTemplate(templateOptions)
     // console.log('===== template options:\n', templateOptions)
     // console.log('===== template:\n', template)
-    script = template.code.replace(/export\s*/, '') + '\n' + script
+    script += "\n//==== render function from template\n\n" + template.code.replace(/export\s*/, '')
   }
 
   // compile the style part
@@ -77,9 +77,9 @@ module.exports = function (nr_id, sfc_source) {
   }
 
   // finish up by inserting the render function into the script
-  script += '\nscript.render = render'
-  script += `\nscript.__scopeId = "${scopeId}"`
-  script += '\nexport default script'
+  script += '\n\ncomponent.render = render'
+  script += `\ncomponent.__scopeId = "${scopeId}"`
+  script += '\nexport default component'
 
   // return concat of render function and script&style
   return { script, styles, hash: scope, errors: null }

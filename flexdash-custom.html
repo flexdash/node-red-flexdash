@@ -28,7 +28,7 @@
   .label { color: red; }
 [/style>
 
-[script scoped>
+[script>
 export default {
   // Props are the inputs to the widget.
   // They can be set dynamically using Node-RED messages using \`msg.<prop>\`.
@@ -73,9 +73,11 @@ export default {
       ...out_prop, // output-related property
       // name field of Node-RED node (standard)
       name: { value: 'CustomWidget' },
-
+      title: { value: "" },
+      
       // fields for the custom node itself
       sfc_source: { value: "", required: true }, // validate: flexdash.validate_sfc_source },
+      import_map: { value: {} },
     },
 
     // Node-RED node label
@@ -87,8 +89,6 @@ export default {
 
     oneditprepare() {
       try{
-        // fetch the html to edit the widget props and insert into DOM
-        //flexdash.load_props_edit(this, widgetInfo, "fd-tab-props")
         // select last-used container
         flexdash.select_last_container()
         // display the node ID in the general tab
@@ -115,6 +115,15 @@ export default {
         })
         toggle_fd_array($('#node-input-fd_array').is(':checked'))
 
+        // typed inputs
+        $('#node-input-title').typedInput(
+            {type:'str',types:['str'],typeField: "#node-input-title-type"})
+        $('#node-input-title').typedInput('value', this.title)
+        $('#node-input-import_map').typedInput(
+            {type:'json',types:['json'],typeField: "#node-input-import_map-type"})
+        try { $('#node-input-import_map').typedInput('value', JSON.stringify(this.import_map))
+        } catch(e) { }
+
         // manage tabs
         const tabs = RED.tabs.create({
           id: "fd-tabs", 
@@ -131,6 +140,7 @@ export default {
 
         tabs.addTab({ id: "fd-tab-general", label: "General" })
         tabs.addTab({ id: "fd-tab-source", label: "Widget code" })
+        tabs.addTab({ id: "fd-tab-config", label: "Config" })
         tabs.activateTab(this.fd_container ? "fd-tab-source" : "fd-tab-general")
         
         // help button in top tray bar - thanks Kevin!
@@ -143,7 +153,8 @@ export default {
 
     oneditsave() { // save the typedInput props so we get the types right
       try {
-        flexdash.save_props_edit(this, {} /*widgetInfo*/, "fd-tab-props")
+        flexdash.save_props_edit(this, {}, "fd-tab-config")
+
         const sfc_source = this.sfc_editor.getValue()
         $('#node-input-sfc_source').val(sfc_source)
         this.dirty = true
@@ -173,14 +184,82 @@ export default {
     <!-- general properties tab -->
     <div id="fd-tab-general" style="display:none"><!-- dynamically loaded --></div>
     <!-- widget source code -->
-    <div id="fd-tab-source"
-         style="display:none; display:flex; flex-direction: column; flex-grow:1">
+    <div id="fd-tab-source" style="display:none; display:flex; flex-direction: column; flex-grow:1">
       <div style="display:flex; flex-direction:column; flex-grow:1;"
            class="node-text-editor" id="node-input-sfc_source" />
+      </div>
+    </div>
+    <!-- config tab -->
+    <div id="fd-tab-config" style="display:none">
+      <div class="form-row">
+        <label for="node-input-title">Title</label>
+        <input type="text" id="node-input-title" class="fd-typed-input" placeholder="Custom Widget" />
+        <input type="hidden" id="node-input-title-type" />
+        <br><small class="fd-indent">Text to display in the widget header. Change using <tt>msg.title</tt>.</small>
+      </div>
+      <div class="form-row">
+        <label for="node-input-import_map">Import Map</label>
+        <input type="text" id="node-input-import_map" class="fd-typed-input" placeholder="{}" />
+        <input type="hidden" id="node-input-import_map-type" />
+        <br><small class="fd-indent">Map of import specifier to URL for resolution.</small>
+      </div>
     </div>
   </div>
 </script>
 
 <script type="text/markdown" data-help-name="flexdash custom">
-  <p id="flexdash-custom-help-text"><i>Write a custom widget...</i></p>
+Custom widget for FlexDash
+
+This widget allows you to create a custom widget using Vue.js and SFCs (single-file components).
+The source code tab should contain a single Vue SFC and will be pre-processed into pure Javascript
+and CSS for efficient shipping and import into FlexDash.
+
+## Name and title
+
+Custom widgets have lots of names and titles:
+- The 'name' is shown in the nodes in the Node-RED flow editor
+- The 'title' is shown in the widget header in FlexDash and the header is omitted if the
+  title is empty.
+- The SFC source may have a 'name' property and it is ignored...
+
+## Imports
+
+To import modules either URLs or bare module names can be used in import statements in the SFC.
+The bare module names are resolved using import maps, which are maps that translate the
+bare module names to URLs.
+
+FlexDash itself already loads a number of modules, in particular Vue, Vuetify, uPlot, and
+a few other small helper modules.
+The import map used for custom widgets is pre-populated with these modules:
+- vue: vue.runtime.global.js (the Vue build without the SFC compiler)
+- vuetify: all Vuetify components
+- uplot: uplot.min.js (The uPlot library)
+...
+
+Other modules need to be loaded by URL.
+(There currently is no support for loading them from the Node-RED server unless the
+static file serving is used, the files are placed there manually and the correct URL used.)
+For example, to import the Echarts library with
+the vue-echarts wrapper an import map as follows would be needed:
+
+```
+{
+  "echarts": "https://cdn.jsdelivr.net/npm/echarts@5.4.1/dist/echarts.esm.min.js",
+  "vue-echarts": "https://cdn.jsdelivr.net/npm/vue-echarts@6.3.3/dist/index.esm.min.js",
+  "vue-demi": "https://cdn.jsdelivr.net/npm/vue-demi@0.13.11/lib/v3/index.mjs",
+  "resize-detector": "https://cdn.jsdelivr.net/npm/resize-detector@0.3.0/esm/index.js",
+}
+```
+
+The important entries here are the last two entries, which are dependencies referenced
+in vue-echarts. Those cannot be satisfied other that by providing an import map
+(or rewriting the import statement in those sources).
+The first two entries could be omitted by using the URLs directly in the import statements in
+the SFC source.
+
+Note that import maps are global, so if two custom widgets both define an import for
+"echarts" and they don't use the same URL a conflict will result and FlexDash will produce
+an error. This is a good thing in that loading big libraries multiple times from different
+sources is not goo either...
+
 </script>

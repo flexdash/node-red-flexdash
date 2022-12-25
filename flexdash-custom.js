@@ -2,24 +2,25 @@
 // Lets the user define a custom widget.
 // Copyright ©2022 by Thorsten von Eicken, see LICENSE
 
-// FIXME: this should use babel!
-// localImport hacks the script source code to transform import statements of modules that are
-// alreay available locally (in the browser) into simple assignments.
-function fixImport(script) {
-  script = script.replace(
-    /^\s*import\s+(.*?)\s+from\s+["']([a-zA-Z]+)["']\s*;?\s*$/gms,
-    (match, assigns, module) => {
-      if (['vue', 'vuetify', 'Vue', 'Vuetify', 'uplot'].includes(module)) {
-        if (module.startsWith('v')) module = module[0].toUpperCase() + module.slice(1)
-        assigns = assigns.replace(/\sas\s/g, ': ')
-        //console.log(`IMPORT: ${match}\n    -> const ${assigns} = window.${module};`)
-        return `const ${assigns} = window.${module};`
-      } else {
-        return match
-      }
-    })
-  return script
-}
+// superseded by the use of es-module-shims: YAY!
+// // FIXME: this should use babel!
+// // localImport hacks the script source code to transform import statements of modules that are
+// // alreay available locally (in the browser) into simple assignments.
+// function fixImport(script) {
+//   script = script.replace(
+//     /^\s*import\s+(.*?)\s+from\s+["']([a-zA-Z]+)["']\s*;?\s*$/gms,
+//     (match, assigns, module) => {
+//       if (['vue', 'vuetify', 'Vue', 'Vuetify', 'uplot'].includes(module)) {
+//         if (module.startsWith('v')) module = module[0].toUpperCase() + module.slice(1)
+//         assigns = assigns.replace(/\sas\s/g, ': ')
+//         //console.log(`IMPORT: ${match}\n    -> const ${assigns} = window.${module};`)
+//         return `const ${assigns} = window.${module};`
+//       } else {
+//         return match
+//       }
+//     })
+//   return script
+// }
 
 module.exports = function (RED) {
 
@@ -64,8 +65,8 @@ module.exports = function (RED) {
         setAll('styles', null)
         setAll('errors', errors)
       } else {
-        script = fixImport(script)
-        // console.log(`===== script:\n${script}`)
+        //script = fixImport(script)
+        //console.log(`===== script:\n${script}`)
         // console.log(`===== styles:\n${styles.replace(/\n/g,' ')}\n=====`)
         let url = this._fd.addWidget(this.id, script)
         setAll('url', [url,hash])
