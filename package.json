@@ -1,9 +1,9 @@
 {
   "name": "@flexdash/node-red-flexdash",
-  "version": "0.4.130",
+  "version": "0.4.131",
   "description": "Node-RED nodes for the FlexDash dashboard",
   "dependencies": {
-    "@flexdash/node-red-flexdash-plugin": "=0.4.130",
+    "@flexdash/node-red-flexdash-plugin": "=0.4.131",
     "cookie-session": "^2.0.0",
     "express": "^4.0.0",
     "glob": "^7.2.0",
