@@ -1,3 +1,7 @@
+<!--link rel="stylesheet"
+      href="resources/@flexdash/node-red-flexdash-plugin/node_modules/vuetify/dist/vuetify.min.css">
+</link-->
+
 <script type="module">
 
 import colors from './resources/@flexdash/node-red-flexdash-plugin/colors.js'
@@ -7,7 +11,6 @@ import colorPicker from './resources/@flexdash/node-red-flexdash-plugin/color-pi
 //try { flexdash } catch(e) { flexdash = {} }
 if (!('flexdash' in globalThis)) globalThis.flexdash = {}
 flexdash.last_container = null // last container selected, auto-select it when adding the next node
-
 
 RED.plugins.registerPlugin("flexdash-plugin", {
 type: "flexdash",
@@ -261,8 +264,9 @@ onadd: function() {
     return e?.value || ""
   }
 
-  // ===== fd_registry keeps track of all flexdash nodes so they can be found globally by their ID
-  // this is also where all nodes are checked and processed every time they are created or changed.
+  // ===== fd_registry was intended to keep track of all flexdash nodes so they can be found
+  // globally by their ID, but in reality it doesn't do that and it's the place where all
+  // nodes are checked and processed every time they are created or changed.
 
   flexdash.registry = (function(){
     class FDRegistry {
@@ -270,7 +274,7 @@ onadd: function() {
         RED.events.on("nodes:add", (node) => this.check_node(node, 'add'))
         RED.events.on("nodes:change", (node) => this.check_node(node, 'change'))
         RED.events.on("nodes:remove", (node) => this.remove_node(node))
-        RED.comms.subscribe('flexdash', (...args) => this.handle_msg(...args))
+        RED.comms.subscribe('flexdash', (...args) => this.handle_msg(...args)) // not actually used
 
         // mapping of Subflow IDs to subflow panel IDs
         this.patched_subflows = {}
@@ -304,6 +308,7 @@ onadd: function() {
       // parent/child lists.
       // The nodes:add and nodes:change events both lead here.
       check_node(node, ev) {
+        if (!flexdash.sidebar) console.warn("FlexDash: nodes added before sidebar is initialized")
 
         // ensure this node is a child of its (possibly new) parent
         function add_to_parent(parent_id, node_id=undefined) {
@@ -527,7 +532,7 @@ ${widgetInfo.help_body}
           case 'json': node[name] = JSON.parse(value); break
           default: node[name] = value; break
         }
-        //console.log(`saving prop ${name} = ${JSON.stringify(node[name])} <- ${value} (${type})`)
+        console.log(`saving prop ${name} = ${JSON.stringify(node[name])} <- ${value} (${type})`)
         el.remove()
       } catch(e) { console.log(`flexdash.save_props_edit: ${e}`) }
     })
@@ -615,7 +620,70 @@ ${widgetInfo.help_body}
     <hr />
   `
 
-  } // end of onadd()
+  // ===== FlexDash side-bar
+
+  // // set-up side-bar
+  // var content = $('<div id="red-ui-sidebar-flexdash">')
+  //   .css({
+  //     "position": "relative", "height": "100%", // fill available space
+  //     //"background-color": "#eef", // for dev purposes to see the space available
+  //     //"display": "flex", "flex-direction": "column", // make it a flexbox
+  //   })
+  //   $("<div>Loading...</div>").css({"margin": "auto"}).appendTo(content)
+  // // Register an action so the user could bind a keyboard shortcut to show the sidebar.
+  // RED.actions.add("core:show-flexdash-sidebar-tab",function() {
+  //     RED.sidebar.show("flexdash-sidebar")
+  // })
+  // // Add the actual sidebar tab
+  // RED.sidebar.addTab({
+  //     id: "flexdash-sidebar",
+  //     name: "Flexdash Dashboard", // long name for the menu
+  //     label: "Flexdash", // short name for the tab
+  //     iconClass: "fa fa-th-large", 
+  //     content: content,
+  //     action: "core:show-flexdash-sidebar-tab"
+  // })
+  // // Function to load or reload the side-bar
+  // function loadFlexDashSidebar() {
+  //   if (flexdash.sidebar) sidebar_module.unload()
+  //   const timestamp = Math.trunc(Date.now()/1000)
+  //   console.log("Loading FlexDash sidebar", timestamp)
+  //   import('./resources/@flexdash/node-red-flexdash-plugin/sidebar-loader.js?'+timestamp)
+  //     .then(m => {
+  //       flexdash.sidebar = m.default
+  //       flexdash.sidebar.load('#red-ui-sidebar-flexdash', flexdash)
+  //     })
+  //     .catch(err => {
+  //       console.error(err)
+  //       content.html(`<div style="color: red; margin: auto">Error loading FlexDash sidebar: ${err}</div>`)
+  //     })
+  // }
+  // // Add reload button to the sidebar tab
+  // $('<i class="fa fa-refresh">')
+  //   .css({position:"absolute", right:"4px", top:"4px", "font-size":"110%", "z-index":100, cursor:"pointer"})
+  //   .on('click', () => loadFlexDashSidebar())
+  //   .insertAfter($('#red-ui-tab-flexdash-sidebar .red-ui-tab-label'))
+
+  // // Load Vue and Vuetify (ha!)
+  // const sc = "script"
+  // const prefix = 'resources/@flexdash/node-red-flexdash-plugin/node_modules'
+  // let count = 1
+  // function loadScript(path) {
+  //   const id = `flexdash-script-${count++}`
+  //   if ($('#'+id).length == 0) {
+  //     $(`<${sc} id="${id}" src="${prefix}/${path}"></${sc}>`).appendTo('head')
+  //   }
+  // }
+  
+  // loadScript("vue/dist/vue.runtime.global.js")
+  // console.log("Loaded Vue", Vue?.version)
+  // loadScript("vuetify/dist/vuetify.min.js")
+  // console.log("Loaded Vuetify", Vuetify?.version)
+  // loadScript("vue3-sfc-loader/dist/vue3-sfc-loader.js")
+  // console.log("Loaded SFC-Loader")
+  // loadFlexDashSidebar()
+
+} // end of onadd()
 }) // end of registerPlugin
 
 </script>
