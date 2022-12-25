@@ -188,17 +188,16 @@ class FDWidgetCodeGen {
 
     // generate -info.js
     const info_file = path.join(resources_dir, base_name + '-info.js')
-    const info_obj = { ...this.info, custom_handlers: undefined }
     const custom_info_file = path.join(path.resolve(this.custom_dir), base_name + '-info.js')
     if (fs.existsSync(custom_info_file)) {
       // merge the custom info, also into the props, i.e. don't just replace them...
-      const custom_info = require(custom_info_file)
-      console.log(`custom info:`, custom_info)
+      const custom_info = Object.assign({}, require(custom_info_file)) // clone due to symlink!
       const props = custom_info.props || {}
       delete custom_info.props
-      Object.assign(info_obj, custom_info)
-      Object.assign(info_obj.props, props)
+      Object.assign(this.info, custom_info)
+      Object.assign(this.info.props, props)
     }
+    const info_obj = { ...this.info, custom_handlers: undefined }
     const info_js = `export default ${JSON.stringify(info_obj, null, 2)}`
     //console.log(`\n\n***** Generating ${info_file} *****\n${info_js}`)
     await fs.promises.writeFile(info_file, info_js)
