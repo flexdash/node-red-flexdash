@@ -97,8 +97,9 @@ export default {
         // set-up source code editor
         this.sfc_editor = RED.editor.createEditor({
           id: 'node-input-sfc_source',
-          mode: 'ace/mode/text',
+          mode: 'ace/mode/vue',
           value: this.sfc_source || sfc_template,
+          minimap: { enabled: false },
         })
         $('.red-ui-editor-text-container').css('flex-grow', 1)
 
