@@ -308,7 +308,7 @@ onadd: function() {
       // parent/child lists.
       // The nodes:add and nodes:change events both lead here.
       check_node(node, ev) {
-        if (!flexdash.sidebar) console.warn("FlexDash: nodes added before sidebar is initialized")
+        //if (!flexdash.sidebar) console.warn("FlexDash: nodes added before sidebar is initialized")
 
         // ensure this node is a child of its (possibly new) parent
         function add_to_parent(parent_id, node_id=undefined) {
@@ -328,7 +328,7 @@ onadd: function() {
 
         try { // caller swallows exceptions
           if ('fd_children' in node || 'fd_container' in node || node.type.startsWith('subflow:')) {
-            console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
+            //console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
           }
           if (ev == 'change') {
             // FIXME: this assumption is incorrect!!!
