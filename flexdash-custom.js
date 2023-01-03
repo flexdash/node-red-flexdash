@@ -84,11 +84,15 @@ module.exports = function (RED) {
         widget.deleteTopic(msg.topic)
         return
       }
-
+      
       // update widget props
       for (const k in msg) {
         if (k == 'topic') continue // skip: reserved for array stuff
-        if (k == '_source') {
+        if (k == 'title') {
+          // title is currently always set by the widget wrapper, it's not possible to tell the
+          // wrapper no to set the title, so we need to set the title prop, not props/title
+          widget.set('title', msg.title, {topic: msg.topic})
+        } else if (k == '_source') {
           compile(msg._source)
         } else if (!k.startsWith('_')) {
           widget.set(`props/${k}`, msg[k], {topic: msg.topic}) // prop for custom widget
