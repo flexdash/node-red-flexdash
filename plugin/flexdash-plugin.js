@@ -452,6 +452,13 @@ module.exports = function(RED) { try { // use try-catch to get stack backtrace o
         res.send(JSON.stringify(this.mutations))
       })
 
+      // on 'deploy' existing mutations are expected to be integrated into the flow and thus
+      // no longer need to be sent to connecting flow-editors (it's actually a bug to do so
+      // 'cause it causes re-application of mutations)
+      RED.events.on("flows:started", info => {
+        this.mutations = {}
+      })
+
     }
 
     // convert a FlexDash ID to a node-red ID
