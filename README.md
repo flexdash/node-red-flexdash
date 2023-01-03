@@ -9,7 +9,7 @@ FlexDash integration.
 These nodes provide the basis for communicating with FlexDash but they do not make
 any of the built-in widgets available.
 For Node-RED nodes corresponding to the built-in widgets
-use the [Node-RED FD CoreWidgets](https://github/com/flexdash/node-red-fd-corewidgets) package.
+use the [Node-RED FD CoreWidgets](https://github.com/flexdash/node-red-fd-corewidgets) package.
 
 Under the hood the nodes here use [Socket.IO](http://socket.io/) and the dashboard(s) can use Node-RED's web server (i.e. the same port) or a different port.
 
@@ -19,7 +19,7 @@ and check the [Node-RED forum](https://discourse.nodered.org).
 ## Installation
 
 TL;DR: **You most likely do not want to explicitly install this package**, you want to
-install the [core widgets](https://github/com/flexdash/node-red-fd-corewidgets), which will
+install the [core widgets](https://github.com/flexdash/node-red-fd-corewidgets), which will
 bring in this package and more and will provide a usable whole.
 
 `npm i @flexdash/node-red-fd-corewidgets`
