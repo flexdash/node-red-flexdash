@@ -35,46 +35,6 @@ Pre-release (dev) versions are published on npm using a "dev" tag:
 - latest dev version: npm i @flexdash/node-red-flexdash-plugin@dev
 - specific dev version: npm i @flexdash/node-red-flexdash-plugin@0.4.47
 
-## To do
-
-### Near term enhancements
-
-- [ ] set-up demos for all widgets
-- [X] replace typedInput by something better, support unsetting, support color picker, fix booleans
-- [X] color picker for node-red using the material design palette
-- [ ] support fd-custom node, i.e., compile vue SFC on-the-fly server-side
-
-### Near term fixes
-
-- [X] fix reordering of array widgets
-- [ ] new-dashboard should automatically use a different path
-
-### Other
-
-- [ ] enhance Widget API to support more complex data structures, specifically, ring buffers (arrays) and
-  messages
-- [ ] during NR deploy block changes from dashboards
-- [X] keep static/dynamic setting across deploy
-- [ ] support editing multiline text prop values in node-red
-- [ ] implement checks for unsupported combinations: non-global tabs/dashboards, panels in panels,
-  grids in subflows, nested subflows, array-widgets in array-panels, array/subflow combinations
-- [X] fix order of props in NR edit pane
-- [ ] support array-panels
-- [ ] fix edit button for panels overlapping edit button of widget
-- [X] fix editing of array-widgets in the dashboard: need to propagate changes to all other widgets in the array
-- [ ] implement array_max in array-widgets
-- [X] Windows 10 support
-- [ ] Basic login mechanism
-- [X] Wrap onInput callback into try/catch
-- [X] Pass flexdash client id to onInput handler
-- [ ] Edit mode disable/off/on setting, per-user if there's auth
-- [ ] Create an "any widget" node
-- [ ] Add logging verbosity switch to dashboard config node
-- [ ] Don't log every message sent to FD, or at least shorten
-- [X] Fix display of tab name as title if title is empty
-- [X] Remove "Widget X has not prop Y" warning
-- [ ] stat widget pill size
-
 ## Internals
 
 The main interface with FlexDash is `flexdash-dashboard.*`, which handles serving up
