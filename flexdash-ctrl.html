@@ -81,6 +81,8 @@
 Node to observe and control some internal FlexDash state, such as currently shown tab as well
 as features of tabs, grids, and panels.
 
+## Output messages (FlexDash->Node-RED)
+
 Output messages are generated for a number of events with the following payload:
 - `type`: the type of event.
 - `cause`: `user`/`message` for events that can be caused by user action vs. a message.
@@ -103,6 +105,8 @@ The events types are:
   null/missing.
 - `close grid`: the pop-up grid has been closed or the regular grid has been rolled-up.
 - `open grid`: the pop-up grid has been popped-up or the regular grid has been rolled-down.
+
+## Input messages (Node-RED->FlexDash)
 
 Input messages must have a `msg.action` field and must target a component using one of
 `msg.tab`, `msg.grid`, or `msg.panel`.
