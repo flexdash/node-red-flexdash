@@ -8,7 +8,7 @@ module.exports = class WidgetAPI {
     this.node = node
     this.plugin = plugin // flexdash plugin
   }
-  
+
   // setProps updates the widget's dynamic props with the passed values (typ. msg.props)
   // For each dynamic prop we need to store the value in /node-red/<widget_id>/<prop> and
   // ensure that the widget's dynamic/<prop> field points there. Unless a prop's value is
@@ -16,9 +16,9 @@ module.exports = class WidgetAPI {
   // options may contain topic and socket.
   // topic is used to index into an array (ArrayGrid), unused if not part of an array.
   // socket is used to set the value only for a specific socket (i.e. client).
-  setProps(props, options={}) {
+  setProps(props, options = {}) {
     for (const prop in props) {
-      if (prop.startsWith('_')) continue // skip internal props
+      if (prop.startsWith("_")) continue // skip internal props
       this.set(prop, props[prop], options)
     }
   }
@@ -27,10 +27,10 @@ module.exports = class WidgetAPI {
   // options may contain topic and socket.
   // topic is used to index into an array (ArrayGrid), unused if not part of an array.
   // socket is used to set the value only for a specific socket (i.e. client).
-  set(path, value, options={}) {
+  set(path, value, options = {}) {
     try {
       let { topic, socket } = options
-      const prop = path.split('/')[0]
+      const prop = path.split("/")[0]
       const w = this._getWidget(topic)
 
       // construct flexdash path and check widget actually has prop
@@ -46,13 +46,17 @@ module.exports = class WidgetAPI {
       const grid = this.node._fd_container?.getGrid()
       if (grid) {
         const unicast = grid.config.unicast
-        if (unicast == 'ignore' && socket) {
+        if (unicast == "ignore" && socket) {
           socket = null
-        } else if (unicast == 'disallow' && socket) {
-          this.node.warn(`incoming message discarded: _fd_socket is disallowed for grid ${grid.name||grid.id}`)
+        } else if (unicast == "disallow" && socket) {
+          this.node.warn(
+            `incoming message discarded: _fd_socket is disallowed for grid ${grid.name || grid.id}`
+          )
           return
-        } else if (unicast == 'require' && !socket) {
-          this.node.warn(`incoming message discarded: _fd_socket is required for grid ${grid.name||grid.id}`)
+        } else if (unicast == "require" && !socket) {
+          this.node.warn(
+            `incoming message discarded: _fd_socket is required for grid ${grid.name || grid.id}`
+          )
           return
         }
       } else {
@@ -74,14 +78,14 @@ module.exports = class WidgetAPI {
     }
   }
 
-  get(path, options={}) {
+  get(path, options = {}) {
     try {
       const { topic, socket } = options
       if (socket) {
         this.node.error(`WidgetAPI.get() not supported for unicast (_fd_socket!=null)`)
         return undefined
       }
-      const prop = path.split('/')[0]
+      const prop = path.split("/")[0]
       const w = this._getWidget(topic)
 
       // check widget actually has prop
@@ -90,8 +94,7 @@ module.exports = class WidgetAPI {
       const fdpath = `${w.dyn_root}/${path}`
       if (w.dynamic[prop]) return this.node._fd.store.get(fdpath)
       else return w.static[prop]
-
-    } catch(e) {
+    } catch (e) {
       this.node.warn(`Failed to get widget prop path '${path}':\n${e.stack}`)
     }
   }
@@ -99,7 +102,7 @@ module.exports = class WidgetAPI {
   _push_shift(op, path, value, options) {
     try {
       const { topic, socket } = options
-      const prop = path.split('/')[0]
+      const prop = path.split("/")[0]
       const w = this._getWidget(topic)
 
       // construct flexdash path and check widget actually has prop
@@ -116,19 +119,25 @@ module.exports = class WidgetAPI {
     }
   }
 
-  push(path, value, options={}) { this._push_shift("push", path, value, options) }
-  shift(path, options={}) { this._push_shift("shift", path, undefined, options) }
+  push(path, value, options = {}) {
+    this._push_shift("push", path, value, options)
+  }
+  shift(path, options = {}) {
+    this._push_shift("shift", path, undefined, options)
+  }
 
   // delete data from a widget prop given a path (prop/any/path/below/it)
   // options may contain topic and socket.
   // topic is used to index into an array (ArrayGrid), unused if not part of an array.
   // socket is used to set the value only for a specific socket (i.e. client).
-  delete(path, options={}) { this.set(path, undefined, options) }
+  delete(path, options = {}) {
+    this.set(path, undefined, options)
+  }
 
   // for array-widgets, delete a specific topic, removing the corresponding widget
   deleteTopic(topic) {
     if (this.node._fd_array_max) {
-      if (typeof topic != 'number' && typeof topic != 'string') {
+      if (typeof topic != "number" && typeof topic != "string") {
         throw new Error("[msg.]topic must be a number or string")
       }
       this.plugin._deleteWidgetTopic(this.node, topic)
@@ -137,7 +146,7 @@ module.exports = class WidgetAPI {
 
   // onInput registers the handler of a node so it gets it's corresponding widget's output
   onInput(handler) {
-    if (typeof handler !== 'function') throw new Error("onInput handler must be a function")
+    if (typeof handler !== "function") throw new Error("onInput handler must be a function")
     this.node._fd.inputHandlers[this.node._fd_id] = handler
   }
 
@@ -165,10 +174,10 @@ module.exports = class WidgetAPI {
   _getWidget(topic) {
     let widget_id = this.node._fd_id
     //console.log(`FD set ${topic}/${path} = ${value}  ${this.node._fd_kind||""}`)
-  
+
     // for arrays, we need to determine the actual widget...
     if (this.node._fd_array_max) {
-      if (typeof topic != 'number' && typeof topic != 'string') {
+      if (typeof topic != "number" && typeof topic != "string") {
         throw new Error(`msg.topic must be a number or string, not ${typeof topic}`)
       }
       this.plugin._addWidgetTopic(this.node, topic) // only adds if it doesn't exist yet
@@ -181,15 +190,14 @@ module.exports = class WidgetAPI {
   _makeDynamic(w, prop, socket) {
     if (w.dynamic[prop] !== true) {
       if (socket) this.setAbsPath(`$config/widgets/${w.id}/dynamic/${prop}`, true, socket)
-      else this.node._fd.store.updateWidgetProp(w.id, 'dynamic', prop, true)
-    }
-  }
-  
-  _makeStatic(w, prop, socket) {
-    if (prop in w.dynamic) {
-      if (socket) this.deleteAbsPath(`$config/widgets/${w.id}/dynamic/${prop}`, socket)
-      else this.node._fd.store.updateWidgetProp(w.id, 'dynamic', prop, undefined)
+      else this.node._fd.store.updateWidgetProp(w.id, "dynamic", prop, true)
     }
   }
 
+  _makeStatic(w, prop, socket) {
+    if (prop in w.dynamic) {
+      if (socket) this.deleteAbsPath(`$config/widgets/${w.id}/dynamic/${prop}`, socket)
+      else this.node._fd.store.updateWidgetProp(w.id, "dynamic", prop, undefined)
+    }
+  }
 }

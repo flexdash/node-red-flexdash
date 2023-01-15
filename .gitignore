@@ -23,3 +23,5 @@ flexdash-src/
 flexdash-src.tgz
 api-server.js
 vite-server-old.js-
+*-
+typedinput*

@@ -2,9 +2,9 @@
      Copyright ©2022 by Thorsten von Eicken, see LICENSE -->
 
 <script type="text/javascript">
-  RED.nodes.registerType('flexdash dev server', {
+  RED.nodes.registerType("flexdash dev server", {
     // properties of the NR node used by NR itself
-    category: 'flexdash',
+    category: "flexdash",
     color: "#F0E4B8",
     inputs: 1,
     outputs: 1,
@@ -13,36 +13,46 @@
 
     // node config properties that the user can edit in the flow editor
     defaults: {
-      fd: { type:"flexdash dashboard", value:"", required:true }, // FlexDash config node
-      sourceDir: { value: './flexdash-src', required: true },
+      fd: { type: "flexdash dashboard", value: "", required: true }, // FlexDash config node
+      sourceDir: { value: "./flexdash-src", required: true },
       enable: { value: false },
       install: { value: true },
     },
 
     // NR node label
-    label() { return `Dev for ${this.fd?.name||"FlexDash"}` },
-    labelStyle() { return this.fd?.name ? "node_label_italic" : "" },
+    label() {
+      return `Dev for ${this.fd?.name || "FlexDash"}`
+    },
+    labelStyle() {
+      return this.fd?.name ? "node_label_italic" : ""
+    },
 
     oneditprepare() {
       // handle checkboxes
-      for (const bx of ['enable', 'install']) {
-        $("#node-config-input-"+bx).prop('checked', this[bx])
+      for (const bx of ["enable", "install"]) {
+        $("#node-config-input-" + bx).prop("checked", this[bx])
       }
-      
+
       // help button in top tray bar - thanks Kevin!
-      $('<button type="button" class="ui-button ui-corner-all ui-widget">' +
-        '<i class="fa fa-book"></i> help</button>')
-        .on('click', () => { RED.sidebar.help.show(this.type) })
-        .insertBefore($('#node-config-dialog-cancel'))
+      $(
+        '<button type="button" class="ui-button ui-corner-all ui-widget">' +
+          '<i class="fa fa-book"></i> help</button>'
+      )
+        .on("click", () => {
+          RED.sidebar.help.show(this.type)
+        })
+        .insertBefore($("#node-config-dialog-cancel"))
     },
 
     // provide a button to restart the dev server
     button: {
-      enabled() { return this.enable },
+      enabled() {
+        return this.enable
+      },
 
       onclick() {
         // function to implement the restart button on the node, copied from inject node
-        
+
         var label = this._def.label.call(this)
         $.ajax({
           url: "fd-dev-server/" + this.id + "/restart",
@@ -50,29 +60,39 @@
           data: JSON.stringify({}),
           contentType: "application/json; charset=utf-8",
           success(resp) {
-            RED.notify("FlexDash dev server restarting", { type: "success", id: "fd-restart", timeout: 2000 })
+            RED.notify("FlexDash dev server restarting", {
+              type: "success",
+              id: "fd-restart",
+              timeout: 2000,
+            })
           },
           error: function (jqXHR, textStatus, errorThrown) {
             if (jqXHR.status == 404) {
-              RED.notify("The node has not been deployed", "error");
+              RED.notify("The node has not been deployed", "error")
             } else if (jqXHR.status == 500) {
-              RED.notify("FlexDash restart failed", "error");
+              RED.notify("FlexDash restart failed", "error")
             } else if (jqXHR.status == 0) {
-              RED.notify("No response from Node-RED back-end", "error");
+              RED.notify("No response from Node-RED back-end", "error")
             } else {
-              RED.notify("Unexpected error: " + textStatus, "error");
+              RED.notify("Unexpected error: " + textStatus, "error")
             }
-          }
+          },
         })
       },
-    }
-
+    },
   })
 </script>
 
 <style>
-  .red-ui.editor .fd-hidden { display: none; }
-  .red-ui-editor input.fd-checkbox { vertical-align: top; margin-right: 1ex; display: inline-block; width: auto; }
+  .red-ui.editor .fd-hidden {
+    display: none;
+  }
+  .red-ui-editor input.fd-checkbox {
+    vertical-align: top;
+    margin-right: 1ex;
+    display: inline-block;
+    width: auto;
+  }
 </style>
 
 <script type="text/html" data-template-name="flexdash dev server">
@@ -93,7 +113,7 @@
       Paths starting with <tt>~/</tt> are relative to the Node-RED <i>home</i> (installation) directory.
     </small>
   </div-->
-  
+
   <div class="form-row">
     <input type="checkbox" id="node-input-enable" class="fd-checkbox">
     <label for="node-input-enable" style="width: auto;">Enable the dev server</label>
@@ -117,13 +137,14 @@
 
 <script type="text/html" data-help-name="flexdash dev server">
   <p>Runs a FlexDash development server.</p>
-  <p>The development server provides a development version of FlexDash to help develop new widgets.
-    This enable hot-module-reload so changing a widget's source is immediately reflected in the
-    live dashboard. It also enables debugging using the Vue Devtools extension in the browser
-    (chrome or firefox).
-    The dev server is based on vite and runs as a subprocess of Node-RED but is proxied through
-    Node-RED's web server.</p>
-  
+  <p>
+    The development server provides a development version of FlexDash to help develop new widgets.
+    This enable hot-module-reload so changing a widget's source is immediately reflected in the live
+    dashboard. It also enables debugging using the Vue Devtools extension in the browser (chrome or
+    firefox). The dev server is based on vite and runs as a subprocess of Node-RED but is proxied
+    through Node-RED's web server.
+  </p>
+
   <h3>Installation</h3>
   <p>Coming soon...</p>
 </script>
