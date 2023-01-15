@@ -8,6 +8,7 @@
     "express": "^4.0.0",
     "glob": "^7.2.0",
     "http-proxy-middleware": "^2.0.3",
+    "node-red-vue": "dev",
     "socket.io": "^4.1.0",
     "tar": "^6.0.0"
   },
@@ -27,7 +28,7 @@
     }
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "bin": {
     "gen-widget-nodes": "./gen-widget-nodes.js"
@@ -49,5 +50,9 @@
   "bugs": {
     "url": "https://github.com/flexdash/node-red-flexdash/issues"
   },
-  "homepage": "https://github.com/flexdash/node-red-flexdash#readme"
+  "homepage": "https://github.com/flexdash/node-red-flexdash#readme",
+  "devDependencies": {
+    "vue": "^3.2.45",
+    "vue-tsc": "^1.0.0"
+  }
 }
