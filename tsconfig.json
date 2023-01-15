@@ -1,12 +1,22 @@
 {
-    "include": [
-      "*.js", "*.html", "plugin/*.js", "plugin/*.html"
-    ],
-    "compilerOptions": {
-      "module": "es2015",
-      "moduleResolution": "node",
-      "target": "es6",
-      "sourceMap": true,
-      "allowJs": true
-    }
-  }
+  "compilerOptions": {
+    "target": "ESNext" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017','ES2018' or 'ESNEXT'. */,
+    "module": "ESNext" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */,
+    "moduleResolution": "node" /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */,
+    "strict": true /* Enable all strict type-checking options. */,
+    "jsx": "preserve" /* Specify JSX code generation: 'preserve', 'react-native', or 'react'. */,
+    "declaration": true /* Generates corresponding '.d.ts' file. */,
+    "declarationMap": true,
+    "sourceMap": true /* Generates corresponding '.map' file. */,
+    "resolveJsonModule": true,
+    "isolatedModules": true /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */,
+    "esModuleInterop": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */,
+    "noUnusedLocals": true /* Report errors on unused locals. */,
+    "skipLibCheck": true,
+    "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
+    "types": ["vite/client"],
+    "paths": { "/*": ["./*"] }
+  },
+  "include": [] // "**/*.ts", "**/*.d.ts", "**/*.tsx", "**/*.vue"]
+  /*"exclude": ["node_modules"]*/
+}
