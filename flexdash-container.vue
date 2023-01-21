@@ -4,8 +4,12 @@
 
 <template>
   <nr-tabs :tabs="['Config', 'Contents']" v-model="uitab" v-bind="$attrs" />
-  <fd-container-config v-show="uitab === 0" v-bind="$props" />
-  <fd-grid-sorter v-show="uitab === 1" :items="fd_children.substring(1).split(',')" />
+  <fd-container-config v-show="uitab === 0" v-bind="$props" @update:prop="onUpdateProp" />
+  <fd-grid-sorter
+    v-show="uitab === 1"
+    :items="fd_children.substring(1).split(',')"
+    @update:items="onItems"
+    @update:itemSize="onItemSize" />
 </template>
 
 <script>
@@ -48,13 +52,55 @@ export default defineComponent({
     rows: { default: 1, type: Number }, // validate(v) { return v > 0 && v <= 100 },
   },
 
+  inject: ["$bus"],
+  emits: ["update:prop"],
+
   data() {
-    return { uitab: 1 }
+    return {
+      uitab: 0,
+      widgetChanges: [], // array of changes to be saved
+    }
+  },
+
+  mounted() {
+    // subscribe to save events
+    this.$bus.on("save", () => this.onSave())
   },
 
   compute: {
     isGrid() {
       return this.kind.endsWith("Grid")
+    },
+  },
+
+  methods: {
+    // handle prop update in config tab
+    onUpdateProp(prop, value) {
+      this.$emit("update:prop", prop, value)
+    },
+    // handle reordering events from the grid sorter, convert array to string representation
+    onItems(items) {
+      console.log("onItems", items)
+      this.$emit("update:prop", "fd_children", "," + items.join(","))
+    },
+    // handle resize events from the grid sorter, like (id, "rows", 3)
+    onItemSize(id, what, value) {
+      this.widgetChanges.push({ id, what, value })
+    },
+    // handle save button, save all widget changes
+    onSave() {
+      this.widgetChanges.forEach(({ id, what, value }) => {
+        const n = RED.nodes.node(id)
+        if (n) {
+          if (what in n) n[what] = value
+          else if ("fd_" + what in n) n["fd_" + what] = value
+          else return
+          n.changed = true // mark node as changed
+          RED.nodes.dirty() // mark project as changed
+          RED.events.emit("nodes:change", n)
+        }
+      })
+      this.widgetChanges = []
     },
   },
 
