@@ -1,3 +1,6 @@
+<!-- FlexDash Grid Sorter - Implements drag&drop sorting and resizing of widgets in a grid.
+     Copyright ©2023 by Thorsten von Eicken, see LICENSE
+-->
 <template>
   <div ref="outer">
     <!-- Component info with resizing controls -->
@@ -16,12 +19,12 @@
 
           <div class="ml:3ex mr:1ex">rows:</div>
           <nr-number-input
-            :modelValue="dragged.rows"
+            :modelValue="Number(dragged.rows)"
             @update:modelValue="setRC(dragged.id, 'rows', $event)" />
 
           <div class="ml:3ex mr:1ex">cols:</div>
           <nr-number-input
-            :modelValue="dragged.cols"
+            :modelValue="Number(dragged.cols)"
             @update:modelValue="setRC(dragged.id, 'cols', $event)" />
         </div>
       </div>
@@ -97,10 +100,11 @@ export default defineComponent({
   props: {
     items: { type: Array, required: true }, // initial list of Node-RED node IDs
   },
-  emits: ["update:prop"],
+  emits: ["update:items", "update:itemSize"],
   data() {
     return {
       reordered: this.items, // potentially reordered list of Node-RED node IDs
+      itemSizes: {}, // map of Node-RED node IDs to { rows, cols } for resized items
       dragging: false, // currently dragging an item around
       top: 0, // top/left of dragged item, relative to grid origin
       left: 0,
@@ -110,8 +114,6 @@ export default defineComponent({
       lastMouseX: 0, // last mouse position
       lastMouseY: 0,
       lastMouseAt: 0, // timestamp of last mouse position
-      // trigger reactivity when modifying non-reactive node-red state
-      trigger: 0,
       // scaling of the grid to simulate window widths
       windowCols: 6,
       outerWidth: 500, // DOM width of the grid's container, i.e., el.clientWidth
@@ -122,15 +124,13 @@ export default defineComponent({
   computed: {
     // component info about each item
     components() {
-      this.trigger // add trigger to the set of what we read
-      console.log("components", this.trigger)
       return this.reordered.map((i, ix) => {
         let ret = { id: i, ix, label: i, cols: 1, rows: 1 }
         const n = RED.nodes.node(i)
         if (n) {
           ret.label = n.name || n.title || n.id
-          ret.cols = n.fd_cols || n.cols || 1
-          ret.rows = n.fd_rows || n.rows || 1
+          ret.cols = this.itemSizes[i]?.cols || n.fd_cols || n.cols || 1
+          ret.rows = this.itemSizes[i]?.rows || n.fd_rows || n.rows || 1
           ret.dragged = this.dragging && i == this.draggedId // the one being dragged
           ret.selected = !this.dragging && i == this.draggedId // select the last one dragged
         }
@@ -182,6 +182,7 @@ export default defineComponent({
     mouseup(e) {
       console.log("mouseup", e)
       this.dragging = false
+      this.$emit("update:items", this.reordered)
     },
     mousemove(e) {
       this.lastMove = Date.now()
@@ -248,14 +249,9 @@ export default defineComponent({
     },
     // update the size of a component
     setRC(id, what, value) {
-      const n = RED.nodes.node(id)
-      if (n) {
-        if (what in n) n[what] = value
-        else if ("fd_" + what in n) n["fd_" + what] = value
-        else return
-        RED.nodes.changed = true
-        this.trigger++
-      }
+      this.$emit("update:itemSize", id, what, value)
+      if (!(id in this.itemSizes)) this.itemSizes[id] = {}
+      this.itemSizes[id][what] = value
     },
     // open help sidebar
     openHelp() {

@@ -155,6 +155,7 @@ export default defineComponent({
     rows: { default: 1, type: Number }, // validate(v) { return v > 0 && v <= 100 },
   },
   inject: ["node"], // to display the id...
+  emits: ["update:prop"],
 
   computed: {
     isGrid() {
