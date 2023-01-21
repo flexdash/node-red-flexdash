@@ -44,6 +44,7 @@ module.exports = function (RED) {
     }
 
     // compile the SFC source code into javascript and styles
+    // code duplicated in the flexdash component node
     const compile = source => {
       if (typeof source != "string" || source.length == 0) {
         setAll("errors", ["SFC source code missing/empty"])
