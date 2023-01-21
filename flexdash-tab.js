@@ -51,4 +51,5 @@ module.exports = function (RED) {
   }
 
   RED.nodes.registerType("flexdash tab", flexdashTab)
+  RED.plugins.get("node-red-vue").createVueTemplate("flexdash tab", __filename)
 }

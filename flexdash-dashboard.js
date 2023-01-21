@@ -101,7 +101,7 @@ module.exports = function (RED) {
           this.ctrlHandlers = [] // flexdash ctrl nodes: {node,handler}
           this.config = config
           this.plugin = RED.plugins.get("flexdash")
-          this.regs = {} // component registry for custom widgets
+          this.regs = {} // component registry for custom widgets and components
           this.clients = {} // map of connected client IDs to { socket, browser }
 
           // Instantiate a store, this is where our local version of the config and the state
@@ -220,6 +220,7 @@ module.exports = function (RED) {
 
       // addWidget registers a custom widget script code so it can be served to
       // the browser. Returns the URL for the script.
+      // This is also used to register custom components, not just widgets.
       addWidget(name, content) {
         this.regs[name] = content
         return `${this.path}/custom/${name}`
@@ -573,6 +574,7 @@ module.exports = function (RED) {
     }
 
     RED.nodes.registerType("flexdash dashboard", FlexDashDashboard)
+    RED.plugins.get("node-red-vue").createVueTemplate("flexdash dashboard", __filename)
     RED.log.info("Node-RED FlexDash version " + version)
     FS.readFile(paths.prodRoot + "/VERSION", "utf8", (err, data) => {
       if (err) RED.log.info("Trying to print FD version: " + err)
