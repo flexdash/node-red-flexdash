@@ -7,7 +7,7 @@
 
       <!-- Widget Code tab -->
       <nr-code-editor
-        v-show="tab === 1"
+        v-if="blink" v-show="tab === 1"
         :modelValue="sfc_source"
         @update:modelValue="$emit('update:prop', 'sfc_source', $event)" />
 
@@ -34,6 +34,41 @@
 <script>
 import { defineComponent } from "vue"
 
+// Simple button widget to populate new empty flexdash-custom editors.
+const sfc_template = `
+[template>
+  <v-btn variant="elevated" class="ma-auto" @click="clicked()">
+    <span class="label">{{ label }}</span>
+  </v-btn>
+[/template>
+
+[style scoped>
+  .label { color: red; }
+[/style>
+
+[script>
+exportdefault {
+  // Props are the inputs to the widget.
+  // They can be set dynamically using Node-RED messages using \`msg.<prop>\`.
+  // In a "custom widget" like this one they cannot be set via the Node-RED flow editor:
+  // use the default values in the lines below instead.
+  props: {
+    label: { default: "clickme" }, // text to show inside button
+    output: { default: "I was clicked" }, // value to output when clicked
+  },
+
+  emits: ['send'], // declare to Vue that this component emits a 'send' event
+
+  // simple methods within the component
+  methods: {
+    clicked() { // handle the clicking of the button, i.e., the handler for the '@click'
+      this.$emit('send', this.output) // emit an event (Vue concept), a 'send' event goes to NR
+    },
+  },
+}
+[/script>
+`.trimStart().replace(/^\[/gm, '<').replace("exportdefault", "export default")
+
 export default defineComponent({
   name: "EditFlexdashCustom",
   props: {
@@ -51,7 +86,17 @@ export default defineComponent({
   emits: ["update:prop"],
   data: () => ({
     tab: 0,
+    blink: 1, // used to restart code editor when sfc_source is empty
   }),
+  mounted() {
+    // populate empty editors with a simple button widget
+    if (!this.sfc_source) {
+      // we inject into the code editor for which we have to restart it, sigh
+      this.$emit("update:prop", "sfc_source", sfc_template)
+      this.blink = 0
+      this.$nextTick(() => { this.blink = 1 })
+    }
+  },
   methods: {
     propagate(prop, value) {
       this.$emit("update:prop", prop, value)
