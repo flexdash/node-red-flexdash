@@ -175,6 +175,7 @@
       function remove_child(parent, child_id) {
         if (typeof parent == "string") parent = RED.nodes.node(parent)
         if (!parent) return
+        if (!parent.fd_children) return // has no children
         const i = parent.fd_children.indexOf(child_id)
         if (i >= 0) {
           // FIXME: need to set parent dirty?
