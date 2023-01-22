@@ -54,17 +54,14 @@
       :class="[
         'grid grid-template-cols:repeat(auto-fill,minmax(120px,1fr))',
         `grid-auto-rows:79px gap:8px grid-auto-flow:${autoFill ? 'dense' : 'row'}`,
-        'rel cursor:grabbing user-select:none',
+        'rel cursor:grabbing user-select:none touch-action:none',
         'bg:gray-98 b:1|solid|gray-70 p:4px r:4',
         'transform-origin:0|0',
         `w:${windowWidth}px scale(${gridScale.toFixed(3)})`,
       ]"
-      @mousedown="mousedown"
-      @touchstart="mousedown"
-      @mousemove="mousemove"
-      @touchmove="mousemove"
-      @mouseup="mouseup"
-      @touchend="mouseup">
+      @pointerdown.prevent="mousedown"
+      @pointermove="mousemove"
+      @pointerup="mouseup">
       <fd-grid-sorter-item
         v-for="c in components"
         key="c.id"
@@ -174,6 +171,8 @@ export default defineComponent({
   methods: {
     mousedown(e) {
       console.log("mousedown", e)
+      if (!e.isPrimary) return
+      this.$refs.grid.setPointerCapture(e.pointerId)
       if (this.identifyDraggable(e)) {
         this.dragging = true
         this.$nextTick(() => this.mousemove(e)) // let computed props update
@@ -227,7 +226,8 @@ export default defineComponent({
     },
     // identify which component the mouse is over during dragging
     identifyOver(e) {
-      const el = e.target.closest(".draggable")
+      const tgt = document.elementFromPoint(e.clientX, e.clientY)
+      const el = tgt.closest(".draggable")
       if (!el) return null
       const id = el.getAttribute("c-id")
       return this.componentById(id)

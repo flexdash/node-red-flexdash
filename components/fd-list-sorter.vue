@@ -2,20 +2,17 @@
      Copyright ©2023 by Thorsten von Eicken, see LICENSE
 -->
 <template>
-  <div ref="outer">
+  <div>
     <div
       ref="list"
       :class="[
         'flex flex:col align-items:stretch',
-        'rel cursor:grabbing user-select:none',
+        'rel cursor:grabbing user-select:none touch-action:none',
         'bg:gray-98 b:1|solid|gray-70 p:4px r:4',
       ]"
-      @mousedown="mousedown"
-      @touchstart="mousedown"
-      @mousemove="mousemove"
-      @touchmove="mousemove"
-      @mouseup="mouseup"
-      @touchend="mouseup">
+      @pointerdown.prevent="mousedown"
+      @pointermove="mousemove"
+      @pointerup="mouseup">
       <div
         v-for="ix in order"
         :ix="ix"
@@ -61,6 +58,8 @@ export default defineComponent({
 
   methods: {
     mousedown(e) {
+      if (!e.isPrimary) return
+      this.$refs.list.setPointerCapture(e.pointerId)
       const el = e.target.closest(".draggable") // identify draggable el under mouse
       if (el) {
         this.draggedIx = el.getAttribute("ix")
@@ -90,7 +89,9 @@ export default defineComponent({
         tgtOffsetTop = Math.max(this.minY, Math.min(this.maxY, tgtOffsetTop))
         this.top += tgtOffsetTop - this.draggedEl.offsetTop
         // see what we're over
-        const overEl = e.target.closest(".draggable")
+        const tgt = document.elementFromPoint(e.clientX, e.clientY)
+        const overEl = tgt.closest(".draggable")
+        console.log("over", overEl, e.target)
         if (overEl && overEl != this.draggedEl) {
           this.displace(overEl)
           // adjust top due to the "regular flow" position changing
