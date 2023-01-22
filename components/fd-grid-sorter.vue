@@ -170,7 +170,6 @@ export default defineComponent({
 
   methods: {
     mousedown(e) {
-      console.log("mousedown", e)
       if (!e.isPrimary) return
       this.$refs.grid.setPointerCapture(e.pointerId)
       if (this.identifyDraggable(e)) {
@@ -179,7 +178,6 @@ export default defineComponent({
       }
     },
     mouseup(e) {
-      console.log("mouseup", e)
       this.dragging = false
       this.$emit("update:items", this.reordered)
     },

@@ -75,7 +75,6 @@ export default defineComponent({
       }
     },
     mouseup(e) {
-      console.log("mouseup", e)
       this.draggedIx = null
       this.$emit(
         "update:items",
@@ -91,7 +90,6 @@ export default defineComponent({
         // see what we're over
         const tgt = document.elementFromPoint(e.clientX, e.clientY)
         const overEl = tgt.closest(".draggable")
-        console.log("over", overEl, e.target)
         if (overEl && overEl != this.draggedEl) {
           this.displace(overEl)
           // adjust top due to the "regular flow" position changing
