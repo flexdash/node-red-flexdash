@@ -192,6 +192,7 @@
       // event or even notion of "everything is now loaded"; so this only prints info for now...
       function prune_children(parent) {
         const c0 = parent.fd_children
+        if (!c0) return
         let c1 = "",
           pruned = []
         for (let c_id of parent.fd_children.replace(/,,+/g, ",").split(",")) {
