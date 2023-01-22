@@ -39,7 +39,7 @@
     <!-- info about the selected size, help button, and auto-fill toggle -->
     <div class="mb:1ex w:full h:32 flex align-items:center justify-content:start">
       <div>Simulated window width:</div>
-      <div class="p:0.75ex mx:1ex r:4 bg:gray-90">{{ windowWidth }}px</div>
+      <div class="p:0.75ex mx:1ex r:4 bg:gray-90">{{ windowWidth-2 }}px</div>
       <div class="">(scale: {{ gridScale.toFixed(2) }}x)</div>
       <button class="mx:auto px:1ex py:0.5ex r:4 b:solid|1|gray-78" @click="openHelp">
         <i class="fa fa-book"></i> help
@@ -141,7 +141,7 @@ export default defineComponent({
     // width of simulated window in pixels given number of desired grid columns
     windowWidth() {
       const cols = Math.max(1, Math.min(20, this.windowCols))
-      return cols * (COLW + GAPW)
+      return cols * (COLW + GAPW) + 2 // +2 due to border width
     },
     gridScale() {
       return this.outerWidth / this.windowWidth
