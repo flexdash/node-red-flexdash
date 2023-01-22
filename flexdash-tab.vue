@@ -91,7 +91,8 @@ export default defineComponent({
       return this.fd_children.split(",").slice(1)
     },
     children() {
-      return this.child_ids.map(id => RED.nodes.node(id)) // FIXME: deal with missing nodes
+      // FIXME: deal with missing nodes
+      return this.child_ids.map(id => RED.nodes.node(id)).filter(n => n)
     },
   },
 
