@@ -243,6 +243,11 @@ module.exports = function (RED) {
             continue
           }
           const cc_nrids = parse_fd_children(config.fd_children)
+          if (config.fd_children.includes(",,")) {
+            RED.log.warn(
+              `Node '${node.id}' has ,, in fd_children: ${config.fd_children} (${node.type}|${node.name}|${node.title})`
+            )
+          }
           let child_fdids
           if (node.type == "flexdash dashboard" || node.type == "flexdash tab") {
             child_fdids = genDashTabChildren(cc_nrids)
@@ -336,6 +341,10 @@ module.exports = function (RED) {
         ret = []
       for (const nrid of nrids) {
         if (nrid in c) continue
+        if (nrid == "") {
+          RED.log.warn(`FD: Empty ID in fd_children: ${fd_children}`)
+          continue
+        }
         c[nrid] = true
         ret.push(nrid)
       }
