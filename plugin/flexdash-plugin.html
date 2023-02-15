@@ -1,159 +1,17 @@
-<!--link rel="stylesheet"
-      href="resources/@flexdash/node-red-flexdash-plugin/node_modules/vuetify/dist/vuetify.min.css">
-</link-->
-
 <script type="module">
   import colors from "./resources/@flexdash/node-red-flexdash-plugin/colors.js"
   import colorPicker from "./resources/@flexdash/node-red-flexdash-plugin/color-picker.js"
 
   // Init FlexDash global
-  //try { flexdash } catch(e) { flexdash = {} }
   if (!("flexdash" in globalThis)) globalThis.flexdash = {}
   flexdash.last_container = null // last container selected, auto-select it when adding the next node
 
   RED.plugins.registerPlugin("flexdash-plugin", {
     type: "flexdash",
     onadd: function () {
-      console.log("FlexDash plugin added")
-      var mutation_seq = 0
+      console.log("FlexDGgash plugin added")
 
-      // ===== handle mutations coming in from the FlexDash side of things
-      // These are changes to widgets the user made in FlexDash directly that have been sent to
-      // Node-RED, which forwards them into this here...
-
-      RED.comms.subscribe("flexdash-mutation", (topic, object) => {
-        const { seq } = object
-        //console.log("FlexDash-mutation seq=", seq)
-        if (seq > mutation_seq) {
-          mutation_seq = seq
-          fetch("_flexdash/mutations")
-            .then(res => {
-              if (res.status == 404) {
-                RED.notify("FlexDash has not been deployed yet", { type: "error" })
-                // RED.notify(
-                //   node._("common.notification.error",
-                //     { message: node._("common.notification.errors.not-deployed") }),
-                //   "error")
-                return null
-              } else if (!res.ok) {
-                //console.log("Ooops, failed to fetch mutations:", res.statusText)
-                RED.notify(`Unexpected error from FlexDash plugin: ${res.statusMessage}`, {
-                  type: "error",
-                })
-                // RED.notify(
-                //   node._("common.notification.error", {
-                //       message: node._("common.notification.errors.unexpected",
-                //         { status: res.status, message: res.statusMessage })
-                //   }), "error")
-                return null
-              } else {
-                // success
-                return res.json()
-              }
-            })
-            .then(m => {
-              if (m) processMutations(m, 2)
-            })
-            .catch(err => {
-              //console.log("Failed to fetch mutations:", err)
-              RED.notify(`No response from Node-RED: ${err.message}`, { type: "error" })
-              // RED.notify(node._("common.notification.error", {
-              //   message: node._("common.notification.errors.no-response")
-              // }), "error")
-            })
-        }
-      })
-
-      function processMutations(mutations, retries) {
-        // TODO: handle array/object types
-        //console.log("FlexDash mutations:", mutations)
-        try {
-          for (const nrid in mutations) {
-            const m = mutations[nrid]
-            const node = RED.nodes.node(nrid)
-            if (!node) {
-              // Due to the Node-RED flow editor "feature" that no event is generated when all nodes
-              // have been loaded we need to retry a few times. See:
-              // https://discourse.nodered.org/t/new-editor-event-when-all-nodes-have-been-loaded/60314
-              if (retries) {
-                console.log("Retrying mutation for node", nrid, "in 2s")
-                const mm = {}
-                mm[nrid] = m
-                setTimeout(() => {
-                  processMutations(mm, retries - 1)
-                }, 2000)
-              } else {
-                console.log(`Failed to find node ${nrid} to apply FD mutation`)
-              }
-              continue
-            }
-            console.log(`Applying mutation to node ${nrid} ${node.type} "${node.name}"`)
-            //console.log(`Node for ${nrid} has: ${Object.keys(node).join(' ')}`)
-
-            // prep history event and perform changes
-            const undo = {}
-            const historyEvent = {
-              t: "edit",
-              node: node,
-              changes: {},
-              dirty: node.dirty,
-              changed: node.changed, // undo stuff?
-              callback: ev => Object.merge(node, undo), // undo function?
-            }
-
-            // if we get fd_children in, verify that all are existing nodes
-            if ("fd_children" in m) {
-              if (m["fd_children"] != node["fd_children"])
-                console.log(`  ${nrid}: fd_children=${m["fd_children"]}`)
-              for (const ch of m["fd_children"].split(",")) {
-                if (ch && !RED.nodes.node(ch)) {
-                  console.log(`Failed to find child node ${ch} for ${nrid} (${m["name"]})`)
-                }
-              }
-            }
-
-            //console.log("Mutation", JSON.stringify(m[nrid]))
-            for (const k in node._def.defaults) {
-              // handle updated fields that are part of the node's defaults
-              if (k in m) {
-                if (m[k] != node[k]) {
-                  undo[k] = node[k]
-                  node[k] = m[k]
-                  historyEvent.changes[k] = m[k]
-                }
-                // handle updated fields that are in static
-              } else if ("static" in m && k in m.static) {
-                if (m.static[k] != node[k]) {
-                  undo[k] = node[k]
-                  node[k] = m.static[k]
-                  historyEvent.changes[k] = m.static[k]
-                }
-                // handle rows/cols specially 'cause in widgets they're fd_cols/fd_rows
-              } else if (["fd_cols", "fd_rows"].includes(k) && k.substring(3) in m) {
-                const k3 = k.substring(3)
-                if (m[k3] != node[k]) {
-                  undo[k] = node[k]
-                  node[k] = m[k3]
-                  historyEvent.changes[k] = m[k3]
-                }
-              }
-            }
-            //console.log("Changes:", JSON.stringify(historyEvent.changes))
-            if (Object.keys(undo).length > 0) {
-              node.changed = true
-              node.dirty = true
-              RED.nodes.dirty(true)
-              RED.history.push(historyEvent)
-            }
-          }
-          RED.view.redraw()
-          // RED.notify(...
-        } catch (e) {
-          console.log(`FD: failed to process mutations: ${e}\n${e.stack}`)
-        }
-      }
-
-      // ===== clear flexdash global when switching to a different project
+      // ===== handle switching to a different project
 
       RED.events.on("workspace:clear", info => {
         //console.log("Workspace cleared:", info)         // TODO: do something!
@@ -166,8 +24,10 @@
         if (typeof parent == "string") parent = RED.nodes.node(parent)
         if (!parent) return
         if (parent.fd_children.includes(child_id)) return // works given comma-separation
-        // new child, append                                   // FIXME: need to set parent dirty?
+        // new child, append
         parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
+        parent.changed = true
+        RED.nodes.dirty(true)
         //console.log("added child", child_id, "to", parent.id)
       }
 
@@ -178,11 +38,11 @@
         if (!parent.fd_children) return // has no children
         const i = parent.fd_children.indexOf(child_id)
         if (i >= 0) {
-          // FIXME: need to set parent dirty?
           parent.fd_children =
             parent.fd_children.substring(0, i - 1) + // leading comma...
             parent.fd_children.substring(i + child_id.length)
-          prune_children(parent) // opportunistic
+          parent.changed = true
+          RED.nodes.dirty(true)
           //console.log('removed child', child_id, 'from', parent.id)
         }
       }
@@ -205,17 +65,187 @@
           }
         }
         if (pruned.length) {
-          console.log(
-            "FD: would prune children of",
-            parent.id,
-            ":",
-            pruned.join(","),
-            " keeping ",
-            c1
-          )
+          console.log(`FlexDash: pruning children of ${parent.id} "${parent.name}": ${pruned.join(",")}`)
+          parent.fd_children = c1
+          parent.changed = true
+          RED.nodes.dirty(true)
         }
-        //parent.fd_children = c1  // disabled for now
       }
+
+      function prune_all_children() {
+        RED.nodes.eachConfig(n => {
+          if (n.type.startsWith("flexdash ") && "fd_children" in n) prune_children(n)
+        })
+      }
+      RED.events.on("deploy", prune_all_children)
+
+      // patched subflows: map of subflow instance ID to subflow panel ID
+      let patched_subflows = {}
+
+      function find_subflow_for_panel(panel_id) {
+        for (const sf in patched_subflows) {
+          if (patched_subflows[sf] == panel_id) return sf
+        }
+        return null
+      }
+
+      // check whether node_id was SFP and if so, unpatch subflow it pointed to
+      function check_remove_subflowpanel(node_id) {
+        const old_sf = find_subflow_for_panel(node_id)
+        if (!old_sf) return
+        delete patched_subflows[old_sf]
+        unpatch_subflow_instance_edit(old_sf)
+      }
+
+      // check_node performs some checks on FlexDash nodes, in particular, it maintains the
+      // parent/child lists.
+      // The nodes:add and nodes:change events both lead here.
+      function check_node(node, ev) {
+
+        // ensure this node is a child of its (possibly new) parent
+        function add_to_parent(parent_id, node_id = undefined) {
+          if (!node_id) node_id = node.id
+          const parent = RED.nodes.node(parent_id)
+          if (parent) {
+            // remove from old parent
+            RED.nodes.eachConfig(n => {
+              if (n != parent && "fd_children" in n) remove_child(n, node_id)
+            })
+            // add to new parent
+            if ("fd_children" in parent && !parent.fd_children?.includes(node_id)) {
+              add_child(parent, node_id)
+            }
+          }
+        }
+
+        // check that a container has fd_children and anything else it may need
+        function check_container(node) {
+          const old_fdc = node.fd_children
+          if (
+            !("fd_children" in node) ||
+            typeof node.fd_children != "string" ||
+            (node.fd_children != "" && !node.fd_children.startsWith(','))
+          ) {
+            RED.log.warn(`FlexDash: ${node.type} ${node.id} has invalid fd_children (${node.fd_children})`)
+            node.fd_children = ""
+            node.changed = true
+          }
+        }
+
+        // caller swallows exceptions
+        try {
+          // figure out parent node and add there                  // FIXME: dirty?
+          let parent_id = null
+          // dashboard
+          if (node.type == "flexdash dashboard") {
+            check_container(node)
+
+          // grid tab or iframe tab
+          } else if (node.type == "flexdash tab" || node.type == "flexdash iframe") {
+            check_container(node)
+            add_to_parent(node.fd)
+
+          // grid
+          } else if (node.type == "flexdash container" && node.kind.endsWith("Grid")) {
+            node.parent = "" // ensure we don't somehow depend on another grid
+            check_container(node)
+            add_to_parent(node.tab)
+            if (!flexdash.last_container) flexdash.last_container = node.id
+            check_remove_subflowpanel(node.id) // catch change from subflow panel to grid
+            //console.log("cleared parent field", "users:", node.users?.map(u=>u.type).join(','))
+
+          // subflow panel
+          } else if (node.type == "flexdash container" && node.kind == "SubflowPanel") {
+            node.parent = "" // ensure we don't somehow depend on a grid
+            node.tab = "" // ensure we don't somehow depend on a tab
+            check_container(node)
+            if (node.z) {
+              // subflow panel has been placed into a subflow
+              if (patched_subflows[node.z] != node.id) {
+                // subflow panel has been added to or moved to subflow
+                check_remove_subflowpanel(node.id) // remove from old subflow
+              }
+              patched_subflows[node.z] = node.id
+              patch_subflow_instance_edit(node.z)
+            } else {
+              // subflow panel does not belong to a subflow (really an error)
+              check_remove_subflowpanel(node.id) // remove from any old subflow
+            }
+            if (!flexdash.last_container) flexdash.last_container = node.id
+            
+          // regular panel
+          } else if (node.type == "flexdash container" && node.kind.endsWith("Panel")) {
+            node.tab = "" // ensure we don't somehow depend on a tab
+            check_container(node)
+            add_to_parent(node.parent)
+            if (!flexdash.last_container) flexdash.last_container = node.id
+            check_remove_subflowpanel(node.id) // catch change from subflow panel to regular panel
+            
+          // widget
+          } else if ("fd_container" in node && "fd_rows" in node) {
+            add_to_parent(node.fd_container)
+            if (node.fd_container) flexdash.last_container = node.fd_container
+            
+          // subflow
+          } else if (node.type.startsWith("subflow:")) {
+            if (node._def) {
+              // subflow instance
+              if (ev == "add") {
+                const fg = get_env_var(node, "flexdash_grid")
+                if (fg) node.flexdash_grid = fg
+              } else if ("flexdash_grid" in node) {
+                set_env_var(node, "flexdash_grid", node.flexdash_grid)
+              } else {
+                delete node.flexdash_grid
+              }
+              if (node.flexdash_grid) add_to_parent(node.flexdash_grid, node.id)
+            } else {
+              // subflow definition
+              if (node.id in this.subflow_panels) patch_subflow_instance_edit(node.id)
+              else unpatch_subflow_instance_edit(node.id)
+            }
+            
+          //other
+          } else {
+            return // not a flexdash-related node
+          }
+          //console.log("check_node", ev, node)
+        } catch (e) {
+          console.log(`Failed to add node ${node}: ${e}\n${e.stack}`)
+        }
+      }
+
+      function remove_node(node) {
+        try {
+          // caller swallows exceptions
+          if (node == flexdash.last_container) flexdash.last_container = null
+
+          // remove node from parent's fd_children list
+          if (node.type == "flexdash tab") {
+            remove_child(node.fd, node.id)
+          } else if (node.type == "flexdash container") {
+            if (node.kind.endsWith("Grid")) {
+              remove_child(node.tab, node.id)
+            } else if (node.kind == "SubflowPanel") {
+              // nothing...
+            } else if (node.kind.endsWith("Panel")) {
+              remove_child(node.parent, node.id)
+            }
+            check_remove_subflowpanel(node.id) // may have changed from subflow panel to smthg else
+          } else if (node.type.startsWith("subflow:") && "flexdash_grid" in node) {
+            remove_child(node.flexdash_grid, node.id)
+          } else if (node.fd_container) {
+            // widget node
+            remove_child(node.fd_container, node.id)
+          }
+        } catch (e) {
+          console.log(`Failed to remove node ${node}: ${e}\n${e.stack}`)
+        }
+      }
+
+      RED.events.on("nodes:add", node => check_node(node, "add"))
+      RED.events.on("nodes:change", node => check_node(node, "change"))
+      RED.events.on("nodes:remove", node => remove_node(node))
 
       // ===== functions to monkey-patch subflow nodes to display a FlexDash grid selector
 
@@ -296,190 +326,6 @@
         const e = node.env?.find(e => e.name == name)
         return e?.value || ""
       }
-
-      // ===== fd_registry was intended to keep track of all flexdash nodes so they can be found
-      // globally by their ID, but in reality it doesn't do that and it's the place where all
-      // nodes are checked and processed every time they are created or changed.
-
-      flexdash.registry = (function () {
-        class FDRegistry {
-          constructor() {
-            RED.events.on("nodes:add", node => this.check_node(node, "add"))
-            RED.events.on("nodes:change", node => this.check_node(node, "change"))
-            RED.events.on("nodes:remove", node => this.remove_node(node))
-            RED.comms.subscribe("flexdash", (...args) => this.handle_msg(...args)) // not actually used
-
-            // mapping of Subflow IDs to subflow panel IDs
-            this.patched_subflows = {}
-
-            this.need_pruning = false // true: containers added, eventually need to prune dead chldren
-          }
-
-          prune_all_children() {
-            RED.nodes.eachConfig(n => {
-              if (n.type.startsWith("flexdash ") && "fd_children" in n) prune_children(n)
-            })
-            this.need_pruning = false
-          }
-
-          find_subflow_for_panel(panel_id) {
-            for (const sf in this.patched_subflows) {
-              if (this.patched_subflows[sf] == panel_id) return sf
-            }
-            return null
-          }
-
-          // check whether node_id was SFP and if so, unpatch subflow it pointed to
-          check_remove_subflowpanel(node_id) {
-            const old_sf = this.find_subflow_for_panel(node_id)
-            if (!old_sf) return
-            delete this.patched_subflows[old_sf]
-            unpatch_subflow_instance_edit(old_sf)
-          }
-
-          // check_node performs some checks on FlexDash nodes, in particular, it maintains the
-          // parent/child lists.
-          // The nodes:add and nodes:change events both lead here.
-          check_node(node, ev) {
-            //if (!flexdash.sidebar) console.warn("FlexDash: nodes added before sidebar is initialized")
-
-            // ensure this node is a child of its (possibly new) parent
-            function add_to_parent(parent_id, node_id = undefined) {
-              if (!node_id) node_id = node.id
-              const parent = RED.nodes.node(parent_id)
-              if (parent) {
-                // remove from old parent
-                RED.nodes.eachConfig(n => {
-                  if (n != parent && "fd_children" in n) remove_child(n, node_id)
-                })
-                // add to new parent
-                if ("fd_children" in parent && !parent.fd_children?.includes(node_id)) {
-                  add_child(parent, node_id)
-                }
-              }
-            }
-
-            try {
-              // caller swallows exceptions
-              // if (
-              //   "fd_children" in node ||
-              //   "fd_container" in node ||
-              //   node.type.startsWith("subflow:")
-              // ) {
-              //   console.log(`${ev} ${node.type} ${node.id} in ${node.z}`, node)
-              // }
-              if (ev == "change") {
-                // FIXME: this assumption is incorrect!!!
-                // assume all nodes have been added to the registry and we can prune dead children
-                if (this.need_pruning) {
-                  //console.log(`CHANGE due to ${ev} ${node.type} ${node.id} in ${node.z}`, node)
-                  this.prune_all_children()
-                }
-              }
-              if (ev == "add" && node.type.startsWith("flexdash ") && "fd_children" in node) {
-                this.need_pruning = true
-              }
-
-              // figure out parent node and add there                  // FIXME: dirty?
-              let parent_id = null
-              // dashboard
-              if (node.type == "flexdash dashboard") {
-                // nothing...
-                // grid tab or iframe tab
-              } else if (node.type == "flexdash tab" || node.type == "flexdash iframe") {
-                add_to_parent(node.fd)
-                // grid
-              } else if (node.type == "flexdash container" && node.kind.endsWith("Grid")) {
-                this.parent = "" // ensure we don't somehow depend on another grid
-                add_to_parent(node.tab)
-                if (!flexdash.last_container) flexdash.last_container = node.id
-                this.check_remove_subflowpanel(node.id) // catch change from subflow panel to grid
-                //console.log("cleared parent field", "users:", this.users?.map(u=>u.type).join(','))
-                // subflow panel
-              } else if (node.type == "flexdash container" && node.kind == "SubflowPanel") {
-                this.parent = "" // ensure we don't somehow depend on a grid
-                this.tab = "" // ensure we don't somehow depend on a tab
-                if (node.z) {
-                  // subflow panel has been placed into a subflow
-                  if (this.patched_subflows[node.z] != node.id) {
-                    // subflow panel has been added to or moved to subflow
-                    this.check_remove_subflowpanel(node.id) // remove from old subflow
-                  }
-                  this.patched_subflows[node.z] = node.id
-                  patch_subflow_instance_edit(node.z)
-                } else {
-                  // subflow panel does not belong to a subflow (really an error)
-                  this.check_remove_subflowpanel(node.id) // remove from any old subflow
-                }
-                if (!flexdash.last_container) flexdash.last_container = node.id
-                // regular panel
-              } else if (node.type == "flexdash container" && node.kind.endsWith("Panel")) {
-                this.tab = "" // ensure we don't somehow depend on a tab
-                add_to_parent(node.parent)
-                if (!flexdash.last_container) flexdash.last_container = node.id
-                this.check_remove_subflowpanel(node.id) // catch change from subflow panel to regular panel
-                // widget
-              } else if ("fd_container" in node && "fd_rows" in node) {
-                add_to_parent(node.fd_container)
-                if (node.fd_container) flexdash.last_container = node.fd_container
-                // subflow
-              } else if (node.type.startsWith("subflow:")) {
-                if (node._def) {
-                  // subflow instance
-                  if (ev == "add") node.flexdash_grid = get_env_var(node, "flexdash_grid")
-                  else if ("flexdash_grid" in node)
-                    set_env_var(node, "flexdash_grid", node.flexdash_grid)
-                  if (node.flexdash_grid) add_to_parent(node.flexdash_grid, node.id)
-                } else {
-                  // subflow definition
-                  if (node.id in this.subflow_panels) patch_subflow_instance_edit(node.id)
-                  else unpatch_subflow_instance_edit(node.id)
-                }
-                //other
-              } else {
-                return // not a flexdash-related node
-              }
-              //console.log("check_node", ev, node)
-            } catch (e) {
-              console.log(`Failed to add node ${node}: ${e}\n${e.stack}`)
-            }
-          }
-
-          remove_node(node) {
-            try {
-              // caller swallows exceptions
-              if (node == flexdash.last_container) flexdash.last_container = null
-
-              // remove node from parent's fd_children list
-              if (node.type == "flexdash tab") {
-                remove_child(node.fd, node.id)
-              } else if (node.type == "flexdash container") {
-                if (node.kind.endsWith("Grid")) {
-                  remove_child(node.tab, node.id)
-                } else if (node.kind == "SubflowPanel") {
-                  // nothing...
-                } else if (node.kind.endsWith("Panel")) {
-                  remove_child(node.parent, node.id)
-                }
-                this.check_remove_subflowpanel(node.id) // may have changed from subflow panel to smthg else
-              } else if (node.type.startsWith("subflow:") && "flexdash_grid" in node) {
-                remove_child(node.flexdash_grid, node.id)
-              } else if (node.fd_container) {
-                // widget node
-                remove_child(node.fd_container, node.id)
-              }
-            } catch (e) {
-              console.log(`Failed to remove node ${node}: ${e}\n${e.stack}`)
-            }
-          }
-
-          handle_msg(t, o) {
-            //console.log("flexdash message: t=", t, "o=", o)
-          }
-        }
-
-        return new FDRegistry()
-      })()
 
       //===== Misc helper functions that are used by widgets to display the edit form
 

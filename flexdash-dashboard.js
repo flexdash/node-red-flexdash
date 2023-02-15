@@ -19,7 +19,7 @@ module.exports = function (RED) {
       prodRoot: path.join(__dirname, "flexdash"), // production bundle
       prodIndexHtml: path.join(__dirname, "flexdash", "index.html"),
     }
-    const plugin = RED.plugins.get("flexdash")
+    //const plugin = RED.plugins.get("flexdash")
     const version = require(path.join(__dirname, "package.json")).version
 
     // hack... the corewidgets repo doesn't have any static js file where this could be placed
@@ -32,25 +32,6 @@ module.exports = function (RED) {
         "package.json"
       )).version
     } catch (e) {}
-
-    // Flow of configuration change messages and calls
-    //
-    // There are three sources of config changes: the NR flow editor, a FD dashboard, and NR messages.
-    //
-    // NR flow editor changes occur in the form of a deployment of a flow, which causes nodes to be
-    // recreated, which causes calls to "initWidget", etc., which turn into "addWidget" operations
-    // on the store, that create "mutations" that are applied to the store and passed to the Store's
-    // emit callback. That lands in _sendMutation in FlexDashDashboard, which uses socket.io to
-    // broadcast to all connected dashboards.
-    //
-    // FD dashboard changes occur in the form of set $config/xxx messages coming in, which are
-    // applied to the store and queued for flow editors by _recvConfig in FlexDashDashboard.
-    // Flow editors then ajax query the set of queued changes and apply them to the affected nodes,
-    // which can then be "deploy"-ed. When a node is re-created by such a deploy the changes that
-    // were queued for it are deleted.
-    //
-    // Some NR messages may also cause alterations to the config. It is generally a good idea to
-    // design things so that doesn't happen. How these effects flow is unclear at this point...
 
     // ===== Websocket upgrade handlers
 
@@ -179,11 +160,7 @@ module.exports = function (RED) {
 
             // handle incoming messages for saving config
             if (config.saveConfig && topic.startsWith("$config")) {
-              try {
-                this._recvConfig(socket, topic, payload)
-              } catch (err) {
-                this.error(`Error persisting config change:\n${err.stack}`)
-              }
+              this.error("Saving config is not supported in this version of Node-RED-FlexDash")
             }
 
             // handle incoming messages to forward to nodes
@@ -339,6 +316,7 @@ module.exports = function (RED) {
               title: this.name,
               no_add_delete: true,
               no_demo: true,
+              edit_disabled: true,
             }).replace(/"(w[^"]*)"/, "$1")
             res.send(data.toString().replace("{}", flexdash_options))
           })
@@ -416,22 +394,22 @@ module.exports = function (RED) {
       // receive a configuration change from a client (dashboard), apply it to the store, propagate
       // it to other clients, and finally queue it for the flow editor to persist
       // internal-only
-      _recvConfig(socket, topic, payload) {
-        // topic has leading $config
-        this.log(`Saving config of ${topic} for ${socket.id} ${JSON.stringify(payload)}`)
-        // insert the payload into the store's config portion
-        this.store.set(topic, payload)
-        // propagate config change to any other connected browser
-        socket.broadcast.emit("set", topic, payload)
-        // persist the config change: grab the data for that from the store: we send full
-        // objects (e,.g. a grid, a widget) as opposed to just some fields
-        let tt = topic.split("/")
-        if (tt.length < 2 || tt[0] != "$config") throw new Error("invalid topic: " + topic)
-        tt.shift() // remove leading $config
-        let kind = tt[0] // 'dash', 'tabs', 'grids', or 'widgets'
-        const config = kind == "dash" ? this.store.config.dash : this.store.config[kind][tt[1]]
-        plugin._saveMutation(this.id, kind, tt[1], config)
-      }
+      // _recvConfig(socket, topic, payload) {
+      //   // topic has leading $config
+      //   this.log(`Saving config of ${topic} for ${socket.id} ${JSON.stringify(payload)}`)
+      //   // insert the payload into the store's config portion
+      //   this.store.set(topic, payload)
+      //   // propagate config change to any other connected browser
+      //   socket.broadcast.emit("set", topic, payload)
+      //   // persist the config change: grab the data for that from the store: we send full
+      //   // objects (e,.g. a grid, a widget) as opposed to just some fields
+      //   let tt = topic.split("/")
+      //   if (tt.length < 2 || tt[0] != "$config") throw new Error("invalid topic: " + topic)
+      //   tt.shift() // remove leading $config
+      //   let kind = tt[0] // 'dash', 'tabs', 'grids', or 'widgets'
+      //   const config = kind == "dash" ? this.store.config.dash : this.store.config[kind][tt[1]]
+      //   plugin._saveMutation(this.id, kind, tt[1], config)
+      // }
 
       // receive a data message from dashboard and forward to appropriate node
       _recvData(connID, topic, payload) {

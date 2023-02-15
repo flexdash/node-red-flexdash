@@ -229,7 +229,7 @@ class ViteDevServer {
           title: this.fd.name,
           no_add_delete: true,
           no_demo: true,
-          edit: true,
+          edit_disabled: true,
         }).replace(/"(w[^"]*)"/, "$1")
         this.mungeResponse(url, res, "{}", fd_opts)
 

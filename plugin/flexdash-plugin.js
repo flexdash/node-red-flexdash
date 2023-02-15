@@ -4,6 +4,8 @@
 let path = require("path")
 const sfc_compiler = require("./sfc-compiler")
 
+const debug = true // debug printing of hierarchy on flows-start
+
 // The plugin exported here provides globals that nodes can call without having a
 // handle onto any flexdash object.
 module.exports = function (RED) {
@@ -31,12 +33,6 @@ module.exports = function (RED) {
     // all containers' .js files.
     let fd_containers = {} // key: nr_id, value: node}
 
-    // When processing an fd_children array We need to distinguish disabled nodes from deleted nodes.
-    // (We also want to put placeholders for disabled nodes into the dashboard.)
-    // For these purposes we build a list of all FD config nodes so we can do a quick look-up,
-    // since Node-RED doesn't provide such functionality.
-    let all_node_configs = {} // key: nr_id, value: config; used to create DisabledWidgets
-
     // For each widget "template" node in some subflow provide a map of subflow instance ID to the
     // corresponding instantiated node.
     let subflow_widgets = {} // key: nr_id of config/template node, value: { sfi_id: node_id }
@@ -61,8 +57,8 @@ module.exports = function (RED) {
     // TimePlot, TreeView, etc.
     // initWidget returns a handle onto the Widget API functions to manipulate the widget.
     function initWidget(node, config, widget_kind) {
+      // ensure we can produce a stack backtrace on error
       try {
-        // ensure we can produce a stack backtrace
         RED.log.debug(`Initializing ${widget_kind} widget for node ${node.id}`) //  with ${JSON.stringify(config)}`)
 
         // check rows & cols
@@ -86,6 +82,8 @@ module.exports = function (RED) {
           )
           return null
         }
+
+        // handle widgets in subflows
         if (node._alias) {
           // _alias: the node's template, z: the subflow instance ID, container: panel instance
           if (container.config.kind != "SubflowPanel") {
@@ -100,17 +98,33 @@ module.exports = function (RED) {
         node._fd = fd
         node._fd_container = container
         node._fd_id = "w" + node.id
+        node._fd_config = config
+
+        // ensure widget is in it's container's fd_children array
+        if (typeof container.config?.fd_children == "string") {
+          // if fd_children is not a string it will be caught on flow-start
+          let nrid = node._alias || node.id // if this is a subflow widget/panel then _alias
+          // verify that the widget is in the container's fd_children
+          if (!container.config.fd_children.includes(`,${nrid}`)) {
+            RED.log.warn(`FlexDash initWidget: adding ${node.id} at end of container ${container.id} (${container.config.fd_children})`)
+            container.config.fd_children += ',' + nrid
+          }
+        }
 
         // widget array
         if (config.fd_array) {
           //RED.log.debug(`Widget ${widget_id} is an array up to ${config.fd_array_max}`)
           node._fd_array_max = config.fd_array_max
-          node._fd_config = config
           node._fd_kind = widget_kind
 
           // create widgets for existing topics
           if (!(node.id in array_topics)) array_topics[node.id] = []
-          for (const topic of array_topics[node.id]) {
+          const topics = array_topics[node.id]
+          if (topics.length > node._fd_array_max) {
+            topics = topics.slice(0, node._fd_array_max)
+            RED.log.warn(`FlexDash initWidget: array widget ${node.id} has more topics than max`)
+          }
+          for (const topic of topics) {
             const fd_id = genArrayFDId(node._fd_id, topic)
             addWidget(widget_kind, config, fd, fd_id, config.id)
           }
@@ -151,6 +165,9 @@ module.exports = function (RED) {
           if (w?.dynamic) dynamics[w_id] = w.dynamic
           fd.store.deleteWidget(w_id)
         }
+
+        // clean subflow_widgets
+        if (node._alias) subflow_widgets.delete(node._alias)
       } catch (e) {
         RED.log.warn(`FlexDash destroyWidget: '${node.id}': ${e.stack}`)
       }
@@ -191,10 +208,8 @@ module.exports = function (RED) {
     }
 
     // Generate the FlexDash config for config nodes (dash/tab/grid/panel) from the Node-RED config.
-    // This happens at the time a deploy is complete because then:
-    // (a) all active nodes are instantiated, so following fd_children works,
-    // (b) we get the full config (incl. inactive flows) so we can access config info for
-    //     disabled nodes and thereby produce proper disabled-widget info.
+    // This happens at the time a deploy is complete because then all active nodes are instantiated,
+    // so following fd_children works,
     // We regenerate _all_ FD config nodes because there are too many corner cases when
     // enabling/disabling flows.
     RED.events.on("flows:started", info => {
@@ -202,36 +217,31 @@ module.exports = function (RED) {
         RED.log.debug(`\n***** flows:started ${info.type} diff: ${JSON.stringify(info.diff || {})}`)
         // RED.log.debug("New nodes: " + Object.keys(new_nodes).join(' '))
 
-        // Find all FlexDash node configs so we can create DisabledWidget widgets when we encounter them
-        all_node_configs = Object.fromEntries(
-          info.config.flows
-            .filter(
-              c =>
-                ("fd_children" in c && c.type.startsWith("flexdash ")) ||
-                ("fd_container" in c && "fd_rows" in c)
-            )
-            .map(c => [c.id, c])
-        )
-
-        // Remove deleted nodes from subflow_widgets and subflow_panels
+        // Remove deleted nodes from subflow_panels
         const new_sp = {}
         for (const id in subflow_panels) if (RED.nodes.getNode(id)) new_sp[id] = subflow_panels[id]
         subflow_panels = new_sp
-        const new_sw = {}
-        for (const id in subflow_widgets)
-          if (id in all_node_configs) new_sw[id] = subflow_widgets[id]
-        subflow_widgets = new_sw
 
-        // console.log(`subflow_widgets: ${JSON.stringify(subflow_widgets)}`)
+        console.log(`subflow_widgets: ${JSON.stringify(subflow_widgets)}`)
         // console.log(`subflow_panels: ${JSON.stringify(subflow_panels)}`)
 
         // generate FlexDash config for all deployed config nodes
+        if (debug) console.log("===== FlexDash config begin =====")
         for (const id in fd_containers) {
           const node = fd_containers[id]
           const config = node.config
+          //RED.log.debug("Generating config for " + config.type, config.id, `kind=${config.kind}`)
+
           if (!("fd_children" in config)) RED.log.warn("Error: no fd_children in", config)
 
-          //RED.log.debug("Generating config for " + config.type, config.id, `kind=${config.kind}`)
+          if (debug) {
+            const kind = config.kind ? config.kind : config.type.replace(/flexdash /, "")
+            let info = `FD ${config.id} ${kind} "${config.name || config.title || ""}"`
+            for (const k of ["z", "parent", "tab", "fd", "fd_container"])
+              if (config[k]) info += ` ${k}=${config[k]}`
+            //if (child_fdids.length > 0) info += `\n   ${child_fdids.join(' ')}`
+            console.log(info)
+          }
 
           // convert children Node-RED IDs to FlexDash IDs, create/flag missing children
           if (typeof config.fd_children !== "string") {
@@ -252,36 +262,10 @@ module.exports = function (RED) {
           if (node.type == "flexdash dashboard" || node.type == "flexdash tab") {
             child_fdids = genDashTabChildren(cc_nrids)
           } else if (node.config.kind == "SubflowPanel") {
-            child_fdids = genGridChildren(cc_nrids, node.z)
+            child_fdids = genGridChildren(cc_nrids, node.z, debug)
           } else {
             // panel or grid
-            child_fdids = genGridChildren(cc_nrids, null)
-          }
-
-          // debug printing
-          if (true) {
-            const c = fd_containers[id].config
-            let info = `FD ${c.id} ${c.kind ? c.kind : c.type.replace(/flexdash /, "")}`
-            info += ` "${c.name || c.title || ""}"`
-            if (c.z) info += ` z=${c.z}`
-            for (const k of ["parent", "tab", "fd", "fd_container"])
-              if (c[k]) info += ` ${k}=${c[k]}`
-            //if (child_fdids.length > 0) info += `\n   ${child_fdids.join(' ')}`
-            for (const ch_id of cc_nrids) {
-              let ch = all_node_configs[ch_id]
-              if (ch) {
-                info += `\n   ${ch_id}   ${ch?.type} "${ch?.name || ch?.title}"`
-                if (!ch.type) console.log("ch_id has", Object.keys(ch).join(","))
-              } else if (subflow_panels[ch_id]) {
-                ch = RED.nodes.getNode(subflow_panels[ch_id])
-                info += `\n   ${ch_id}   subflow panel "${ch?.name || ch?.title}"`
-              } else {
-                info += `\n   ${ch_id}   missing node config`
-              }
-            }
-            //info += ' ' + Object.keys(c).join(',')
-            //info += `\n  ${child_fdids.join(',')}`
-            console.log(info)
+            child_fdids = genGridChildren(cc_nrids, null, debug)
           }
 
           // add config to store
@@ -310,6 +294,8 @@ module.exports = function (RED) {
               break
           }
         }
+        if (debug) console.log("===== FlexDash config end =====")
+
 
         // stop queuing mutations in all stores
         for (const fd of Object.values(fd_containers).filter(c => c.type == "flexdash dashboard")) {
@@ -357,16 +343,24 @@ module.exports = function (RED) {
       return child_nrids
         .map(c_nrid => {
           let c_node = RED.nodes.getNode(c_nrid)
-          if (c_node) return c_node.fd_id || c_node._fd_id // node is active, easy...
-          if (all_node_configs[c_nrid]) return "x" + c_nrid // disabled
-          return undefined // deleted
+          if (c_node) {
+            const config = c_node.config
+            if (debug) {
+              const name = config?.name || config?.title || c_node.name
+              console.log( `   ${c_nrid}   ${c_node.type} "${name}"`)
+            }
+            return c_node.fd_id || c_node._fd_id // node is active, easy...
+          } else {
+            if (debug) console.log(`   ${c_nrid}   disabled/deleted node`)
+            return undefined // disabled or deleted
+          }
         })
         .filter(x => x)
     }
 
     // generate grid/panel children
     // returns an array of FlexDash IDs
-    function genGridChildren(child_nrids, flow_nrid) {
+    function genGridChildren(child_nrids, flow_nrid, debug) {
       return child_nrids
         .map(c_nrid => {
           // handle subflow nodes
@@ -380,19 +374,24 @@ module.exports = function (RED) {
           //if (!c_nrid) console.log("Failure converting subflow widget nrid for flow " + flow_nrid)
           let c_node = RED.nodes.getNode(c_nrid)
           if (!c_node) {
-            // handle disabled & deleted nodes
-            const c_config = all_node_configs[c_nrid]
-            if (c_config) return "x" + c_nrid // disabled
-            RED.log.info(`Assuming ${c_nrid} is deleted`)
-            return undefined // deleted
+            if (debug) console.log(`   ${c_nrid}   disabled/deleted node`)
+            return undefined // disabled or deleted
           }
           let c_fdid = c_node.fd_id || c_node._fd_id // panel vs. widget
-          if (!c_fdid) RED.log.warn(`Missing FlexDash ID for ${c_node.id})`)
-          if (!c_fdid) console.log(c_node)
+          if (!c_fdid) {
+            RED.log.warn(`Missing FlexDash ID for ${c_node.id})`)
+            console.log(c_node)
+            return undefined
+          }
+          if (debug) {
+            const config = c_node._fd_config || c_node.config
+            const name = config?.name || config?.title || c_node.name
+            console.log( `   ${c_nrid}   ${c_node.type} "${name}"`)
+          }
           // node is non-array
           if (!(c_nrid in array_topics)) return c_fdid
           // node is widget-array, add widgets for existing topics (see flat() at end of function)
-          return array_topics[c_nrid].map(t => genArrayFDId(c_fdid, t))
+          return array_topics[c_nrid].slice(0, c_node._fd_array_max).map(t => genArrayFDId(c_fdid, t))
         })
         .flat()
         .filter(x => x)
@@ -403,7 +402,7 @@ module.exports = function (RED) {
     function updateGridChildren(container) {
       const flow = container.config.kind == "SubflowPanel" ? container.z : null
       const child_nrids = parse_fd_children(container.config.fd_children)
-      const child_fdids = genGridChildren(child_nrids, flow)
+      const child_fdids = genGridChildren(child_nrids, flow, false)
       if (container.config.kind.endsWith("Panel")) {
         container.fd.store.updateWidgetProp(container.fd_id, "static", "widgets", child_fdids)
       } else {
@@ -467,141 +466,7 @@ module.exports = function (RED) {
       // note: we don't save the dynamic stuff 'cause it's not a destroy-deploy-recreate situation
     }
 
-    // Communication with the flow editor goes via a global singleton, defined here.
-    //
-    // The main task is to push configuration changes to the flow editor so they can be represented
-    // there in the appropriate nodes and then deployed, i.e. persisted by the user.
-    // The way it works is as follows:
-    // - all changes trigger a sequence number increase, the purpose of which is to allow the flow
-    //   editor to notice when there's something new
-    // - the sequence number is "published" to the flow editor with a "retain" flag, this way a newly
-    //   connecting flow editor will immediately notice that there are pending changes
-    // - when there's a new pending change the flow editor performs an ajax call to get the full set
-    //   of changes (this could be optimized in the future)
-    // - whatever happens then is in the hands of the flow editor until the user hits deploy, at that
-    //   point changed nodes are destroyed and recreated in the runtime; during the destruction
-    //   we drop pending changes for a node
-    // - there currently is a race condition where a change could come in from a dashboard while a
-    //   node is being re-created, or it could come in right as the user hits 'deploy', how to deal
-    //   with this is a bit TBD... (Maybe the answer is "don't do this"...)
-
-    class FlowPersistence {
-      constructor() {
-        this.mutations = {} // mutations to be saved, indexed by element node ID
-        this.mutation_seq = Date.now() // sequence number for mutations
-        this.saveTimer = null
-
-        // express handler to get the list of pending mutations
-        RED.httpAdmin.get("/_flexdash/mutations", (req, res) => {
-          res.set("Content-Type", "application/json")
-          res.send(JSON.stringify(this.mutations))
-        })
-
-        // on 'deploy' existing mutations are expected to be integrated into the flow and thus
-        // no longer need to be sent to connecting flow-editors (it's actually a bug to do so
-        // 'cause it causes re-application of mutations)
-        RED.events.on("flows:started", info => {
-          this.mutations = {}
-        })
-      }
-
-      // convert a FlexDash ID to a node-red ID
-      // HACK: if want_sfp is true, then for a subflow panel instance the template node is returned,
-      // otherwise the subflow instance is returned. This hack is because in fd_children we have
-      // subflow instance, but when a mutation of a SFP comes back we need to apply it to the
-      // SFP template. This could be cleaned up by placing the SFP ID in fd_children, but that
-      // messes with what happens in the flow editor...
-      convert_id(fdid, want_sfp) {
-        let nr_id = fdid.substring(1) // strip leading "type"
-        if (nr_id.includes("|")) nr_id = nr_id.substring(0, nr_id.indexOf("|"))
-        const node = RED.nodes.getNode(nr_id)
-        if (node) {
-          // special-case nodes in subflows
-          if (node._alias) {
-            if (!want_sfp && node.config && node.config.kind == "SubflowPanel") return node.z // subflow instance
-            return node._alias // subflow widget "template"
-          }
-        }
-        return nr_id
-      }
-
-      // convert an array of FlexDash IDs to a comma-prefixed string of Node-RED IDs
-      convert_ids(fdids) {
-        let nrids = ""
-        let prev_nrid = null
-        for (const fdid of fdids) {
-          const nr_id = this.convert_id(fdid)
-          if (nr_id == prev_nrid) continue // repeated array-widgets
-          nrids += "," + nr_id
-          prev_nrid = nr_id
-        }
-        return nrids
-      }
-
-      // save a mutation to the flow store, i.e., send it to the flow editor for persistence
-      // kind is dash/tabs/grids/widgets -- second level in path ($config/<kind>/<id>?)
-      saveMutation(fd_nrid, kind, el_fdid, config) {
-        // topic has leading $config/
-        this.mutation_seq++
-        //console.log(`FD mutation: fd=${fd_nrid} ${kind} ${el_fdid} ${JSON.stringify(config)}`)
-        const cc = config
-        config = Object.assign({}, config) // make a shallow copy
-        if (kind == "dash") {
-          config.fd_children = this.convert_ids(config.tabs) // convert FlexDash IDs -> Node-RED IDs
-          delete config.tabs
-          this.mutations[fd_nrid] = config
-        } else if (["tabs", "grids", "widgets"].includes(kind)) {
-          // get the entire element config from the store
-          if (!el_fdid) throw new Error(`cannot persist all ${kind}s at once`)
-          // add Node-RED ID to config data before sending to flow editor
-          const nr_id = this.convert_id(el_fdid, true)
-          // sanity checks
-          const node = RED.nodes.getNode(nr_id)
-          if (node) {
-            if (node._alias) {
-              RED.log.error(
-                `OOPS: updating a subflow instance, not a template: ${nr_id} ${node.type}`
-              )
-            }
-          } else {
-            const config = all_node_configs[nr_id]
-            if (!config) throw new Error(`there is no node for ${fd_nrid}/${el_fdid}->${nr_id}`)
-          }
-          // convert FlexDash IDs -> Node-RED IDs
-          if (kind == "tabs") {
-            config.fd_children = this.convert_ids(config.grids)
-            delete config.grids
-          } else if (kind == "grids") {
-            config.fd_children = this.convert_ids(config.widgets)
-            delete config.widgets
-          } else if (config.kind.endsWith("Panel")) {
-            config.fd_children = this.convert_ids(config.static.widgets)
-            config.static = Object.assign({}, config.static) // make a shallow copy
-            delete config.static.widgets
-            delete config.kind // subflow Panels come back as plain Panel, so avoid changing
-          }
-          delete config.dyn_root
-          console.log(`FD mutation: ${nr_id} <- ${JSON.stringify(config)}`)
-          //console.log(`FD mutation: was ${JSON.stringify(cc)}`)
-          this.mutations[nr_id] = config
-        } else {
-          throw new Error("Cannot persist " + kind)
-        }
-        this.saveNotify(this.mutation_seq)
-      }
-
-      // set persistent notification so the flow editor knows to pull the latest mutations
-      saveNotify(seq) {
-        if (this.saveTimer) clearTimeout(this.saveTimer)
-        this.saveTimer = setTimeout(() => {
-          RED.comms.publish("flexdash-mutation", { seq }, "retain")
-        }, 300)
-      }
-    }
-
     // ===== Exports
-
-    const flow_persistence = new FlowPersistence()
 
     const plugin = {
       type: "dashboard", // gotta make something up...
@@ -629,7 +494,6 @@ module.exports = function (RED) {
         subflow_panels[subflow_instance_id] = panel_id
       },
       _forAllContainers: forAllContainers,
-      _saveMutation: flow_persistence.saveMutation.bind(flow_persistence),
       _sfc_compiler: sfc_compiler,
     }
 
