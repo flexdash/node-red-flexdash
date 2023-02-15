@@ -222,7 +222,7 @@ module.exports = function (RED) {
         for (const id in subflow_panels) if (RED.nodes.getNode(id)) new_sp[id] = subflow_panels[id]
         subflow_panels = new_sp
 
-        console.log(`subflow_widgets: ${JSON.stringify(subflow_widgets)}`)
+        // console.log(`subflow_widgets: ${JSON.stringify(subflow_widgets)}`)
         // console.log(`subflow_panels: ${JSON.stringify(subflow_panels)}`)
 
         // generate FlexDash config for all deployed config nodes
