@@ -23,7 +23,8 @@
       function add_child(parent, child_id) {
         if (typeof parent == "string") parent = RED.nodes.node(parent)
         if (!parent) return
-        if (parent.fd_children.includes(child_id)) return // works given comma-separation
+        if (!parent.fd_children) parent.fd_children = "" // should never happen...
+        if (parent.fd_children?.includes(child_id)) return // works given comma-separation
         // new child, append
         parent.fd_children += `,${child_id}` // leading comma is good to defeat NR's reference detection
         parent.changed = true
@@ -126,7 +127,7 @@
             typeof node.fd_children != "string" ||
             (node.fd_children != "" && !node.fd_children.startsWith(','))
           ) {
-            RED.log.warn(`FlexDash: ${node.type} ${node.id} has invalid fd_children (${node.fd_children})`)
+            console.warn(`FlexDash: ${node.type} ${node.id} has invalid fd_children (${node.fd_children})`)
             node.fd_children = ""
             node.changed = true
           }
