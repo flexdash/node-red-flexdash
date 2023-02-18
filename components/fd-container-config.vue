@@ -96,7 +96,7 @@
           :modelValue="parent"
           @update:modelValue="$emit('update:prop', 'parent', $event)"
           prop-name="parent"
-          :configTypes="['flexdash grid']"
+          :configTypes="['flexdash container']"
           tip="Grid in which the panel is shown."
           v-slot="slotProps">
           {{ format_config_node(slotProps.node) }}
