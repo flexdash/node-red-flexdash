@@ -51,7 +51,7 @@
           })
           .insertBefore($("#node-dialog-cancel"))
       } catch (e) {
-        console.log("FlexDash ctrl prepare error", e)
+        console.error("FlexDash ctrl prepare error", e)
         throw e
       }
     },
@@ -65,7 +65,7 @@
         $("#node-input-fd").val(weak_fd.val())
         weak_fd.val("")
       } catch (e) {
-        console.log("FlexDash ctrl save error", e)
+        console.error("FlexDash ctrl save error", e)
         throw e
       }
     },

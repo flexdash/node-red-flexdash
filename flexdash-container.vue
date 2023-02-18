@@ -80,7 +80,6 @@ export default defineComponent({
     },
     // handle reordering events from the grid sorter, convert array to string representation
     onItems(items) {
-      console.log("onItems", items)
       this.$emit("update:prop", "fd_children", "," + items.join(","))
     },
     // handle resize events from the grid sorter, like (id, "rows", 3)

@@ -212,7 +212,7 @@
           }
           //console.log("check_node", ev, node)
         } catch (e) {
-          console.log(`Failed to add node ${node}: ${e}\n${e.stack}`)
+          console.error(`Failed to add node ${node}: ${e}\n${e.stack}`)
         }
       }
 
@@ -240,7 +240,7 @@
             remove_child(node.fd_container, node.id)
           }
         } catch (e) {
-          console.log(`Failed to remove node ${node}: ${e}\n${e.stack}`)
+          console.warn(`Failed to remove node ${node}: ${e}\n${e.stack}`)
         }
       }
 
@@ -425,7 +425,6 @@ ${widgetInfo.help_body}
                 case "num":
                   node[name] = parseFloat(value)
                   if (Number.isNaN(node[name])) node[name] = null
-                  console.log(`num: ${value} -> ${node[name]}`)
                   break
                 case "bool":
                   node[name] = value == "true"
@@ -437,12 +436,9 @@ ${widgetInfo.help_body}
                   node[name] = value
                   break
               }
-              console.log(
-                `saving prop ${name} = ${JSON.stringify(node[name])} <- ${value} (${type})`
-              )
               el.remove()
             } catch (e) {
-              console.log(`flexdash.save_props_edit: ${e}`)
+              console.error(`flexdash.save_props_edit: ${e}`)
             }
           })
       }

@@ -110,7 +110,6 @@ module.exports = function (RED) {
         // if loopback is requested, feed the message back to ourselves, implementation-wise,
         // set the payload property of the widget to the payload of the message
         if (config.fd_loopback) {
-          console.log(`loopback: payload <= ${payload}`)
           widget.set("payload", payload, { topic }) // do we need to make a shallow clone here?
         }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
