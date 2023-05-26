@@ -275,7 +275,14 @@ module.exports = function (RED) {
           sameSite: "strict", // strict needed for HTTP to work
         })
         // insert cookie middleware in express, extend validity periodically
-        app.use(this.cookieSession)
+        app.use((req, res, next) => {
+          // Only add a session object if one doesn't already exist
+          if (!req.session) {
+            this.cookieSession(req, res, next)
+          } else {
+            next()
+          }
+        })
         app.use((req, res, next) => {
           //console.log("HTTP:", req.session)
           req.session.now = Math.floor(Date.now() / 3600e3) // extend validity
