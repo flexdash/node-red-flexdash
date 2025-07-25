@@ -146,7 +146,9 @@ module.exports = function (RED) {
             if (config.saveConfig) this._sendConfig(socket)
             this._sendData(socket)
             // manufacture an event to signal that a new client has connected
-            this._recvEvent(connID, "dashboard", { type: "new client", browser: browserID })
+            this._recvEvent(connID, "dashboard", {
+              type: "new client", browser: browserID, headers: { ...hs.headers },
+            })
           }
           this.clients[connID] = { socket: socket.id, browser: browserID, idle: null }
 
