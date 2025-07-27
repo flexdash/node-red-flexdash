@@ -40,7 +40,7 @@ module.exports = function (RED) {
 
     // set a property on the widget or on all widgets of the array
     function setAll(path, value) {
-      widget.set(path, value) // FIXME: this doesn't work for array widgets
+      widget.set(path, value, {all:true}) // FIXME: this doesn't work for array widgets
     }
 
     // compile the SFC source code into javascript and styles
@@ -88,14 +88,16 @@ module.exports = function (RED) {
       // update widget props
       for (const k in msg) {
         if (k == "topic") continue // skip: reserved for array stuff
+        const options = { topic: msg.topic }
+        if (socket) options._fd_socket = msg._fd_socket
         if (k == "title") {
           // title is currently always set by the widget wrapper, it's not possible to tell the
           // wrapper no to set the title, so we need to set the title prop, not props/title
-          widget.set("title", msg.title, { topic: msg.topic })
+          widget.set("title", msg.title, options)
         } else if (k == "_source") {
           compile(msg._source)
         } else if (!k.startsWith("_")) {
-          widget.set(`props/${k}`, msg[k], { topic: msg.topic }) // prop for custom widget
+          widget.set(`props/${k}`, msg[k], options) // prop for custom widget
         }
       }
     })
@@ -110,7 +112,7 @@ module.exports = function (RED) {
         // if loopback is requested, feed the message back to ourselves, implementation-wise,
         // set the payload property of the widget to the payload of the message
         if (config.fd_loopback) {
-          widget.set("payload", payload, { topic }) // do we need to make a shallow clone here?
+          widget.set("payload", payload, { topic, _fd_socket: socket }) // do we need to make a shallow clone here?
         }
         if (topic != undefined) msg.topic = topic // array elt topic has priority
         else if (config.fd_output_topic) msg.topic = config.fd_output_topic // optional non-array topic
