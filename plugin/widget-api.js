@@ -29,7 +29,7 @@ module.exports = class WidgetAPI {
   // socket is used to set the value only for a specific socket (i.e. client).
   set(path, value, options = {}) {
     try {
-      let { topic, socket } = options
+      let { topic, socket, all } = options
       const prop = path.split("/")[0]
       const w = this._getWidget(topic)
 
@@ -53,7 +53,7 @@ module.exports = class WidgetAPI {
             `incoming message discarded: _fd_socket is disallowed for grid ${grid.name || grid.id}`
           )
           return
-        } else if (unicast == "require" && !socket) {
+        } else if (unicast == "require" && !socket && !all) {
           this.node.warn(
             `incoming message discarded: _fd_socket is required for grid ${grid.name || grid.id}`
           )
