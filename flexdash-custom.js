@@ -89,7 +89,7 @@ module.exports = function (RED) {
       for (const k in msg) {
         if (k == "topic") continue // skip: reserved for array stuff
         const options = { topic: msg.topic }
-        if (socket) options._fd_socket = msg._fd_socket
+        if (msg._fd_socket) options.socket = msg._fd_socket
         if (k == "title") {
           // title is currently always set by the widget wrapper, it's not possible to tell the
           // wrapper no to set the title, so we need to set the title prop, not props/title
